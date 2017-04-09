@@ -1,0 +1,6 @@
+auxresults.v
+semialgebraic.v
+
+-R "." SemiAlgebraic
+
+
