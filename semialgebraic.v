@@ -413,8 +413,6 @@ Proof.
 by move=> h; apply: (@holds_nforall i 1); rewrite /nquantify /= addnK unlock.
 Qed.
 
-Variable n : nat.
-
 End RealDomainFormula.
 
 Section RealClosedFieldFormula.
