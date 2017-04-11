@@ -140,7 +140,7 @@ Qed.
 
 Fixpoint encode_formula (f : formula T) := match f with
   | Bool b => GenTree.Node b [::]
-  | t1 == t2 => GenTree.Node O ((encode_term t1)::(encode_term t2)::nil)
+  | t1 == t2 => GenTree.Node O [:: encode_term t1; encode_term t2]
   | t1 <% t2 => GenTree.Node 1 ((encode_term t1)::(encode_term t2)::nil)
   | t1 <=% t2 => GenTree.Node 2 ((encode_term t1)::(encode_term t2)::nil)
   | Unit t => GenTree.Node O ((encode_term t)::nil)
