@@ -1401,21 +1401,6 @@ Definition SAset_cblatticeMixin :=
 Canonical SAset_cblatticeType :=
   CBLatticeType {SAset F^n} SAset_cblatticeMixin.
 
-Section TestCanonicalPorderStructure.
-
-Variables (s1 s2 : {SAset F^n}).
-
-Check (lt_le_asym s1 s2).
-Check (lex0 s1).
-Check (subKU s1 s2).
-
-Open Local Scope order_scope.
-Check (s1 <= s2).
-Close Scope order_scope.
-Fail Check (s1 <= s2).
-
-End TestCanonicalPorderStructure.
-
 End POrder.
 
 Section SAFunction.
@@ -1475,7 +1460,7 @@ Qed.
 
 Variables (n m : nat).
 
-Definition total (f : {formula_(n + m) F}) :=
+Definition ftotal (f : {formula_(n + m) F}) :=
     nquantify O n Forall (nquantify n m Exists f).
 
 Lemma formuladd (p : nat) (f : {formula_p F}) : nvar (p + m) f.
@@ -1492,7 +1477,7 @@ Definition ex_y (f : {formula_(n + m) F}) (x : 'rV[F]_n) :=
     rcf_sat (ngraph x) (nquantify n m Exists f).
 
 Definition SAtot : pred_class :=
-    [pred s : {SAset F^_} | rcf_sat [::] (total s)].
+    [pred s : {SAset F ^ _} | rcf_sat [::] (ftotal s)].
 
 Fact test_can1 (f g h : {formula_(n + m) F}) :
 formula_fv (nquantify O (n + m) Forall (f /\ (g ==> h))%oT) == fset0.
@@ -1514,10 +1499,10 @@ Fact test_can3 (f g h : {formula_(n + m) F}) :
 formula_fv (nquantify O (n + m + m) Forall ((ext f) /\ (ext f))) == fset0.
 Proof. exact: closed_nforall_formulan. Qed.
 
-Lemma f_is_totalE (f : {formula_(n + m) F}) :
+Lemma f_is_ftotalE (f : {formula_(n + m) F}) :
     reflect
     (forall (t : n.-tuple F), exists (u : m.-tuple F), rcf_sat (t ++ u) f)
-    (rcf_sat [::] (total f)).
+    (rcf_sat [::] (ftotal f)).
 Proof.
 apply: (iffP idP) => [h x | h].
 + move/rcf_satP/nforallP/(_ x) : h.
@@ -1721,7 +1706,7 @@ Definition functional (f : {formula_(n+m) F}) :=
   ==> (eq_vec (iota n m) (iota (n + m) m)))).
 
 Definition SAfunc : pred_class :=
-    [pred s : {SAset F^_} | rcf_sat [::] (functional s)].
+    [pred s : {SAset F ^ _} | rcf_sat [::] (functional s)].
 
 Definition subst_env (s : seq nat) (e : seq F) := [seq nth 0 e i | i <- s].
 
@@ -2125,7 +2110,7 @@ Lemma SAtotE (s : {SAset F ^ (n + m)}) :
     (forall (x : 'rV[F]_n), exists (y : 'rV[F]_m), (row_mx x y) \in s)
     (s \in SAtot).
 Proof.
-rewrite inE; apply: (iffP (f_is_totalE _)) => s_sat x.
+rewrite inE; apply: (iffP (f_is_ftotalE _)) => s_sat x.
   have [y sat_s_xy] := s_sat (ngraph x).
   exists (\row_(i < m) (nth 0 y i)).
   by rewrite inE ngraph_cat ngraph_tnth.
@@ -2199,15 +2184,15 @@ Definition form_to_fun (f : {formula_(n + m) F}) : 'rV[F]_n -> 'rV[F]_m :=
 
 Record SAfun := MkSAfun
 {
-  graph :> {SAset F ^ (n + m)};
-  _ : (graph \in SAfunc) && (graph \in SAtot)
+  SAgraph :> {SAset F ^ (n + m)};
+  _ : (SAgraph \in SAfunc) && (SAgraph \in SAtot)
 }.
 
 Definition SAfun_of of phant (F^n -> F^m) := SAfun.
 Identity Coercion id_SAfun_of : SAfun_of >-> SAfun.
 Local Notation "{ 'SAfun' }" := (SAfun_of (Phant (F^n -> F^m))).
 
-Canonical SAfun_subType := [subType for graph].
+Canonical SAfun_subType := [subType for SAgraph].
 Definition SAfun_eqMixin := [eqMixin of SAfun by <:].
 Canonical SAfun_eqType := EqType SAfun SAfun_eqMixin.
 Definition SAfun_choiceMixin := [choiceMixin of SAfun by <:].
@@ -2218,11 +2203,11 @@ Definition SAfun_of_eqType := [eqType of {SAfun}].
 Definition SAfun_of_choiceType := [choiceType of {SAfun}].
 
 Lemma SAfun_func (f : {SAfun}) (x : 'rV[F]_n) (y1 y2 : 'rV[F]_m) :
-    (row_mx x y1) \in (graph f) -> (row_mx x y2) \in (graph f) -> y1 = y2.
+    row_mx x y1 \in SAgraph f -> row_mx x y2 \in SAgraph f -> y1 = y2.
 Proof. by apply: SAfuncE; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Lemma SAfun_tot (f : {SAfun}) (x : 'rV[F]_n) :
-    exists (y : 'rV[F]_m), (row_mx x y) \in (graph f).
+    exists (y : 'rV[F]_m), row_mx x y \in SAgraph f.
 Proof. by apply: SAtotE; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Definition SAfun_to_fun (f : SAfun) : 'rV[F]_n -> 'rV[F]_m :=
@@ -2230,18 +2215,18 @@ Definition SAfun_to_fun (f : SAfun) : 'rV[F]_n -> 'rV[F]_m :=
 
 Coercion SAfun_to_fun : SAfun >-> Funclass.
 
-Lemma SAfun_functional (f : {SAfun}) : rcf_sat [::] (functional (graph f)).
+Lemma SAfun_functional (f : {SAfun}) : rcf_sat [::] (functional (SAgraph f)).
 Proof. by move: f => [g /= /andP [functional_g _]]. Qed.
 
-Lemma SAfun_total (f : {SAfun}) : rcf_sat [::] (total (graph f)).
-Proof. by move: f => [g /= /andP [_ total_g]]. Qed.
+Lemma SAfun_ftotal (f : {SAfun}) : rcf_sat [::] (ftotal (SAgraph f)).
+Proof. by move: f => [g /= /andP [_ ftotal_g]]. Qed.
 
 End SAFunction.
 Arguments SAfunc {F n m}.
 Arguments SAtot {F n m}.
 Notation "{ 'SAfun' T }" := (SAfun_of (Phant T)) : type_scope.
 
-Section ASet.
+Section SASetTheory.
 
 Variable F : rcfType.
 
@@ -2349,7 +2334,7 @@ by move/orP => [l|r]; apply/rcf_satP; [left|right]; apply/rcf_satP.
 Qed.
 
 Lemma in_graph_SAfun (n m : nat) (f : {SAfun F^n -> F^m}) (x : 'rV[F]_n) :
-    row_mx x (f x) \in graph f.
+    row_mx x (f x) \in SAgraph f.
 Proof.
 by rewrite /SAfun_to_fun; case: ((sigW (SAfun_tot f x))) => y h.
 Qed.
@@ -2414,7 +2399,7 @@ Canonical SAset_setType := SemisetType (fun n => {SAset F^n}) SAset_setMixin.
 
 Lemma in_SAfun (n m : nat) (f : {SAfun F^n -> F^m})
    (x : 'rV[F]_n) (y : 'rV[F]_m):
-   (f x == y) = ((row_mx x y) \in (graph f)).
+   (f x == y) = (row_mx x y \in SAgraph f).
 Proof.
 apply/eqP/idP => [<- | h]; first by rewrite in_graph_SAfun.
 exact: (SAfun_func (in_graph_SAfun _ _)).
@@ -2624,40 +2609,19 @@ case: n=> [|n]; rewrite ?seq_fset_nil ?fsub0set //.
 by rewrite mnfset_sub // leq0n /= add0n.
 Qed.
 
-Definition compo (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
+Definition SAcomp_graph (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
   \pi_{SAset F ^ (m + p)} (MkFormulan (nvar_comp_formula f g)).
 
-Fact take_tuple_addnP (T : Type) (a b : nat) (t : (a + b).-tuple T) :
-    size (take a t) == a.
-Proof. by rewrite size_takel // size_tuple leq_addr. Qed.
-Canonical take_tuple_addn_tuple (T : Type) (a b : nat)
-  (t : (a + b).-tuple T) := Tuple (take_tuple_addnP t).
-
-Fact drop_tuple_addnP (T : Type) (a b : nat) (t : (a + b).-tuple T) :
-    size (drop a t) == b.
-Proof. by rewrite size_drop size_tuple addnC addnK. Qed.
-Canonical drop_tuple_addn_tuple (T : Type) (a b : nat)
-   (t : (a + b).-tuple T) := Tuple (drop_tuple_addnP t).
-
-Fact tuple_addn (T : Type) (a b : nat) (t : (a + b).-tuple T) :
-    cat_tuple (take_tuple_addn_tuple t) (drop_tuple_addn_tuple t) = t.
-Proof. by apply/val_inj; rewrite /= cat_take_drop. Qed.
-
-Lemma tuple_addn_ind(T : Type) (a b : nat) (P : (a + b).-tuple T -> Prop) :
-(forall (t1 : a.-tuple T), forall (t2 : b.-tuple T), P (cat_tuple t1 t2)) ->
-forall (t : (a + b).-tuple T), P t.
-Proof. by move=> h t; rewrite -(tuple_addn t); apply: h. Qed.
-
 Lemma holds_ngraph (m n : nat) (f : {SAfun F^m -> F^n}) (t : 'rV[F]_(m + n)) :
-reflect (holds (ngraph t) f) (t \in (graph f)).
+reflect (holds (ngraph t) f) (t \in SAgraph f).
 Proof. by rewrite inE; apply: rcf_satP. Qed.
 
-Lemma compoP (m n p : nat)
+Lemma SAcomp_graphP (m n p : nat)
   (f : {SAfun F^m -> F^n}) (g : {SAfun F^n -> F^p})
   (u : 'rV[F]_m) (v : 'rV[F]_p) :
-    (row_mx u v) \in (compo f g) = (g (f u) == v).
+    (row_mx u v \in SAcomp_graph f g) = (g (f u) == v).
 Proof.
-rewrite /compo /= pi_form ngraph_cat /comp_formula.
+rewrite /SAcomp_graph /= pi_form ngraph_cat /comp_formula.
 have h : size ([seq u ord0 i | i <- enum 'I_m] ++
                [seq v ord0 i | i <- enum 'I_p]) = (m + p)%N.
   by rewrite size_cat size_map size_enum_ord size_map size_enum_ord.
@@ -2693,11 +2657,11 @@ apply: (iffP idP); last first.
 Qed.
 
 Fact SAfun_SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
-   (compo f g \in SAfunc) && (compo f g \in SAtot).
+   (SAcomp_graph f g \in SAfunc) && (SAcomp_graph f g \in SAtot).
 Proof.
 apply/andP; split.
-  by apply/SAfuncE => x y1 y2; rewrite !compoP; move=> /eqP-> /eqP->.
-by apply/SAtotE => x; exists (g (f x)); rewrite compoP.
+  by apply/SAfuncE => x y1 y2; rewrite !SAcomp_graphP; move=> /eqP-> /eqP->.
+by apply/SAtotE => x; exists (g (f x)); rewrite SAcomp_graphP.
 Qed.
 
 Definition SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
@@ -2706,8 +2670,8 @@ Definition SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
 Lemma SAcompP (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
     SAcomp f g =1 g \o f.
 Proof.
-move=> x; apply/eqP; rewrite eq_sym -compoP.
+move=> x; apply/eqP; rewrite eq_sym -SAcomp_graphP.
 by move: (in_graph_SAfun (SAcomp f g) x).
 Qed.
 
-End ASet.
+End SASetTheory.
