@@ -46,10 +46,9 @@ Reserved Notation "{ 'SAfun' T }"
 
 
 Notation mnfset i j := (seq_fset (iota i j)).
+Notation "f <==> g" := ((f ==> g) /\ (g ==> f))%oT (at level 0) : oterm_scope.
 
 Section EquivFormula.
-
-Notation "f <==> g" := ((f ==> g) /\ (g ==> f))%oT (at level 0) : oterm_scope.
 
 Variable T : Type.
 
@@ -79,50 +78,137 @@ end%oT.
 Definition equiv_formula (f g : formula T) :=
     gen_var_seq (enum_fset ((formula_fv f) `|` (formula_fv g))) (f <==> g)%oT.
 
+Definition nvar n : pred_class := fun f :
+  formula T => (formula_fv f `<=` mnfset O n).
+
+Record formulan n := MkFormulan
+{
+  underlying_formula :> formula T;
+  _ : nvar n underlying_formula
+}.
+
+Canonical formulan_subType n :=
+  Eval hnf in [subType for @underlying_formula n].
+
 End EquivFormula.
 
-Section EqFormula.
+Notation "'{formula_' n T }" := (formulan T n).
 
-Variable T : eqType.
+Section EncodeFormula.
 
-Fixpoint formula_eq (f1 f2 : formula T) := match f1, f2 with
-  | Bool b1, Bool b2 => (b1 == b2)%bool
-  | t1 == u1, t2 == u2 => (t1 == t2) && (u1 == u2)
-  | t1 <% u1, t2 <% u2 => (t1 == t2) && (u1 == u2)
-  | t1 <=% u1, t2 <=% u2 => (t1 == t2) && (u1 == u2)
-  | Unit t1, Unit t2 => (t1 == t2)%bool
-  | f1 /\ g1, f2 /\ g2 => (formula_eq f1 f2) && (formula_eq g1 g2)
-  | f1 \/ g1, f2 \/ g2 => (formula_eq f1 f2) && (formula_eq g1 g2)
-  | f1 ==> g1, f2 ==> g2 => (formula_eq f1 f2) && (formula_eq g1 g2)
-  | ~ f1, ~ f2 => formula_eq f1 f2
-  | ('exists 'X_i1, f1), ('exists 'X_i2, f2) => (i1 == i2) && (formula_eq f1 f2)
-  | ('forall 'X_i1, f1), ('forall 'X_i2, f2) => (i1 == i2) && (formula_eq f1 f2)
-  | _, _ => false
-end%oT.
+Variable T : Type.
 
-Lemma formula_eqP : Equality.axiom formula_eq.
+Fixpoint encode_term (t : GRing.term T) := match t with
+  | 'X_i => GenTree.Node (2 * i) [::]
+  | x %:T => GenTree.Leaf x
+  | i%:R => GenTree.Node ((2 * i).+1) [::]
+  | t1 + t2 => GenTree.Node O ((encode_term t1)::(encode_term t2)::nil)
+  | - t => GenTree.Node O ((encode_term t)::nil)
+  | x *+ i => GenTree.Node ((2 * i).+2) ((encode_term x)::nil)
+  | t1 * t2 => GenTree.Node 1 ((encode_term t1)::(encode_term t2)::nil)
+  | t ^-1 => GenTree.Node 1 ((encode_term t)::nil)
+  | x ^+ i => GenTree.Node ((2 * i).+3) ((encode_term x)::nil)
+end%T.
+
+Fixpoint decode_term (t : GenTree.tree T) := match t with
+  | GenTree.Leaf x => x%:T
+  | GenTree.Node i s => match s with
+    | [::] => if (i %% 2)%N == O then GRing.Var T (i %/ 2) else ((i.-1) %/ 2)%:R
+    | e1::e2::l => if i == O then (decode_term e1) + (decode_term e2)
+                             else (decode_term e1) * (decode_term e2)
+    | e::l => if i == O then - (decode_term e) else
+              if i == 1%N then (decode_term e)^-1 else
+              if (i %% 2)%N == O then (decode_term e) *+ ((i.-2) %/ 2)
+                                 else (decode_term e) ^+ ((i - 3) %/ 2)
+    end
+end%T.
+
+Lemma encode_termK : cancel encode_term decode_term.
 Proof.
-move=> f1 f2; apply: (iffP idP) => [|<-]; last first.
-  by elim: f1 {f2}=> x //= y; rewrite ?eqxx // => f ->; rewrite y.
-elim: f1 f2.
-- by move=> b1 f //=; case: f => //=; move=> b2 /eqP ->.
-- by move=> t1 t2 f; case: f => //= u1 u2 /andP [/eqP -> /eqP ->].
-- by move=> t1 t2 f; case: f => //= u1 u2 /andP [/eqP -> /eqP ->].
-- by move=> t1 t2 f; case: f => //= u1 u2 /andP [/eqP -> /eqP ->].
-- by move=> t1 f //=; case: f => //=; move=> t2 /eqP ->.
-- move=> f1 hf f2 hg f; case: f => //= g1 g2 /andP [h1 h2].
-  by rewrite (hf g1) // (hg g2).
-- move=> f1 hf f2 hg f; case: f => //= g1 g2 /andP [h1 h2].
-  by rewrite (hf g1) // (hg g2).
-- move=> f1 hf f2 hg f; case: f => //= g1 g2 /andP [h1 h2].
-  by rewrite (hf g1) // (hg g2).
-- by move=> f h1 g; case: g => //= g h2; rewrite (h1 g).
-- by move=> i f1 h f2 /=; case: f2 => //= i2 g /andP [/eqP -> h2]; rewrite (h g).
-- by move=> i f1 h f2 /=; case: f2 => //= i2 g /andP [/eqP -> h2]; rewrite (h g).
+move=> t; elim: t.
++ by move=> n /=; rewrite modnMr eqxx mulKn.
++ by move=> r.
++ by move=> n /=; rewrite {1}mulnC -addn1 modnMDl mulKn.
++ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
++ by move=> t h /=; rewrite h.
++ by move=> t h n /=; rewrite -addn2 {1}mulnC modnMDl h mulKn.
++ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
++ by move=> t h /=; rewrite h.
++ by move=> t h n /=; rewrite -addn3 {1}mulnC modnMDl h addnK mulKn.
 Qed.
 
-Canonical formula_eqMixin := EqMixin formula_eqP.
-Canonical formula_eqType := Eval hnf in EqType (formula T) formula_eqMixin.
+
+Fixpoint encode_formula (f : formula T) := match f with
+  | Bool b => GenTree.Node b [::]
+  | t1 == t2 => GenTree.Node O ((encode_term t1)::(encode_term t2)::nil)
+  | t1 <% t2 => GenTree.Node 1 ((encode_term t1)::(encode_term t2)::nil)
+  | t1 <=% t2 => GenTree.Node 2 ((encode_term t1)::(encode_term t2)::nil)
+  | Unit t => GenTree.Node O ((encode_term t)::nil)
+  | f1 /\ f2 => GenTree.Node 3 ((encode_formula f1)::(encode_formula f2)::nil)
+  | f1 \/ f2 => GenTree.Node 4 ((encode_formula f1)::(encode_formula f2)::nil)
+  | f1 ==> f2 => GenTree.Node 5 ((encode_formula f1)::(encode_formula f2)::nil)
+  | ~ f => GenTree.Node 1 ((encode_formula f)::nil)
+  | ('exists 'X_i, f) => GenTree.Node (2 * i).+2 ((encode_formula f)::nil)
+  | ('forall 'X_i, f) => GenTree.Node (2 * i).+3 ((encode_formula f)::nil)
+end%oT.
+
+Fixpoint decode_formula (t : GenTree.tree T) := match t with
+  | GenTree.Leaf x => Unit (Const x)
+  | GenTree.Node i s => match s with
+    | [::] => if i == O then Bool false else Bool true
+    | e1::e2::l => match i with
+      | O => (decode_term e1) == (decode_term e2)
+      | 1%N => (decode_term e1) <% (decode_term e2)
+      | 2 => (decode_term e1) <=% (decode_term e2)
+      | 3 => (decode_formula e1) /\ (decode_formula e2)
+      | 4 => (decode_formula e1) \/ (decode_formula e2)
+      | _ => (decode_formula e1) ==> (decode_formula e2)
+      end
+    | e::l => if i == O then Unit (decode_term e) else
+              if i == 1%N then Not (decode_formula e) else
+              if (i %% 2)%N == O
+                  then ('exists 'X_((i.-2) %/ 2), decode_formula e)
+                  else ('forall 'X_((i - 3) %/ 2), decode_formula e)
+    end
+end%oT.
+
+Lemma encode_formulaK : cancel encode_formula decode_formula.
+Proof.
+move=> f; elim: f.
++ by move=> b /=; case: b.
++ by move=> t1 t2 /=; rewrite !encode_termK.
++ by move=> t1 t2 /=; rewrite !encode_termK.
++ by move=> t1 t2 /=; rewrite !encode_termK.
++ by move=> t /=; rewrite !encode_termK.
++ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
++ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
++ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
++ by move=> f hf /=; rewrite hf.
++ by move=> i f hf /=; rewrite hf -addn2 {1}mulnC modnMDl mulKn /=.
++ by move=> i f hf /=; rewrite hf -addn3 {1}mulnC modnMDl /= addnK mulKn.
+Qed.
+
+End EncodeFormula.
+
+Definition formula_eqMixin (T : eqType) := CanEqMixin (@encode_formulaK T).
+Canonical formula_eqType (T : eqType) :=
+  EqType (formula T) (formula_eqMixin T).
+Definition formulan_eqMixin (T : eqType) n := [eqMixin of {formula_n T} by <:].
+Canonical formulan_eqType (T : eqType) n :=
+  EqType (formulan T n) (formulan_eqMixin T n).
+
+Definition formula_choiceMixin (T : choiceType) :=
+  CanChoiceMixin (@encode_formulaK T).
+Canonical formula_choiceType (T : choiceType) :=
+  ChoiceType (formula T) (formula_choiceMixin T).
+Definition formulan_choiceMixin (T : choiceType) n :=
+  [choiceMixin of {formula_n T} by <:].
+Canonical formulan_choiceType (T : choiceType) n :=
+  ChoiceType (formulan T n) (formulan_choiceMixin T n).
+
+Section FormulaSubst.
+
+Variable T : Type.
 
 Lemma tsubst_id (t1 t2 : GRing.term T) (i : nat) :
   i \notin (term_fv t1) -> GRing.tsubst t1 (i, t2)%oT = t1.
@@ -180,118 +266,7 @@ move: t; elim: f.
   by rewrite in_fsetD1 neq_ij.
 Qed.
 
-End EqFormula.
-
-Section ChoiceFormula.
-
-Variable T : choiceType.
-
-Fixpoint encode_term (t : GRing.term T) := match t with
-  | 'X_i => GenTree.Node (2 * i) [::]
-  | x %:T => GenTree.Leaf x
-  | i%:R => GenTree.Node ((2 * i).+1) [::]
-  | t1 + t2 => GenTree.Node O ((encode_term t1)::(encode_term t2)::nil)
-  | - t => GenTree.Node O ((encode_term t)::nil)
-  | x *+ i => GenTree.Node ((2 * i).+2) ((encode_term x)::nil)
-  | t1 * t2 => GenTree.Node 1 ((encode_term t1)::(encode_term t2)::nil)
-  | t ^-1 => GenTree.Node 1 ((encode_term t)::nil)
-  | x ^+ i => GenTree.Node ((2 * i).+3) ((encode_term x)::nil)
-end%T.
-
-Fixpoint decode_term (t : GenTree.tree T) := match t with
-  | GenTree.Leaf x => x%:T
-  | GenTree.Node i s => match s with
-    | [::] => if (i %% 2)%N == O then GRing.Var T (i %/ 2) else ((i.-1) %/ 2)%:R
-    | e1::e2::l => if i == O then (decode_term e1) + (decode_term e2)
-                             else (decode_term e1) * (decode_term e2)
-    | e::l => if i == O then - (decode_term e) else
-              if i == 1%N then (decode_term e)^-1 else
-              if (i %% 2)%N == O then (decode_term e) *+ ((i.-2) %/ 2)
-                                 else (decode_term e) ^+ ((i - 3) %/ 2)
-    end
-end%T.
-
-Lemma encode_termK : cancel encode_term decode_term.
-Proof.
-move=> t; elim: t.
-+ by move=> n /=; rewrite modnMr eqxx mulKn.
-+ by move=> r.
-+ by move=> n /=; rewrite {1}mulnC -addn1 modnMDl mulKn.
-+ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
-+ by move=> t h /=; rewrite h.
-+ by move=> t h n /=; rewrite -addn2 {1}mulnC modnMDl h mulKn.
-+ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
-+ by move=> t h /=; rewrite h.
-+ by move=> t h n /=; rewrite -addn3 {1}mulnC modnMDl h addnK mulKn.
-Qed.
-
-(* One can recover eqType/choiceType structure on trees *)
-(* from T with eqType/choiceType structure. *)
-Check ([eqType of (GenTree.tree T)] : eqType).
-Check ([choiceType of (GenTree.tree T)] : choiceType).
-
-Canonical term_of_eqType := [eqType of (GRing.term T)].
-Fail Canonical term_of_choiceType := [choiceType of (GRing.term T)].
-
-Definition term_ChoiceMixin := CanChoiceMixin encode_termK.
-Canonical term_choiceType := ChoiceType (GRing.term T) term_ChoiceMixin.
-
-Canonical formula_of_eqType := [eqType of formula T].
-
-Fixpoint encode_formula (f : formula T) := match f with
-  | Bool b => GenTree.Node b [::]
-  | t1 == t2 => GenTree.Node O ((encode_term t1)::(encode_term t2)::nil)
-  | t1 <% t2 => GenTree.Node 1 ((encode_term t1)::(encode_term t2)::nil)
-  | t1 <=% t2 => GenTree.Node 2 ((encode_term t1)::(encode_term t2)::nil)
-  | Unit t => GenTree.Node O ((encode_term t)::nil)
-  | f1 /\ f2 => GenTree.Node 3 ((encode_formula f1)::(encode_formula f2)::nil)
-  | f1 \/ f2 => GenTree.Node 4 ((encode_formula f1)::(encode_formula f2)::nil)
-  | f1 ==> f2 => GenTree.Node 5 ((encode_formula f1)::(encode_formula f2)::nil)
-  | ~ f => GenTree.Node 1 ((encode_formula f)::nil)
-  | ('exists 'X_i, f) => GenTree.Node (2 * i).+2 ((encode_formula f)::nil)
-  | ('forall 'X_i, f) => GenTree.Node (2 * i).+3 ((encode_formula f)::nil)
-end%oT.
-
-Fixpoint decode_formula (t : GenTree.tree T) := match t with
-  | GenTree.Leaf x => Unit (Const x)
-  | GenTree.Node i s => match s with
-    | [::] => if i == O then Bool false else Bool true
-    | e1::e2::l => match i with
-      | O => (decode_term e1) == (decode_term e2)
-      | 1%N => (decode_term e1) <% (decode_term e2)
-      | 2 => (decode_term e1) <=% (decode_term e2)
-      | 3 => (decode_formula e1) /\ (decode_formula e2)
-      | 4 => (decode_formula e1) \/ (decode_formula e2)
-      | _ => (decode_formula e1) ==> (decode_formula e2)
-      end
-    | e::l => if i == O then Unit (decode_term e) else
-              if i == 1%N then Not (decode_formula e) else
-              if (i %% 2)%N == O
-                  then ('exists 'X_((i.-2) %/ 2), decode_formula e)
-                  else ('forall 'X_((i - 3) %/ 2), decode_formula e)
-    end
-end%oT.
-
-Lemma encode_formulaK : cancel encode_formula decode_formula.
-Proof.
-move=> f; elim: f.
-+ by move=> b /=; case: b.
-+ by move=> t1 t2 /=; rewrite !encode_termK.
-+ by move=> t1 t2 /=; rewrite !encode_termK.
-+ by move=> t1 t2 /=; rewrite !encode_termK.
-+ by move=> t /=; rewrite !encode_termK.
-+ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
-+ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
-+ by move=> f1 h1 f2 h2 /=; rewrite h1 h2.
-+ by move=> f hf /=; rewrite hf.
-+ by move=> i f hf /=; rewrite hf -addn2 {1}mulnC modnMDl mulKn /=.
-+ by move=> i f hf /=; rewrite hf -addn3 {1}mulnC modnMDl /= addnK mulKn.
-Qed.
-
-Definition formula_ChoiceMixin := CanChoiceMixin encode_formulaK.
-Canonical formula_choiceType := ChoiceType (formula T) formula_ChoiceMixin.
-
-End ChoiceFormula.
+End FormulaSubst.
 
 Section RealDomainFormula.
 
@@ -321,7 +296,7 @@ Lemma nquantify_add (m n k : nat) Q (f : formula R) :
     nquantify m (n + k) Q f = nquantify m n Q (nquantify (m + n) k Q f).
 Proof.
 elim: n => [|n IHn] in k m *;
-                             rewrite ?(nquantify0, nquantSout, addn0, addSn) //=.
+  rewrite ?(nquantify0, nquantSout, addn0, addSn) //=.
 by rewrite IHn addnS addSn.
 Qed.
 
@@ -334,7 +309,8 @@ Lemma nforallP (k : nat) (e : seq R) (f : formula R) :
     <-> (holds e (nquantify (size e) k Forall f)).
 Proof.
 elim: k => [|k IHk] /= in e *.
-  rewrite nquantify0; split; first by move=> /(_ [tuple of [::]]); rewrite cats0.
+  rewrite nquantify0; split.
+    by move=> /(_ [tuple of [::]]); rewrite cats0.
   by move=> hef v; rewrite tuple0 cats0.
 rewrite nquantSout /=; split => holdsf; last first.
   move=> v; case: (tupleP v) => x {v} v /=.
@@ -368,14 +344,15 @@ Lemma nforall_is_true (f : formula R) :
     (forall (e : seq R), holds e f) ->
     forall (n i : nat) (e : seq R), holds e (nquantify n i Forall f).
 Proof.
-by move=> h n i; elim: i => [|i IHi] in n *;rewrite ?(nquantify0, nquantSout) /=.
+move=> h n i; elim: i => [|i IHi] in n *;
+by rewrite ?(nquantify0, nquantSout) /=.
 Qed.
 
 Lemma holds_rcons_zero (e : seq R) (f : formula R) :
     holds (rcons e 0%:R) f <-> holds e f.
 Proof.
-by split; apply: eq_holds=> // i; rewrite nth_rcons;
-             have [| /ltnW h|->] := ltngtP _ (size _)=> //; rewrite ?nth_default.
+split; apply: eq_holds=> // i; rewrite nth_rcons;
+by have [| /ltnW h|->] := ltngtP _ (size _)=> //; rewrite ?nth_default.
 Qed.
 
 Lemma holds_cat_nseq (i : nat) (e : seq R) (f : formula R) :
@@ -766,37 +743,16 @@ Qed.
 (* we show that equivf is an equivalence *)
 Canonical equivf_equiv := EquivRel equivf equivf_refl equivf_sym equivf_trans.
 
-Definition nvar : pred_class := fun f :
-  formula F => (formula_fv f `<=` mnfset O n).
-
-Record formulan := MkFormulan
-{
-  underlying_formula : formula F;
-  _ : nvar underlying_formula
-}.
-
-Coercion underlying_formula : formulan >-> formula.
-
-Definition formulan_of of phant F := formulan.
-Identity Coercion formulan_of_id : formulan_of >-> formulan.
-Notation "'{formulan}'" := (formulan_of (Phant F)).
-
-Canonical formulan_subType := Eval hnf in [subType for underlying_formula].
-Definition formulan_eqMixin := [eqMixin of formulan by <:].
-Canonical formulan_eqType := EqType {formulan} formulan_eqMixin.
-Definition formulan_choiceMixin := [choiceMixin of formulan by <:].
-Canonical formulan_choiceType := ChoiceType {formulan} formulan_choiceMixin.
-
 (* equiv_formula *)
-Definition sub_equivf := (@sub_r _ _ [subType of {formulan}] equivf_equiv).
+Definition sub_equivf :=
+  (@sub_r _ _ [subType of {formula_n _}] equivf_equiv).
 
 Definition SAtype := {eq_quot sub_equivf}.
 Definition SAtype_of of phant (F ^ n) := SAtype.
 Identity Coercion id_type_of : SAtype_of >-> SAtype.
-Local Notation "{ 'SAset' T }" := (SAtype_of (Phant T)).
+Local Notation "{ 'SAset' }" := (SAtype_of (Phant (F ^ n))).
 
-Definition type_to_form : SAtype -> (formulan_of (Phant F)) := repr.
-Coercion type_to_form : SAtype >-> formulan_of.
+Coercion SAtype_to_form (A : SAtype) : {formula_n _} := repr A.
 
 (* we recover some structure for the quotient *)
 Canonical SAset_quotType := [quotType of SAtype].
@@ -804,18 +760,17 @@ Canonical SAset_eqType := [eqType of SAtype].
 Canonical SAset_choiceType := [choiceType of SAtype].
 Canonical SAset_eqQuotType := [eqQuotType sub_equivf of SAtype].
 
-Canonical SAset_of_quotType := [quotType of {SAset F ^ n}].
-Canonical SAset_of_eqType := [eqType of {SAset F ^ n}].
-Canonical SAset_of_choiceType := [choiceType of {SAset F ^ n}].
-Canonical SAset_of_eqQuotType := [eqQuotType sub_equivf of {SAset F ^ n}].
+Canonical SAset_of_quotType := [quotType of {SAset}].
+Canonical SAset_of_eqType := [eqType of {SAset}].
+Canonical SAset_of_choiceType := [choiceType of {SAset}].
+Canonical SAset_of_eqQuotType := [eqQuotType sub_equivf of {SAset}].
 
-Lemma fsubset_formulan_fv (f : {formulan}) : formula_fv f `<=` mnfset O n.
+Lemma fsubset_formulan_fv (f : {formula_n F}) : formula_fv f `<=` mnfset O n.
 Proof. by move: f => [f hf]. Qed.
 
 End Var_n.
 End RealClosedFieldFormula.
 
-Notation "'{formula_' n F }" := (formulan_of n (Phant F)) : type_scope.
 Notation "{ 'SAset' F }" := (SAtype_of (Phant F)) : type_scope.
 
 Section SemiAlgebraicSet.
@@ -1026,8 +981,6 @@ have [lt_in | leq_ni] := ltnP i n; last first.
 rewrite !nth_take //.
 by move/(_ ord0 (Ordinal lt_in)) : h; rewrite !mxE.
 Qed.
-
-Notation "{ 'formulan' }" := (formulan_of n (Phant F)).
 
 Fact closed_nforall_formulan (f : {formula_n F}) :
     formula_fv (nquantify O n Forall f) == fset0.
