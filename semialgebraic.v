@@ -799,15 +799,15 @@ Definition type_to_form : SAtype -> (formulan_of (Phant F)) := repr.
 Coercion type_to_form : SAtype >-> formulan_of.
 
 (* we recover some structure for the quotient *)
-Canonical saset_quotType := [quotType of SAtype].
-Canonical saset_eqType := [eqType of SAtype].
-Canonical saset_choiceType := [choiceType of SAtype].
-Canonical saset_eqQuotType := [eqQuotType sub_equivf of SAtype].
+Canonical SAset_quotType := [quotType of SAtype].
+Canonical SAset_eqType := [eqType of SAtype].
+Canonical SAset_choiceType := [choiceType of SAtype].
+Canonical SAset_eqQuotType := [eqQuotType sub_equivf of SAtype].
 
-Canonical saset_of_quotType := [quotType of {SAset F ^ n}].
-Canonical saset_of_eqType := [eqType of {SAset F ^ n}].
-Canonical saset_of_choiceType := [choiceType of {SAset F ^ n}].
-Canonical saset_of_eqQuotType := [eqQuotType sub_equivf of {SAset F ^ n}].
+Canonical SAset_of_quotType := [quotType of {SAset F ^ n}].
+Canonical SAset_of_eqType := [eqType of {SAset F ^ n}].
+Canonical SAset_of_choiceType := [choiceType of {SAset F ^ n}].
+Canonical SAset_of_eqQuotType := [eqQuotType sub_equivf of {SAset F ^ n}].
 
 Lemma fsubset_formulan_fv (f : {formulan}) : formula_fv f `<=` mnfset O n.
 Proof. by move: f => [f hf]. Qed.
@@ -1134,13 +1134,13 @@ Qed.
 
 Definition ex_proj (f : {formula_n F}) := MkFormulan (ex_proj_proof f).
 
-Definition sas_ex_proj := (lift_op1 {SAset F ^ n} ex_proj).
+Definition SA_ex_proj := (lift_op1 {SAset F ^ n} ex_proj).
 
 Lemma ex_proj_idem (s : {SAset F ^ n}) :
-    sas_ex_proj (sas_ex_proj s) = sas_ex_proj s.
+    SA_ex_proj (SA_ex_proj s) = SA_ex_proj s.
 Proof.
 move: s; apply: quotP => f eq_repr_pi_f.
-rewrite /sas_ex_proj; unlock.
+rewrite /SA_ex_proj; unlock.
 apply/eqP; rewrite eqmodE eq_repr_pi_f.
 apply/rcf_satP/nforallP => u.
 rewrite cat0s ; split.
@@ -1157,13 +1157,13 @@ Qed.
 
 Definition all_proj (f : {formula_n F}) := MkFormulan (all_proj_proof f).
 
-Definition sas_all_proj := (lift_op1 {SAset F ^ n} all_proj).
+Definition SA_all_proj := (lift_op1 {SAset F ^ n} all_proj).
 
 Lemma all_proj_idem (s : {SAset F ^ n}) :
-    sas_all_proj (sas_all_proj s) = (sas_all_proj s).
+    SA_all_proj (SA_all_proj s) = (SA_all_proj s).
 Proof.
 move : s ; apply : quotP => f hf.
-rewrite /sas_all_proj; unlock.
+rewrite /SA_all_proj; unlock.
 apply/eqP ; rewrite eqmodE hf.
 apply/rcf_satP/nforallP => u ; rewrite cat0s.
 split=> h x.
@@ -1281,13 +1281,13 @@ Variable F : rcfType.
 
 Variable n : nat.
 
-Definition sasub (s1 s2 : {SAset F ^ n}) :=
+Definition SAsub (s1 s2 : {SAset F ^ n}) :=
     rcf_sat [::] (nquantify O n Forall (s1 ==> s2)).
 
-Lemma reflexive_sasub : reflexive sasub.
+Lemma reflexive_SAsub : reflexive SAsub.
 Proof. by move=> s; apply/rcf_satP/nforallP => u; rewrite cat0s. Qed.
 
-Lemma antisymetry_sasub : antisymmetric sasub.
+Lemma antisymetry_SAsub : antisymmetric SAsub.
 Proof.
 apply: quotP => f1 _ ; apply: quotP => f2 _.
 move => /andP [/rcf_satP/nforallP sub1 /rcf_satP/nforallP sub2].
@@ -1298,7 +1298,7 @@ split; move/holds_repr_pi=> hf.
 + by move/(_ u) : sub2 => sub2 ; apply/holds_repr_pi ; apply: sub2.
 Qed.
 
-Lemma transitive_sasub : transitive sasub.
+Lemma transitive_SAsub : transitive SAsub.
 Proof.
 apply: quotP => f1 _ ; apply: quotP => f2 _ ; apply: quotP => f3 _.
 move/rcf_satP/nforallP => sub21 ; move/rcf_satP/nforallP => sub13.
@@ -1307,50 +1307,50 @@ move/holds_repr_pi => holds_uf2.
 by apply: sub13; apply: sub21; apply/holds_repr_pi.
 Qed.
 
-Definition saset_porderMixin :=
-          Order.LePOrderMixin reflexive_sasub antisymetry_sasub transitive_sasub.
+Definition SAset_porderMixin :=
+          Order.LePOrderMixin reflexive_SAsub antisymetry_SAsub transitive_SAsub.
 
-Canonical saset_porderType :=
-                     POrderType (SET.display_set tt) {SAset F ^ n} saset_porderMixin.
+Canonical SAset_porderType :=
+                     POrderType (SET.display_set tt) {SAset F ^ n} SAset_porderMixin.
 
 Import SET.SetSyntax.
 
 Fact nvar_False : @formula_fv F False `<=` mnfset 0 n.
 Proof. by rewrite fsub0set. Qed.
 
-Definition saset_bottom : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan nvar_False).
+Definition SAset_bottom : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan nvar_False).
 
-Lemma saset_bottomP (s : {SAset F ^ n}) : (saset_bottom <= s)%O.
+Lemma SAset_bottomP (s : {SAset F ^ n}) : (SAset_bottom <= s)%O.
 Proof. by apply/rcf_satP/nforallP => u ; move/holds_repr_pi. Qed.
 
-Definition saset_blatticeMixin := Order.BLattice.Mixin saset_bottomP.
+Definition SAset_blatticeMixin := Order.BLattice.Mixin SAset_bottomP.
 
-Definition saset_meet (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
+Definition SAset_meet (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
     \pi_{SAset F ^ n} (formulan_and s1 s2).
 
-Definition saset_join (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
+Definition SAset_join (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
     \pi_{SAset F ^ n} (formulan_or s1 s2).
 
-Fact commutative_meet : commutative saset_meet.
+Fact commutative_meet : commutative SAset_meet.
 Proof.
 move=> s1 s2 ; apply/eqP ; rewrite eqmodE.
 by apply/rcf_satP/nforallP => u ; split => [[h1 h2] | [h2 h1]] ; split.
 Qed.
 
-Fact commutative_join : commutative saset_join.
+Fact commutative_join : commutative SAset_join.
 Proof.
 move=> s1 s2 ; apply/eqP ; rewrite eqmodE ; apply/rcf_satP/nforallP => u.
 by split => h ; apply/or_comm.
 Qed.
 
-Fact associative_meet : associative saset_meet.
+Fact associative_meet : associative SAset_meet.
 Proof.
 move => s1 s2 s3 ; apply/eqP ; rewrite eqmodE ; apply/rcf_satP/nforallP => u.
 by split=> [[h1 /holds_repr_pi [h2 h3]]|[/holds_repr_pi [h1 h2] h3]] ;
                                  split => // ; apply/holds_repr_pi => [] ; split.
 Qed.
 
-Fact associative_join : associative saset_join.
+Fact associative_join : associative SAset_join.
 Proof.
 move=> s1 s2 s3 ; apply/eqP; rewrite eqmodE.
 apply/rcf_satP/nforallP => u.
@@ -1363,19 +1363,19 @@ split => [ [ | /holds_repr_pi [|]] | [/holds_repr_pi [|] | ] ].
 + by right; apply/holds_repr_pi; right.
 Qed.
 
-Fact meet_join (s1 s2 : {SAset F ^ n}) : saset_meet s2 (saset_join s2 s1) = s2.
+Fact meet_join (s1 s2 : {SAset F ^ n}) : SAset_meet s2 (SAset_join s2 s1) = s2.
 Proof.
 apply/eqP/SAsetP => x; rewrite !inE.
 by rewrite !rcf_sat_repr_pi simp_rcf_sat rcf_sat_repr_pi simp_rcf_sat andbC orbK.
 Qed.
 
-Fact join_meet (s1 s2 : {SAset F ^ n}) : saset_join s2 (saset_meet s2 s1) = s2.
+Fact join_meet (s1 s2 : {SAset F ^ n}) : SAset_join s2 (SAset_meet s2 s1) = s2.
 Proof.
 apply/eqP/SAsetP => x; rewrite !inE !rcf_sat_repr_pi.
 by rewrite simp_rcf_sat rcf_sat_repr_pi simp_rcf_sat andbC andKb.
 Qed.
 
-Fact le_meet (s1 s2 : {SAset F ^ n}) : (s1 <= s2)%O = (saset_meet s1 s2 == s1).
+Fact le_meet (s1 s2 : {SAset F ^ n}) : (s1 <= s2)%O = (SAset_meet s1 s2 == s1).
 Proof.
 apply/idP/idP=> [sub12| /SAsetP h].
 + apply/SAsetP => x ; move : (ngraph x) => e.
@@ -1389,7 +1389,7 @@ apply/idP/idP=> [sub12| /SAsetP h].
   by move/holds_tuple ; rewrite -h ; move/holds_tuple/holds_repr_pi => [].
 Qed.
 
-Fact left_distributive_meet_join : left_distributive saset_meet saset_join.
+Fact left_distributive_meet_join : left_distributive SAset_meet SAset_join.
 Proof.
 set vw := holds_repr_pi ; move=> s1 s2 s3 ; apply/eqP ; rewrite eqmodE.
 apply/rcf_satP/nforallP => t.
@@ -1400,44 +1400,44 @@ split=> [[/vw /= [h1|h2] h3]|[/vw [h1 h3]| /vw [h2 h3]]].
 + by split => // ; apply/vw; right.
 Qed.
 
-Definition saset_latticeMixin :=
+Definition SAset_latticeMixin :=
   Order.Lattice.Mixin commutative_meet commutative_join associative_meet
         associative_join meet_join join_meet le_meet left_distributive_meet_join.
 
-Canonical saset_latticeType := LatticeType {SAset F ^ n} saset_latticeMixin.
+Canonical SAset_latticeType := LatticeType {SAset F ^ n} SAset_latticeMixin.
 
-Canonical saset_blatticeType := BLatticeType {SAset F ^ n} saset_blatticeMixin.
+Canonical SAset_blatticeType := BLatticeType {SAset F ^ n} SAset_blatticeMixin.
 
-Definition saset_top : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan (nvar_True _ _)).
+Definition SAset_top : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan (nvar_True _ _)).
 
-Lemma saset_topP (s : {SAset F ^ n}) : (s <= saset_top)%O.
+Lemma SAset_topP (s : {SAset F ^ n}) : (s <= SAset_top)%O.
 Proof. by apply/rcf_satP/nforallP => t h ; apply/holds_repr_pi. Qed.
 
-Definition saset_tblatticeMixin := Order.TBLattice.Mixin saset_topP.
+Definition SAset_tblatticeMixin := Order.TBLattice.Mixin SAset_topP.
 
-Canonical saset_tblatticeType := TBLatticeType {SAset F ^ n} saset_tblatticeMixin.
+Canonical SAset_tblatticeType := TBLatticeType {SAset F ^ n} SAset_tblatticeMixin.
 
-Definition saset_sub (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
+Definition SAset_sub (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
   \pi_{SAset F ^ n} (formulan_and s1 (formulan_not s2)).
 
 Fact meet_sub (s1 s2 : {SAset F ^ n}) :
-    saset_meet s2 (saset_sub s1 s2) = saset_bottom.
+    SAset_meet s2 (SAset_sub s1 s2) = SAset_bottom.
 Proof.
 apply/eqP; rewrite eqmodE; apply/rcf_satP/nforallP => t.
 by split => // ; move => [? /holds_repr_pi [_ ?]].
 Qed.
 
 Fact join_meet_sub (s1 s2 : {SAset F ^ n}) :
-  saset_join (saset_meet s1 s2) (saset_sub s1 s2) = s1.
+  SAset_join (SAset_meet s1 s2) (SAset_sub s1 s2) = s1.
 Proof.
 apply/eqP/SAsetP => x; rewrite !inE.
 by rewrite !rcf_sat_repr_pi !simp_rcf_sat !rcf_sat_repr_pi
                                               !simp_rcf_sat -andb_orr orbN andbT.
 Qed.
 
-Definition saset_cblatticeMixin := Order.CBLattice.Mixin meet_sub join_meet_sub.
+Definition SAset_cblatticeMixin := Order.CBLattice.Mixin meet_sub join_meet_sub.
 
-Canonical saset_cblatticeType := CBLatticeType {SAset F ^ n} saset_cblatticeMixin.
+Canonical SAset_cblatticeType := CBLatticeType {SAset F ^ n} SAset_cblatticeMixin.
 
 Section TestCanonicalPorderStructure.
 
@@ -1529,7 +1529,7 @@ Canonical Structure formulan_add (m : nat) (f : {formula_m F}) :=
 Definition ex_y (f : {formula_(n + m) F}) (x : 'rV[F]_n) :=
     rcf_sat (ngraph x) (nquantify n m Exists f).
 
-Definition SAtot : pred_class :=
+Definition satot : pred_class :=
     [pred s : {SAset F ^ _} | rcf_sat [::] (total s)].
 
 Fact test_can1 (f g h : {formula_(n + m) F}) :
@@ -2154,10 +2154,10 @@ apply: (iffP idP).
   by move/(congr1 val).
 Qed.
 
-Lemma SAtotE (s : {SAset F ^ (n + m)}) :
+Lemma satotE (s : {SAset F ^ (n + m)}) :
     reflect
     (forall (x : 'rV[F]_n), exists (y : 'rV[F]_m), (row_mx x y) \in s)
-    (s \in SAtot).
+    (s \in satot).
 Proof.
 rewrite inE; apply: (iffP (f_is_totalE _)) => s_sat x.
   have [y sat_s_xy] := s_sat (ngraph x).
@@ -2196,7 +2196,7 @@ by apply: (fun_s (\row_(i < n) (nth 0 x i)));
 rewrite inE !ngraph_cat !ngraph_tnth.
 Qed.
 
-Fact nvar_saimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :
+Fact nvar_SAimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :
   formula_fv (nquantify m n Exists ((subst_formula ((iota m n)
           ++ (iota O m)) f) /\ (subst_formula (iota m n) s)))
   `<=` mnfset 0 m.
@@ -2206,8 +2206,8 @@ by rewrite !(fsubset_trans (fv_subst_formula _ _))
                                          ?fsubsetUl // seq_fset_cat fsubset_refl.
 Qed.
 
-Definition saimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :=
-    \pi_{SAset F ^ m} (MkFormulan (nvar_saimset f s)).
+Definition SAimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :=
+    \pi_{SAset F ^ m} (MkFormulan (nvar_SAimset f s)).
 
 Lemma ex_yE (f : {formula_(n + m) F}) (t : 'rV[F]_n) :
     reflect (exists (u : 'rV[F]_m), rcf_sat (ngraph (row_mx t u)) f) (ex_y f t).
@@ -2234,7 +2234,7 @@ Definition form_to_fun (f : {formula_(n + m) F}) : 'rV[F]_n -> 'rV[F]_m :=
 Record SAfun := MkSAfun
 {
   graph :> {SAset F ^ (n + m)};
-  _ : (graph \in SAfunc) && (graph \in SAtot)
+  _ : (graph \in SAfunc) && (graph \in satot)
 }.
 
 Definition SAfun_of of phant (F ^ n -> F ^ m) := SAfun.
@@ -2257,7 +2257,7 @@ Proof. by apply: SAfuncE; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Lemma SAfun_tot (f : {SAfun}) (x : 'rV[F]_n) :
     exists (y : 'rV[F]_m), (row_mx x y) \in (graph f).
-Proof. by apply: SAtotE ; case: f; move => /= [f h /andP [h1 h2]]. Qed.
+Proof. by apply: satotE ; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Definition SAfun_to_fun (f : SAfun) : 'rV[F]_n -> 'rV[F]_m :=
     fun x => proj1_sig (sigW (SAfun_tot f x)).
@@ -2272,30 +2272,30 @@ Proof. by move: f => [g /= /andP [_ total_g]]. Qed.
 
 End SAFunction.
 Arguments SAfunc {F n m}.
-Arguments SAtot {F n m}.
+Arguments satot {F n m}.
 Notation "{ 'SAfun' T }" := (SAfun_of (Phant T)) : type_scope.
 
 Section ASet.
 
 Variable F : rcfType.
 
-Lemma in_saset_bottom (m : nat) (x : 'rV[F]_m) :
-    x \in (@saset_bottom F m) = false.
+Lemma in_SAset_bottom (m : nat) (x : 'rV[F]_m) :
+    x \in (@SAset_bottom F m) = false.
 Proof. by rewrite pi_form. Qed.
 
-Lemma SA_1neq0 (n : nat) (x : 'rV[F]_n) : (SAset1 x) != (@saset_bottom F n).
+Lemma SAset1_neq0 (n : nat) (x : 'rV[F]_n) : (SAset1 x) != (@SAset_bottom F n).
 Proof.
 apply/negP; move/SAsetP/(_ x) => h.
 by move: h; rewrite inSAset1 eqxx pi_form.
 Qed.
 
-Lemma SAemptyP (n : nat) (x : 'rV[F]_n) : x \notin (@saset_bottom F n).
-Proof. by rewrite in_saset_bottom. Qed.
+Lemma SAemptyP (n : nat) (x : 'rV[F]_n) : x \notin (@SAset_bottom F n).
+Proof. by rewrite in_SAset_bottom. Qed.
 
 Lemma inSAset1B (n : nat) (x y : 'rV[F]_n) : (x \in SAset1 y) = (x == y).
 Proof. by rewrite inSAset1. Qed.
 
-Lemma sub_saset1 (n : nat) (x : 'rV[F]_n) (s : {SAset F ^ n}) :
+Lemma sub_SAset1 (n : nat) (x : 'rV[F]_n) (s : {SAset F ^ n}) :
   (SAset1 x <= s)%O = (x \in s).
 Proof.
 apply: (sameP (rcf_satP _ _)).
@@ -2352,7 +2352,7 @@ Lemma notP (e : seq F) (f : formula F) : holds e (~ f) <-> holds e (f ==> False)
 Proof. by split => // h h'; move: (h h'). Qed.
 
 Lemma non_empty : forall (n : nat) (s : {SAset F ^ n}),
-    ((@saset_bottom F n) < s)%O -> {x : 'rV[F]_n | x \in s}.
+    ((@SAset_bottom F n) < s)%O -> {x : 'rV[F]_n | x \in s}.
 Proof.
 move=> a s /andP [bot_neq_s _].
 move: s bot_neq_s; apply: quotW => /= f; rewrite eqmodE /=.
@@ -2370,11 +2370,11 @@ rewrite cat0s /= => /rcf_satP s1_sat; apply/rcf_satP.
 by move/(_ ((\row_(i < a) t`_i))): sub12; rewrite !inE ngraph_tnth => ->.
 Qed.
 
-Lemma saunion : forall (n : nat) (x : 'rV[F]_n) (s1 s2 : {SAset F ^ n}),
-    (x \in saset_join s1 s2) = (x \in s1) || (x \in s2).
+Lemma SAunion : forall (n : nat) (x : 'rV[F]_n) (s1 s2 : {SAset F ^ n}),
+    (x \in SAset_join s1 s2) = (x \in s1) || (x \in s2).
 Proof.
 move=> n x s1 s2.
-rewrite /saset_join pi_form !inE.
+rewrite /SAset_join pi_form !inE.
 apply/idP/idP.
 move/rcf_satP => /=.
 by move=> [l|r]; apply/orP; [left|right]; apply/rcf_satP.
@@ -2387,9 +2387,9 @@ Proof.
 by rewrite /SAfun_to_fun; case: ((sigW (SAfun_tot f x))) => y h.
 Qed.
 
-Lemma in_saimset (m n : nat) (x : 'rV[F]_n)
+Lemma in_SAimset (m n : nat) (x : 'rV[F]_n)
  (s : {SAset F ^ n}) (f : {SAfun F^n -> F^m}) :
-  x \in s -> f x \in saimset f s.
+  x \in s -> f x \in SAimset f s.
 Proof.
 rewrite pi_form /= => h.
 have hsiz : m = size (ngraph (f x)) by rewrite size_ngraph.
@@ -2412,13 +2412,13 @@ split; last first.
   by move/rcf_satP; rewrite ngraph_cat.
 Qed.
 
-Lemma sasetfunsort (n m: nat) (f : {SAfun F^n -> F^m})
+Lemma SAsetfunsort (n m: nat) (f : {SAfun F^n -> F^m})
   (s : {SAset F ^ n}) (y : 'rV[F]_m) :
    reflect (exists2 x : 'rV[F]_n, x \in s & y = f x)
-            (y \in (saimset f s)).
+            (y \in (SAimset f s)).
 Proof.
-apply: (iffP idP); last by move=> [x h] -> ; apply: in_saimset.
-rewrite /saimset pi_form.
+apply: (iffP idP); last by move=> [x h] -> ; apply: in_SAimset.
+rewrite /SAimset pi_form.
 move/rcf_satP.
 rewrite /= -[X in nquantify X _ _ _](size_ngraph y).
 move/nexistsP => [t] /=.
@@ -2437,13 +2437,13 @@ exists (\row_(i < n) t`_i).
   by rewrite inE ngraph_cat ngraph_tnth; apply/rcf_satP.
 Qed.
 
-Definition saset_setMixin :=
-  SET.Semiset.Mixin SAemptyP inSAset1B sub_saset1 non_empty
-  les1s2 saunion sasetfunsort.
+Definition SAset_setMixin :=
+  SET.Semiset.Mixin SAemptyP inSAset1B sub_SAset1 non_empty
+  les1s2 SAunion SAsetfunsort.
 
 Notation SemisetType set m :=
   (@SET.Semiset.pack _ _ set _ _ m _ _ (fun => id) _ id).
-Canonical saset_setType := SemisetType (fun n => {SAset F ^ n}) saset_setMixin.
+Canonical SAset_setType := SemisetType (fun n => {SAset F ^ n}) SAset_setMixin.
 
 Lemma in_SAfun (n m : nat) (f : {SAfun F^n -> F^m})
    (x : 'rV[F]_n) (y : 'rV[F]_m):
@@ -2526,7 +2526,7 @@ case: s => // a s ; case: s => // b s -> {b} ; case: s => //.
 by move=> b // _ ->.
 Qed.
 
-Lemma total_absset : absset \in SAtot.
+Lemma total_absset : absset \in satot.
 Proof.
 apply/rcf_satP/nforallP => t /=.
 rewrite -[X in nquantify X _ _ _](size_tuple t).
@@ -2541,10 +2541,10 @@ have [le_e0|lt_0e] := ler0P x; first by right.
 by left.
 Qed.
 
-Fact SAfun_sa_abs : (absset \in SAfunc) && (absset \in SAtot).
+Fact SAfun_SAabs : (absset \in SAfunc) && (absset \in satot).
 Proof. by rewrite functional_absset total_absset. Qed.
 
-Definition sa_abs := MkSAfun SAfun_sa_abs.
+Definition SAabs := MkSAfun SAfun_SAabs.
 
 Definition diagf_form (f : {formula_(1 + 1) F}) (n : nat) (v1 v2 : seq nat) :=
 (if size v1 == size v2 then
@@ -2600,7 +2600,7 @@ rewrite /= !mxE mul2n -addnn.
 by move/(_ h1 h2)/matrixP/(_ ord0 ord0) ; rewrite !mxE.
 Qed.
 
-Lemma total_diagf (f : SAfun F 1 1) (n : nat) : diagf n f \in SAtot.
+Lemma total_diagf (f : SAfun F 1 1) (n : nat) : diagf n f \in satot.
 Proof.
 apply/rcf_satP/nforallP => t.
 rewrite -[X in nquantify X _ _ _](size_tuple t).
@@ -2628,10 +2628,10 @@ by rewrite mxE.
 Qed.
 
 Fact SAfun_diagf (f : {SAfun F^1 -> F^1}) (n : nat) :
-   (diagf n f \in SAfunc) && (diagf n f \in SAtot).
+   (diagf n f \in SAfunc) && (diagf n f \in satot).
 Proof. by rewrite functional_diagf total_diagf. Qed.
 
-Definition sa_diagf (f : {SAfun F^1 -> F^1}) (n : nat) :=
+Definition SAdiagf (f : {SAfun F^1 -> F^1}) (n : nat) :=
   MkSAfun (SAfun_diagf f n).
 
 Definition comp_formula (m n p : nat)
@@ -2726,22 +2726,22 @@ apply: (iffP idP); last first.
     exact: in_graph_SAfun.
 Qed.
 
-Fact SAfun_sa_comp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
-   (compo f g \in SAfunc) && (compo f g \in SAtot).
+Fact SAfun_SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
+   (compo f g \in SAfunc) && (compo f g \in satot).
 Proof.
 apply/andP; split.
   by apply/SAfuncE => x y1 y2; rewrite !compoP; move/eqP -> ; move/eqP ->.
-by apply/SAtotE => x; exists (g (f x)); rewrite compoP.
+by apply/satotE => x; exists (g (f x)); rewrite compoP.
 Qed.
 
-Definition sa_comp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
-    MkSAfun (SAfun_sa_comp f g).
+Definition SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
+    MkSAfun (SAfun_SAcomp f g).
 
-Lemma sa_compP (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
-    sa_comp f g =1 g \o f.
+Lemma SAcompP (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
+    SAcomp f g =1 g \o f.
 Proof.
 move=> x; apply/eqP; rewrite eq_sym -compoP.
-by move: (in_graph_SAfun (sa_comp f g) x).
+by move: (in_graph_SAfun (SAcomp f g) x).
 Qed.
 
 End ASet.
