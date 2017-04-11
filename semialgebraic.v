@@ -214,15 +214,15 @@ end%T.
 Lemma encode_termK : cancel encode_term decode_term.
 Proof.
 move=> t; elim: t.
-+ by move=> n /= ; rewrite modnMr eqxx mulKn.
++ by move=> n /=; rewrite modnMr eqxx mulKn.
 + by move=> r.
-+ by move=> n /= ; rewrite {1}mulnC -addn1 modnMDl mulKn.
-+ by move=> t1 h1 t2 h2 /= ; rewrite h1 h2.
-+ by move=> t h /= ; rewrite h.
-+ by move=> t h n /= ; rewrite -addn2 {1}mulnC modnMDl h mulKn.
-+ by move=> t1 h1 t2 h2 /= ; rewrite h1 h2.
-+ by move=> t h /= ; rewrite h.
-+ by move=> t h n /= ; rewrite -addn3 {1}mulnC modnMDl h addnK mulKn.
++ by move=> n /=; rewrite {1}mulnC -addn1 modnMDl mulKn.
++ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
++ by move=> t h /=; rewrite h.
++ by move=> t h n /=; rewrite -addn2 {1}mulnC modnMDl h mulKn.
++ by move=> t1 h1 t2 h2 /=; rewrite h1 h2.
++ by move=> t h /=; rewrite h.
++ by move=> t h n /=; rewrite -addn3 {1}mulnC modnMDl h addnK mulKn.
 Qed.
 
 (* One can recover eqType/choiceType structure on trees *)
@@ -504,17 +504,17 @@ Proof. by []. Qed.
 Lemma holds_Nfv_ex (e : seq F) (i : nat) (f : formula F) :
   i \notin formula_fv f -> (holds e ('exists 'X_i, f) <-> holds e f).
 Proof.
-move=> hi ; split => [[x /holds_fsubst holds_ef]| h].
-  by move: holds_ef ; rewrite fsubst_id.
-by exists 0 ; apply/holds_fsubst ; rewrite fsubst_id.
+move=> hi; split => [[x /holds_fsubst holds_ef]| h].
+  by move: holds_ef; rewrite fsubst_id.
+by exists 0; apply/holds_fsubst; rewrite fsubst_id.
 Qed.
 
 Lemma holds_Nfv_all (e : seq F) (i : nat) (f : formula F) :
   i \notin formula_fv f -> (holds e ('forall 'X_i, f) <-> holds e f).
 Proof.
-move=> hi ; split => [|holds_ef x].
-  by move/(_ 0)/holds_fsubst ; rewrite fsubst_id.
-by apply/holds_fsubst ; rewrite fsubst_id.
+move=> hi; split => [|holds_ef x].
+  by move/(_ 0)/holds_fsubst; rewrite fsubst_id.
+by apply/holds_fsubst; rewrite fsubst_id.
 Qed.
 
 Fact holds_Exists (e : seq F) (i : nat) (f : formula F) :
@@ -522,7 +522,7 @@ Fact holds_Exists (e : seq F) (i : nat) (f : formula F) :
 Proof.
 move => holds_ef.
 have [lt_ie|le_ei] := ltnP i (size e); first by exists e`_i; rewrite set_nth_id.
-by exists 0; rewrite set_nth_over // ; apply/holds_rcons_zero/holds_cat_nseq.
+by exists 0; rewrite set_nth_over //; apply/holds_rcons_zero/holds_cat_nseq.
 Qed.
 
 Definition simp_rcf_sat := (rcf_sat_Bool, rcf_sat_Equal, rcf_sat_Lt, rcf_sat_Le,
@@ -546,7 +546,7 @@ move=> s x <-; move: h; elim: t => //=.
   rewrite /= fsetU_eq0 => /andP [ht1 ht2].
   by rewrite h1 // h2.
 - by move=> t /= ih h; rewrite ih.
-- by move=> t1 h1 t2 h2 ; rewrite h1.
+- by move=> t1 h1 t2 h2; rewrite h1.
 - move=> t1 h1 t2 h2.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
   by rewrite h1 // h2.
@@ -589,7 +589,7 @@ rewrite inE !seq_fsetE !mem_iota subnKC; last first.
   by rewrite leq_max (leq_trans (geq_minr _ _)).
 rewrite geq_min leq_max orb_andl.
 have [lt_xi|leq_ix] := ltnP x i => //=.
-  by rewrite (leq_trans lt_xi) // ; case (_ <= _)%N.
+  by rewrite (leq_trans lt_xi) //; case (_ <= _)%N.
 have [small_x|big_x] := ltnP x (i+j) => //=.
 by rewrite (leq_trans h2).
 Qed.
@@ -600,7 +600,7 @@ Proof.
 apply/eqP/fset_eqP => i; rewrite seq_fsetE /= mem_iota; apply/bigfcupP/idP.
 move=> [j hj]; first by rewrite in_fset1 =>/eqP ->;rewrite leq_addr /= ltn_add2l.
 rewrite addnC; move/andP => [leq_ai].
-rewrite -{1}(@subnK a i) // ltn_add2r => h ; exists (Ordinal h) => //.
+rewrite -{1}(@subnK a i) // ltn_add2r => h; exists (Ordinal h) => //.
 by rewrite in_fset1 addnC subnK.
 Qed.
 
@@ -617,7 +617,7 @@ Proof. by move=> h x; rewrite h. Qed.
 Lemma eq_iotar (a c b d : nat) : iota a b =i iota c d -> b = d.
 Proof.
 move=> eq_ab_cd; rewrite -(size_iota a b) -(size_iota c d).
-by apply/eqP ; rewrite -uniq_size_uniq ?iota_uniq.
+by apply/eqP; rewrite -uniq_size_uniq ?iota_uniq.
 Qed.
 
 Lemma eq_iotal (b d a c : nat) : b != O -> iota a b =i iota c d -> a = c.
@@ -646,7 +646,7 @@ Qed.
 Lemma mnfset_sub (a b c d : nat) :
   b != O -> (mnfset a b `<=` mnfset c d) = ((c <= a) && (a + b <= c + d))%N.
 Proof.
-case: b => // b _ ; case: d.
+case: b => // b _; case: d.
 - rewrite addn0; apply/idP/idP.
   + by move/fsubsetP/(_ a); rewrite !seq_fsetE in_fset0 inE eqxx; move/implyP.
   + move=> /andP [leq_ca leq__c].
@@ -771,7 +771,7 @@ Definition nvar : pred_class := fun f :
 
 Record formulan := MkFormulan
 {
-  underlying_formula : (formula F);
+  underlying_formula : formula F;
   _ : nvar underlying_formula
 }.
 
@@ -841,10 +841,10 @@ Section Interpretation.
 Lemma set_nth_rcons (i : nat) (e : seq F) (x y : F) :
   (i < size e)%N -> set_nth 0 (rcons e y) i x = rcons (set_nth 0 e i x) y.
 Proof.
-move: i x y ; elim: e => //.
-move=> a e ihe i ; elim: i => //.
+move: i x y; elim: e => //.
+move=> a e ihe i; elim: i => //.
 move=> i ihi x y /=.
-by rewrite ltnS => lt_ie ; rewrite ihe.
+by rewrite ltnS => lt_ie; rewrite ihe.
 Qed.
 
 Fact fv_nforall (m n i : nat) (f : formula F) :
@@ -922,9 +922,11 @@ Canonical Structure formulan_or (f1 f2 : {formula_n F}) :=
 Lemma not_formulan (f : {formula_n F}) : nvar n (~ f)%oT.
 Proof. by rewrite /nvar fsubset_formulan_fv. Qed.
 
-Canonical Structure formulan_not (f : {formula_n F}) := MkFormulan (not_formulan f).
+Canonical Structure formulan_not (f : {formula_n F}) :=
+  MkFormulan (not_formulan f).
 
-Lemma exists_formulan (i : nat) (f : {formula_n F}) : nvar n ('exists 'X_i, f)%oT.
+Lemma exists_formulan (i : nat) (f : {formula_n F}) :
+  nvar n ('exists 'X_i, f)%oT.
 Proof.
 by rewrite /nvar (fsubset_trans (@fsubD1set _ _ _)) // fsubset_formulan_fv.
 Qed.
@@ -954,7 +956,7 @@ Qed.
 Lemma term_fv_tsubst (i : nat) (x : F) (t : GRing.term F) :
   term_fv (GRing.tsubst t (i, (x%:T)%oT)) = (term_fv t) `\ i.
 Proof.
-elim: t => //= ; rewrite ?fset0D //;
+elim: t => //=; rewrite ?fset0D //;
   do ?by move=> t1 h1 t2 h2; rewrite fsetDUl ![in LHS](h1, h2).
 move=> j; have [->| /negbTE neq_ij] := eqVneq j i.
   by rewrite eqxx //= fsetDv.
@@ -966,15 +968,15 @@ Lemma formula_fv_fsubst (i : nat) (x : F) (f : formula F) :
 Proof.
 elim: f.
 + by move=> b; rewrite fset0D.
-+ by move=> t1 t2 /= ; rewrite !term_fv_tsubst fsetDUl.
 + by move=> t1 t2 /=; rewrite !term_fv_tsubst fsetDUl.
-+ by move=> t1 t2 /= ; rewrite !term_fv_tsubst fsetDUl.
-+ by move=> t /= ; rewrite !term_fv_tsubst.
-+ by move=> f1 h1 f2 h2 /= ; rewrite fsetDUl h1 h2.
-+ by move=> f1 h1 f2 h2 /= ; rewrite fsetDUl h1 h2.
-+ by move=> f1 h1 f2 h2 /= ; rewrite fsetDUl h1 h2.
++ by move=> t1 t2 /=; rewrite !term_fv_tsubst fsetDUl.
++ by move=> t1 t2 /=; rewrite !term_fv_tsubst fsetDUl.
++ by move=> t /=; rewrite !term_fv_tsubst.
++ by move=> f1 h1 f2 h2 /=; rewrite fsetDUl h1 h2.
++ by move=> f1 h1 f2 h2 /=; rewrite fsetDUl h1 h2.
++ by move=> f1 h1 f2 h2 /=; rewrite fsetDUl h1 h2.
 + by move=> f hf.
-+ move=> j f /= hf ; rewrite fun_if hf.
++ move=> j f /= hf; rewrite fun_if hf.
   have [->| /negbTE neq_ij] := eqVneq j i.
     by rewrite eqxx // fsetDDl //= fsetUid.
   by rewrite neq_ij !fsetDDl fsetUC.
@@ -1035,7 +1037,8 @@ Fact closed_nexists_formulan (f : {formula_n F}) :
     formula_fv (nquantify O n Exists f) == fset0.
 Proof. by rewrite formula_fv_nexists fsetD_eq0 fsubset_formulan_fv. Qed.
 
-Lemma set_nthP (x : n.-tuple F) (i : 'I_n) (y : F) : size (set_nth 0 x i y) == n.
+Lemma set_nthP (x : n.-tuple F) (i : 'I_n) (y : F) :
+  size (set_nth 0 x i y) == n.
 Proof. by rewrite size_set_nth size_tuple; apply/eqP/maxn_idPr. Qed.
 
 Canonical set_nth_tuple (x : n.-tuple F) (i : 'I_n) (y : F) :=
@@ -1048,14 +1051,14 @@ apply/val_inj; rewrite /= -map_tnth_enum; apply/eq_map => i.
 rewrite mxE (tnth_nth 0) /=.
 move: t i; case: k => [| k t i]; first by move=> [t h [i hi]].
 rewrite (@nth_map 'I_k.+1 ord0 F 0
-                (fun (j : 'I_k.+1) => (tnth t j)) i (enum 'I_k.+1)) ; last first.
+  (fun (j : 'I_k.+1) => (tnth t j)) i (enum 'I_k.+1)); last first.
   by rewrite size_enum_ord.
 by rewrite (tnth_nth 0) (@nth_enum_ord k.+1 ord0 i).
 Qed.
 
 Fact rcf_sat_tuple (t : n.-tuple F) (f : {formula_n F}) :
-    rcf_sat t f = ((\row_(i < n) (nth 0 t i)) \in
-            [pred y : 'rV[F]_n | rcf_sat (ngraph (\row_(i < n) (nth 0 t i))) f]).
+  rcf_sat t f = ((\row_(i < n) (nth 0 t i)) \in
+  [pred y : 'rV[F]_n | rcf_sat (ngraph (\row_(i < n) (nth 0 t i))) f]).
 Proof. by rewrite inE ngraph_tnth. Qed.
 
 Fact holds_tuple (t : n.-tuple F) (s : {SAset F ^ n}) :
@@ -1088,37 +1091,37 @@ Proof. by split; apply: holds_equivf; rewrite /sub_equivf -eqmodE reprK. Qed.
 Lemma equivf_exists (f g : {formula_n F}) (i : nat) :
     equivf n f g -> (equivf n ('exists 'X_i, f) ('exists 'X_i, g))%oT.
 Proof.
-rewrite /equivf ; move/rcf_satP/nforallP => h.
+rewrite /equivf; move/rcf_satP/nforallP => h.
 apply/rcf_satP/nforallP => u /=.
-have [lt_in|leq_ni] := ltnP i n ; last first.
+have [lt_in|leq_ni] := ltnP i n; last first.
 + split=> [[x]|].
   - move/holds_fsubst.
-    rewrite fsubst_id;
-                   last by rewrite (contra (@in_fv_formulan _ _ _ _)) // -leqNgt.
-    move=> holds_uf ; exists x ; apply/holds_fsubst.
-    rewrite fsubst_id;
-                   last by rewrite (contra (@in_fv_formulan _ _ _ _)) // -leqNgt.
-    by move: holds_uf ; move/(_ u) : h ; rewrite cat0s /= ; move => [].
-  - move=> [x] ; rewrite set_nth_over ?size_tuple // rcons_cat /=.
+    rewrite fsubst_id; last
+      by rewrite (contra (@in_fv_formulan _ _ _ _)) // -leqNgt.
+    move=> holds_uf; exists x; apply/holds_fsubst.
+    rewrite fsubst_id; last
+      by rewrite (contra (@in_fv_formulan _ _ _ _)) // -leqNgt.
+    by move: holds_uf; move/(_ u) : h; rewrite cat0s /=; move => [].
+  - move=> [x]; rewrite set_nth_over ?size_tuple // rcons_cat /=.
     move/holds_take; rewrite take_size_cat ?size_tuple // => holds_ug.
-    exists 0 ; rewrite set_nth_nrcons ?size_tuple // rcons_nrcons -nseq_cat.
+    exists 0; rewrite set_nth_nrcons ?size_tuple // rcons_nrcons -nseq_cat.
     by apply/holds_cat_nseq; move: holds_ug; move/(_ u) : h => [].
 + split.
-  - move=> [x hxf] ; exists x ; move: hxf.
+  - move=> [x hxf]; exists x; move: hxf.
     move/(_ [tuple of (set_nth 0 u (Ordinal lt_in) x)]) : h.
-    by rewrite cat0s /= ; move=> [].
-  - move=> [x hxf] ; exists x ; move: hxf.
+    by rewrite cat0s /=; move=> [].
+  - move=> [x hxf]; exists x; move: hxf.
     move/(_ [tuple of (set_nth 0 u (Ordinal lt_in) x)]) : h.
-    by rewrite cat0s /= ; move=> [].
+    by rewrite cat0s /=; move=> [].
 Qed.
 
 Lemma SAsetP (s1 s2 : {SAset F ^ n}) : reflect (s1 =i s2) (s1 == s2).
 Proof.
-move: s1 s2 ; apply: quotW => f1 ; apply: quotW => f2.
+move: s1 s2; apply: quotW => f1; apply: quotW => f2.
 apply: (iffP idP) => [/eqP <-|] //.
 rewrite eqmodE /equivf => h; apply/rcf_satP/nforallP => u.
-by split ; move/holds_repr_pi/holds_tuple ;
-                       [rewrite h | rewrite -h] ; move/holds_tuple/holds_repr_pi.
+split; move/holds_repr_pi/holds_tuple; [rewrite h | rewrite -h];
+by move/holds_tuple/holds_repr_pi.
 Qed.
 
 End SemiAlgebraicSet2.
@@ -1143,10 +1146,10 @@ move: s; apply: quotP => f eq_repr_pi_f.
 rewrite /SA_ex_proj; unlock.
 apply/eqP; rewrite eqmodE eq_repr_pi_f.
 apply/rcf_satP/nforallP => u.
-rewrite cat0s ; split.
-+ move=> [y hxy] ; move/holds_repr_pi : hxy => [x hxy].
+rewrite cat0s; split.
++ move=> [y hxy]; move/holds_repr_pi : hxy => [x hxy].
   by exists x; move: hxy; rewrite set_set_nth eqxx.
-+ move=> [y hxy] ; exists y ; apply/holds_repr_pi.
++ move=> [y hxy]; exists y; apply/holds_repr_pi.
   by exists y; rewrite set_set_nth eqxx.
 Qed.
 
@@ -1162,13 +1165,13 @@ Definition SA_all_proj := (lift_op1 {SAset F ^ n} all_proj).
 Lemma all_proj_idem (s : {SAset F ^ n}) :
     SA_all_proj (SA_all_proj s) = (SA_all_proj s).
 Proof.
-move : s ; apply : quotP => f hf.
+move : s; apply : quotP => f hf.
 rewrite /SA_all_proj; unlock.
-apply/eqP ; rewrite eqmodE hf.
-apply/rcf_satP/nforallP => u ; rewrite cat0s.
+apply/eqP; rewrite eqmodE hf.
+apply/rcf_satP/nforallP => u; rewrite cat0s.
 split=> h x.
 + by move/(_ x)/holds_repr_pi/(_ x) : h; rewrite set_set_nth eqxx.
-+ apply/holds_repr_pi => y ; rewrite set_set_nth eqxx.
++ apply/holds_repr_pi => y; rewrite set_set_nth eqxx.
   by move/(_ y) : h.
 Qed.
 
@@ -1225,20 +1228,21 @@ Lemma rcf_sat_forallP k l (E : 'I_k -> formula F) :
     rcf_sat l (\big[And/True%oT]_(i < k) E i) = [forall i, rcf_sat l (E i)].
 Proof.
 elim: k=> [|k Ihk] in E *.
-  by rewrite big_ord0; apply/rcf_satP/forallP; move=> _ // => [[ ]].
-rewrite big_ord_recl /=; apply/rcf_satP/forallP
-                                         => [[/rcf_satP E0 /rcf_satP Er] i|Eall].
+  by rewrite big_ord0; apply/rcf_satP/forallP; move=> _ // [[ ]].
+rewrite big_ord_recl /=; apply/rcf_satP/forallP =>
+  [[/rcf_satP E0 /rcf_satP Er] i|Eall].
   have [j->|->//] := unliftP ord0 i.
   by move: Er; rewrite Ihk; move/forallP/(_ j).
-by apply/rcf_satP; rewrite simp_rcf_sat Eall Ihk; apply/forallP=> x; apply: Eall.
+apply/rcf_satP; rewrite simp_rcf_sat Eall Ihk.
+by apply/forallP=> x; apply: Eall.
 Qed.
 
 Fact nvar_True : @nvar F n True.
 Proof. by rewrite /nvar fsub0set. Qed.
 
 Lemma nvar_And (k : nat) (E : 'I_k -> formula F) :
-    nvar n (\big[And/True%oT]_(i < k) (E i))
-    = (\big[andb/true%oT]_(i < k) (nvar n (E i))).
+   nvar n (\big[And/True%oT]_(i < k) (E i)) =
+   (\big[andb/true%oT]_(i < k) (nvar n (E i))).
 Proof.
 rewrite /nvar formula_fv_bigAnd big_andE; apply/bigfcupsP/forallP => //= h i.
 by rewrite h.
@@ -1247,13 +1251,14 @@ Qed.
 Definition SAset1_formula (x : 'rV[F]_n) :=
     \big[And/True%oT]_(i < n) ('X_i == (x ord0 i)%:T)%oT.
 
-Lemma nth_ngraph k x0 (t : 'rV[F]_k) (i : 'I_k) : nth x0 (ngraph t) i = t ord0 i.
+Lemma nth_ngraph k x0 (t : 'rV[F]_k) (i : 'I_k) :
+  nth x0 (ngraph t) i = t ord0 i.
 Proof. by rewrite -tnth_nth tnth_map tnth_ord_tuple. Qed.
 
 Lemma SAset1_formulaP (x y : 'rV[F]_n) :
     rcf_sat (ngraph x) (SAset1_formula y) = (x == y).
 Proof.
-rewrite rcf_sat_forallP ; apply/forallP/eqP; last first.
+rewrite rcf_sat_forallP; apply/forallP/eqP; last first.
   by move=> -> i; rewrite simp_rcf_sat /= nth_ngraph.
 move=> h; apply/rowP => i; move/(_ i) : h.
 by rewrite simp_rcf_sat /= nth_ngraph => /eqP.
@@ -1289,39 +1294,39 @@ Proof. by move=> s; apply/rcf_satP/nforallP => u; rewrite cat0s. Qed.
 
 Lemma antisymetry_SAsub : antisymmetric SAsub.
 Proof.
-apply: quotP => f1 _ ; apply: quotP => f2 _.
+apply: quotP => f1 _; apply: quotP => f2 _.
 move => /andP [/rcf_satP/nforallP sub1 /rcf_satP/nforallP sub2].
 apply/eqP; rewrite eqmodE; apply/rcf_satP/nforallP => u.
 split; move/holds_repr_pi=> hf.
 + move/(_ u) : sub1; rewrite cat0s => sub1.
-  by apply/holds_repr_pi ; apply: sub1.
-+ by move/(_ u) : sub2 => sub2 ; apply/holds_repr_pi ; apply: sub2.
+  by apply/holds_repr_pi; apply: sub1.
++ by move/(_ u) : sub2 => sub2; apply/holds_repr_pi; apply: sub2.
 Qed.
 
 Lemma transitive_SAsub : transitive SAsub.
 Proof.
-apply: quotP => f1 _ ; apply: quotP => f2 _ ; apply: quotP => f3 _.
-move/rcf_satP/nforallP => sub21 ; move/rcf_satP/nforallP => sub13.
+apply: quotP => f1 _; apply: quotP => f2 _; apply: quotP => f3 _.
+move/rcf_satP/nforallP => sub21; move/rcf_satP/nforallP => sub13.
 apply/rcf_satP/nforallP => u.
 move/holds_repr_pi => holds_uf2.
 by apply: sub13; apply: sub21; apply/holds_repr_pi.
 Qed.
 
 Definition SAset_porderMixin :=
-          Order.LePOrderMixin reflexive_SAsub antisymetry_SAsub transitive_SAsub.
+  Order.LePOrderMixin reflexive_SAsub antisymetry_SAsub transitive_SAsub.
 
 Canonical SAset_porderType :=
-                     POrderType (SET.display_set tt) {SAset F ^ n} SAset_porderMixin.
+  POrderType (SET.display_set tt) {SAset F ^ n} SAset_porderMixin.
 
 Import SET.SetSyntax.
 
 Fact nvar_False : @formula_fv F False `<=` mnfset 0 n.
 Proof. by rewrite fsub0set. Qed.
 
-Definition SAset_bottom : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan nvar_False).
+Definition SAset_bottom := \pi_{SAset F ^ n} (MkFormulan nvar_False).
 
 Lemma SAset_bottomP (s : {SAset F ^ n}) : (SAset_bottom <= s)%O.
-Proof. by apply/rcf_satP/nforallP => u ; move/holds_repr_pi. Qed.
+Proof. by apply/rcf_satP/nforallP => u; move/holds_repr_pi. Qed.
 
 Definition SAset_blatticeMixin := Order.BLattice.Mixin SAset_bottomP.
 
@@ -1333,26 +1338,26 @@ Definition SAset_join (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
 
 Fact commutative_meet : commutative SAset_meet.
 Proof.
-move=> s1 s2 ; apply/eqP ; rewrite eqmodE.
-by apply/rcf_satP/nforallP => u ; split => [[h1 h2] | [h2 h1]] ; split.
+move=> s1 s2; apply/eqP; rewrite eqmodE.
+by apply/rcf_satP/nforallP => u; split => [[h1 h2] | [h2 h1]]; split.
 Qed.
 
 Fact commutative_join : commutative SAset_join.
 Proof.
-move=> s1 s2 ; apply/eqP ; rewrite eqmodE ; apply/rcf_satP/nforallP => u.
-by split => h ; apply/or_comm.
+move=> s1 s2; apply/eqP; rewrite eqmodE; apply/rcf_satP/nforallP => u.
+by split => h; apply/or_comm.
 Qed.
 
 Fact associative_meet : associative SAset_meet.
 Proof.
-move => s1 s2 s3 ; apply/eqP ; rewrite eqmodE ; apply/rcf_satP/nforallP => u.
-by split=> [[h1 /holds_repr_pi [h2 h3]]|[/holds_repr_pi [h1 h2] h3]] ;
-                                 split => // ; apply/holds_repr_pi => [] ; split.
+move => s1 s2 s3; apply/eqP; rewrite eqmodE; apply/rcf_satP/nforallP => u.
+split=> [[h1 /holds_repr_pi [h2 h3]]|[/holds_repr_pi [h1 h2] h3]];
+by split=> //; apply/holds_repr_pi => []; split.
 Qed.
 
 Fact associative_join : associative SAset_join.
 Proof.
-move=> s1 s2 s3 ; apply/eqP; rewrite eqmodE.
+move=> s1 s2 s3; apply/eqP; rewrite eqmodE.
 apply/rcf_satP/nforallP => u.
 split => [ [ | /holds_repr_pi [|]] | [/holds_repr_pi [|] | ] ].
 + by left; apply/holds_repr_pi; left.
@@ -1366,7 +1371,8 @@ Qed.
 Fact meet_join (s1 s2 : {SAset F ^ n}) : SAset_meet s2 (SAset_join s2 s1) = s2.
 Proof.
 apply/eqP/SAsetP => x; rewrite !inE.
-by rewrite !rcf_sat_repr_pi simp_rcf_sat rcf_sat_repr_pi simp_rcf_sat andbC orbK.
+rewrite !rcf_sat_repr_pi simp_rcf_sat rcf_sat_repr_pi.
+by rewrite simp_rcf_sat andbC orbK.
 Qed.
 
 Fact join_meet (s1 s2 : {SAset F ^ n}) : SAset_join s2 (SAset_meet s2 s1) = s2.
@@ -1378,44 +1384,47 @@ Qed.
 Fact le_meet (s1 s2 : {SAset F ^ n}) : (s1 <= s2)%O = (SAset_meet s1 s2 == s1).
 Proof.
 apply/idP/idP=> [sub12| /SAsetP h].
-+ apply/SAsetP => x ; move : (ngraph x) => e.
++ apply/SAsetP => x; move : (ngraph x) => e.
   rewrite !inE rcf_sat_repr_pi simp_rcf_sat.
-  apply : andb_idr ; apply/implyP.
+  apply : andb_idr; apply/implyP.
   move : sub12 => /rcf_satP/nforallP sub12.
-  apply/implyP ; move/rcf_satP => holds_e_s1.
-  apply/rcf_satP ; move : holds_e_s1.
+  apply/implyP; move/rcf_satP => holds_e_s1.
+  apply/rcf_satP; move : holds_e_s1.
   exact: sub12.
 + apply/rcf_satP/nforallP => e.
-  by move/holds_tuple ; rewrite -h ; move/holds_tuple/holds_repr_pi => [].
+  by move/holds_tuple; rewrite -h; move/holds_tuple/holds_repr_pi => [].
 Qed.
 
 Fact left_distributive_meet_join : left_distributive SAset_meet SAset_join.
 Proof.
-set vw := holds_repr_pi ; move=> s1 s2 s3 ; apply/eqP ; rewrite eqmodE.
+set vw := holds_repr_pi; move=> s1 s2 s3; apply/eqP; rewrite eqmodE.
 apply/rcf_satP/nforallP => t.
 split=> [[/vw /= [h1|h2] h3]|[/vw [h1 h3]| /vw [h2 h3]]].
-+ by left ; apply/vw.
-+ by right ; apply/vw.
-+ by split => // ; apply/vw ; left.
-+ by split => // ; apply/vw; right.
++ by left; apply/vw.
++ by right; apply/vw.
++ by split => //; apply/vw; left.
++ by split => //; apply/vw; right.
 Qed.
 
 Definition SAset_latticeMixin :=
   Order.Lattice.Mixin commutative_meet commutative_join associative_meet
-        associative_join meet_join join_meet le_meet left_distributive_meet_join.
+        associative_join meet_join join_meet le_meet
+        left_distributive_meet_join.
 
 Canonical SAset_latticeType := LatticeType {SAset F ^ n} SAset_latticeMixin.
 
 Canonical SAset_blatticeType := BLatticeType {SAset F ^ n} SAset_blatticeMixin.
 
-Definition SAset_top : {SAset F ^ n} := \pi_({SAset F ^ n}) (MkFormulan (nvar_True _ _)).
+Definition SAset_top : {SAset F ^ n} :=
+  \pi_{SAset F ^ n} (MkFormulan (nvar_True _ _)).
 
 Lemma SAset_topP (s : {SAset F ^ n}) : (s <= SAset_top)%O.
-Proof. by apply/rcf_satP/nforallP => t h ; apply/holds_repr_pi. Qed.
+Proof. by apply/rcf_satP/nforallP => t h; apply/holds_repr_pi. Qed.
 
 Definition SAset_tblatticeMixin := Order.TBLattice.Mixin SAset_topP.
 
-Canonical SAset_tblatticeType := TBLatticeType {SAset F ^ n} SAset_tblatticeMixin.
+Canonical SAset_tblatticeType :=
+  TBLatticeType {SAset F ^ n} SAset_tblatticeMixin.
 
 Definition SAset_sub (s1 s2 : {SAset F ^ n}) : {SAset F ^ n} :=
   \pi_{SAset F ^ n} (formulan_and s1 (formulan_not s2)).
@@ -1424,20 +1433,22 @@ Fact meet_sub (s1 s2 : {SAset F ^ n}) :
     SAset_meet s2 (SAset_sub s1 s2) = SAset_bottom.
 Proof.
 apply/eqP; rewrite eqmodE; apply/rcf_satP/nforallP => t.
-by split => // ; move => [? /holds_repr_pi [_ ?]].
+by split => //; move => [? /holds_repr_pi [_ ?]].
 Qed.
 
 Fact join_meet_sub (s1 s2 : {SAset F ^ n}) :
   SAset_join (SAset_meet s1 s2) (SAset_sub s1 s2) = s1.
 Proof.
 apply/eqP/SAsetP => x; rewrite !inE.
-by rewrite !rcf_sat_repr_pi !simp_rcf_sat !rcf_sat_repr_pi
-                                              !simp_rcf_sat -andb_orr orbN andbT.
+rewrite !rcf_sat_repr_pi !simp_rcf_sat !rcf_sat_repr_pi.
+by rewrite !simp_rcf_sat -andb_orr orbN andbT.
 Qed.
 
-Definition SAset_cblatticeMixin := Order.CBLattice.Mixin meet_sub join_meet_sub.
+Definition SAset_cblatticeMixin :=
+  Order.CBLattice.Mixin meet_sub join_meet_sub.
 
-Canonical SAset_cblatticeType := CBLatticeType {SAset F ^ n} SAset_cblatticeMixin.
+Canonical SAset_cblatticeType :=
+  CBLatticeType {SAset F ^ n} SAset_cblatticeMixin.
 
 Section TestCanonicalPorderStructure.
 
@@ -1471,7 +1482,7 @@ Qed.
 Lemma existsPn_formulan (m : nat) (f : {formula_m F}) :
   nvar m.-1 ('exists 'X_m.-1, f)%oT.
 Proof.
-move: f ; case: m => [f|n f] //= ; last exact: existsn_formulaSn.
+move: f; case: m => [f|n f] //=; last exact: existsn_formulaSn.
 by rewrite /nvar fsubDset (fsubset_trans (fsubset_formulan_fv _)) // fsubsetUr.
 Qed.
 
@@ -1479,7 +1490,7 @@ Lemma nexists_formulan m n (f : {formula_m F}) :
   nvar n (nquantify n (m - n) Exists f).
 Proof.
 rewrite /nvar formula_fv_nexists fsubDset fsetUC -seq_fset_cat -iota_add.
-have [/ltnW lt_mn| leq_nm] := ltnP m n ; last first.
+have [/ltnW lt_mn| leq_nm] := ltnP m n; last first.
   by rewrite subnKC // fsubset_formulan_fv.
 rewrite (fsubset_trans (fsubset_formulan_fv _)) //.
 apply/fsubsetP=> x; rewrite !seq_fsetE !mem_iota !add0n => /andP [_ lt_xm].
@@ -1506,7 +1517,7 @@ Fact ngraph_cat (m : nat) (t : 'rV[F]_m) (p : nat) (u : 'rV[F]_p) :
     ngraph (row_mx t u) = ngraph t ++ ngraph u :> seq F.
 Proof.
 apply: (@eq_from_nth _ 0) => [|i]; first by rewrite size_cat ?size_ngraph.
-rewrite size_ngraph=> lt_i_mp ; rewrite nth_cat.
+rewrite size_ngraph=> lt_i_mp; rewrite nth_cat.
 have -> : i = nat_of_ord (Ordinal lt_i_mp) by [].
 by rewrite nth_ngraph (cat_ffunE 0) size_ngraph.
 Qed.
@@ -1529,7 +1540,7 @@ Canonical Structure formulan_add (m : nat) (f : {formula_m F}) :=
 Definition ex_y (f : {formula_(n + m) F}) (x : 'rV[F]_n) :=
     rcf_sat (ngraph x) (nquantify n m Exists f).
 
-Definition satot : pred_class :=
+Definition SAtot : pred_class :=
     [pred s : {SAset F ^ _} | rcf_sat [::] (total s)].
 
 Fact test_can1 (f g h : {formula_(n + m) F}) :
@@ -1560,11 +1571,11 @@ Proof.
 apply: (iffP idP) => [h x | h].
 + move/rcf_satP/nforallP/(_ x) : h.
   case: x => s /= /eqP -{1}<-.
-  by move/nexistsP => [t h] ; exists t ; apply/rcf_satP.
+  by move/nexistsP => [t h]; exists t; apply/rcf_satP.
 + apply/rcf_satP/nforallP => x /=.
   move/(_ x) : h => [t].
   case: x => s /= /eqP -{2}<-.
-  by move/rcf_satP => h ; apply/nexistsP ; exists t.
+  by move/rcf_satP => h; apply/nexistsP; exists t.
 Qed.
 
 Definition subst_term s :=
@@ -1595,7 +1606,7 @@ Qed.
 
 Fact qf_form_fsubst (f : formula F) (i : nat) (t : GRing.term F) :
     qf_form (fsubst f (i, t)) = (qf_form f).
-Proof. by elim: f=> //= ; move=> f1 -> f2 ->. Qed.
+Proof. by elim: f=> //=; move=> f1 -> f2 ->. Qed.
 
 Fact qf_form_fsubstn (f : formula F) (s : seq nat) (t : GRing.term F) :
     qf_form (foldr (fun i h => fsubst h (i, t)) f s) = (qf_form f).
@@ -1618,8 +1629,8 @@ Fact test1 (f : formula F) (e : seq F) :
             (qf_eval e (quantifier_elim (@wproj _) (to_rform f))).
 Proof.
 apply: quantifier_elim_rformP; last by rewrite to_rform_rformula.
-- by move=> i bc /= h ; apply: wf_QE_wproj.
-- by move=> i bc /= e2 h ; apply: valid_QE_wproj.
+- by move=> i bc /= h; apply: wf_QE_wproj.
+- by move=> i bc /= e2 h; apply: valid_QE_wproj.
 Qed.
 
 Fact test2 (i : nat) (e : seq F) (f : formula F) :
@@ -1629,13 +1640,14 @@ Proof. by move=> h; rewrite fsubst_id. Qed.
 
 Fact test3 (f : formula F) (s : seq nat) (e : seq F) :
     [disjoint (seq_fset s) & (formula_fv f)] ->
-    (holds e (foldr (fun i h => fsubst h (i, GRing.Const 0)) f s) <-> holds e f).
+    (holds e (foldr (fun i h => fsubst h (i, GRing.Const 0)) f s)
+       <-> holds e f).
 Proof.
 elim: s => // i s ih.
 rewrite fset_cons fdisjointU1X => /andP [hi dis] /=.
-rewrite fsubst_id ; first exact : ih.
-move: hi ; apply: contra.
-by rewrite fv_foldr_fsubst inE ; move/andP => [].
+rewrite fsubst_id; first exact : ih.
+move: hi; apply: contra.
+by rewrite fv_foldr_fsubst inE; move/andP => [].
 Qed.
 
 (* How to factorize both goals? *)
@@ -1656,9 +1668,10 @@ split => h e; (split; first exact: holds_forall).
 Qed.
 
 Lemma fv_foldr (f : formula F) (s : seq (formula F)) :
-  formula_fv (foldr Or f s) = (formula_fv f) `|` \bigcup_(i <- s) (formula_fv i).
+  formula_fv (foldr Or f s) =
+  (formula_fv f) `|` \bigcup_(i <- s) (formula_fv i).
 Proof.
-elim: s => [|g s /= ->] ; first by rewrite big_nil fsetU0.
+elim: s => [|g s /= ->]; first by rewrite big_nil fsetU0.
 by rewrite big_cons fsetUCA.
 Qed.
 
@@ -1669,16 +1682,16 @@ Proof. by move=> h1 h2; apply/holds_fsubst; move/h1/(_ x): h2. Qed.
 Lemma is_independentP (i : nat) (f : formula F) :
   is_independent i f <->
   (forall (e : seq F) (x y : F),
-                    (holds (set_nth 0 e i x) f) <-> (holds (set_nth 0 e i y) f)).
+     (holds (set_nth 0 e i x) f) <-> (holds (set_nth 0 e i y) f)).
 Proof.
-split => h e ; [|split => [|h2 z]].
+split => h e; [|split => [|h2 z]].
 + move=> x y.
   apply: (iff_trans _ (h (set_nth 0 e i y))); apply: iff_sym.
   apply: (iff_trans _ (h (set_nth 0 e i x))).
-  by split=> h2 u; rewrite set_set_nth eqxx;
-                                       move/(_ u) : h2; rewrite set_set_nth eqxx.
-+ by move/(_ e`_i) ; rewrite set_nth_nth ; move/holds_cat_nseq.
-+ by apply/(h e e`_i _) ; rewrite set_nth_nth ; apply/holds_cat_nseq.
+  split=> h2 u; rewrite set_set_nth eqxx;
+  by move/(_ u) : h2; rewrite set_set_nth eqxx.
++ by move/(_ e`_i); rewrite set_nth_nth; move/holds_cat_nseq.
++ by apply/(h e e`_i _); rewrite set_nth_nth; apply/holds_cat_nseq.
 Qed.
 
 Lemma foldr_fsubst_indep (s : seq nat) (f : formula F) (x : F) (e : seq F) :
@@ -1686,7 +1699,7 @@ Lemma foldr_fsubst_indep (s : seq nat) (f : formula F) (x : F) (e : seq F) :
   holds e (foldr (fun i : nat => (fsubst (T:=F))^~ (i, (x%R%:T)%oT)) f s) <->
   holds e f.
 Proof.
-move: f x e ; elim: s => // a s.
+move: f x e; elim: s => // a s.
 move => ih f x e h.
 apply: (iff_trans (holds_fsubst _ _ _ _)).
 apply: (iff_trans (ih _ _ _ _)) => [j j_in_s|].
@@ -1701,17 +1714,17 @@ Proof.
 split=> h e.
 + apply: (iff_trans _ (to_rformP _ _)).
   apply: (iff_trans _ (h _)).
-  by split; apply: monotonic_forall_if=> e2 ; move/to_rformP.
+  by split; apply: monotonic_forall_if=> e2; move/to_rformP.
 + apply: iff_sym; apply: (iff_trans (to_rformP _ _)).
   apply: iff_sym; apply: (iff_trans _ (h _)).
-  by split; apply: monotonic_forall_if=> e2 ; move/to_rformP.
+  by split; apply: monotonic_forall_if=> e2; move/to_rformP.
 Qed.
 
 Lemma qf_elim_holdsP (f : formula F) (e : seq F) :
     reflect (holds e f) (rcf_sat e (qf_elim f)).
 Proof.
-apply: (equivP _ (to_rformP _ _)) ; apply: (equivP (rcf_satP _ _)).
-apply: (iff_trans (foldr_fsubst_indep _ _ _)) => [i | ] ; last first.
+apply: (equivP _ (to_rformP _ _)); apply: (equivP (rcf_satP _ _)).
+apply: (iff_trans (foldr_fsubst_indep _ _ _)) => [i | ]; last first.
   apply: (iff_trans (rwP (qf_evalP _ (qf_form_elim (to_rform_rformula _))))).
   apply: iff_sym.
   by apply: (iff_trans _ (rwP (elim_rformP _ (to_rform_rformula _)))).
@@ -1777,7 +1790,7 @@ Qed.
 
 Lemma subst_env_iota_catl k e1 e2 : size e1 = k ->
     subst_env (iota 0 k) (e1 ++ e2) = e1.
-Proof. by move=> ? ; rewrite -[e1 ++ e2]cat0s (@subst_env_iota 0). Qed.
+Proof. by move=> ?; rewrite -[e1 ++ e2]cat0s (@subst_env_iota 0). Qed.
 
 Lemma subst_env_iota_catr k1 k2 e1 e2 : size e1 = k1 -> size e2 = k2 ->
     subst_env (iota k1 k2) (e1 ++ e2) = e2.
@@ -1794,9 +1807,9 @@ Lemma eval_subst (e : seq F) (s : seq nat) (t : GRing.term F) :
 Proof.
 elim: t.
 - move=> i //=.
-  have [lt_is| leq_si] := ltnP i (size s) ; last first.
+  have [lt_is| leq_si] := ltnP i (size s); last first.
   + by rewrite [RHS]nth_default ?size_map // !nth_default.
-  + by rewrite (nth_map i) //= ; congr nth ; apply: set_nth_default.
+  + by rewrite (nth_map i) //=; congr nth; apply: set_nth_default.
 - by move=> x.
 - by move=> i.
 - by move=> /= t1 -> t2 ->.
@@ -1812,10 +1825,10 @@ Lemma holds_subst e s f :
 Proof.
 rewrite (rwP (@qf_elim_holdsP f _)) -(rwP (@rcf_satP _ _ _)) /subst_formula.
 move: e s; elim: (qf_elim f) (qf_elim_qf f) => // {f}.
-- by move=> t1 t2 ? e s /= ; rewrite !eval_subst.
-- by move=> t1 t2 ? e s /= ; rewrite !eval_subst.
-- by move=> t1 t2 ? e s /= ; rewrite !eval_subst.
-- by move=> t ? e s /= ; rewrite eval_subst.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst.
+- by move=> t ? e s /=; rewrite eval_subst.
 - by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
 - by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
 - by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
@@ -1825,34 +1838,35 @@ Qed.
 Lemma fv0_holds (e : seq F) f :
     formula_fv f = fset0 -> (holds e f <-> holds [::] f).
 Proof.
-move/eqP ; move=> h ; elim/last_ind: e => //.
-move=> e x <- ; move: h ; elim: f => //.
-- move=> t1 t2 /= ; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
+move/eqP; move=> h; elim/last_ind: e => //.
+move=> e x <-; move: h; elim: f => //.
+- move=> t1 t2 /=; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
   by rewrite !eval_fv.
-- move=> t1 t2 /= ; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
+- move=> t1 t2 /=; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
   by rewrite !eval_fv.
-- move=> t1 t2 /= ; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
+- move=> t1 t2 /=; rewrite fsetU_eq0 => /andP [/eqP ht1 /eqP ht2].
   by rewrite !eval_fv.
-- by move=> t /eqP h /= ; rewrite !eval_fv.
+- by move=> t /eqP h /=; rewrite !eval_fv.
 - move=> f1 h1 f2 h2.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
   move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
   by apply: (iff_trans (and_iff_compat_r _ _) (and_iff_compat_l _ _)).
 - move=> f1 h1 f2 h2.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
-  move: (h1 ht1) => {h1} h1 ; move: (h2 ht2) => {h2} h2.
+  move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
   by apply: (iff_trans (or_iff_compat_r _ _) (or_iff_compat_l _ _)).
 - move=> f1 h1 f2 h2 /=.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
   move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
   by apply: (iff_trans (if_iff_compat_r _ _) (if_iff_compat_l _ _)).
-- by move=> f holds_ex_f fv_f ; split => ? ; apply/(holds_ex_f fv_f).
+- by move=> f holds_ex_f fv_f; split => ?; apply/(holds_ex_f fv_f).
 - move=> i f h.
   (* the following line causes a problem in PB if I remove /= *)
   rewrite [X in X -> _]/= fsetD_eq0 fsubset1 => /orP [h1 | fv0]; last first.
   + move/(_ fv0) : h => h.
     have hi : i \notin formula_fv f by move/eqP : fv0 ->. (* PB problem here *)
-    by split;move/holds_Nfv_ex => h';apply/holds_Nfv_ex => //;apply/h; apply: h'.
+    split; move/holds_Nfv_ex => h';apply/holds_Nfv_ex => //;
+    by apply/h; apply: h'.
   + rewrite -(rcons_set_nth x 0); split => [|h'].
     - move/holds_fsubst.
       by rewrite fsubst_id //=; move/eqP : h1 ->; rewrite fsetDv in_fset0.
@@ -1862,7 +1876,8 @@ move=> e x <- ; move: h ; elim: f => //.
   rewrite [X in X -> _]/= fsetD_eq0 fsubset1 => /orP [h1 | fv0]; last first.
   + move/(_ fv0) : h => h.
     have hi : i \notin formula_fv f by move/eqP : fv0 ->.
-    by split;move/holds_Nfv_all=> h';apply/holds_Nfv_all =>//;apply/h; apply: h'.
+    split; move/holds_Nfv_all=> h'; apply/holds_Nfv_all =>//;
+    by apply/h; apply: h'.
   + rewrite -(rcons_set_nth x 0); split => [|h'].
     - move/holds_fsubst.
       by rewrite fsubst_id //=; move/eqP : h1 ->; rewrite fsetDv in_fset0.
@@ -1871,7 +1886,7 @@ move=> e x <- ; move: h ; elim: f => //.
 Qed.
 
 Fact fv_tsubst_nil (t : GRing.term F) : term_fv (subst_term [::] t) = fset0.
-Proof. by elim: t => //= t1 -> t2 -> ; rewrite fsetU0. Qed.
+Proof. by elim: t => //= t1 -> t2 ->; rewrite fsetU0. Qed.
 
 Fact fv_tsubst (s : seq nat) (t : GRing.term F) :
     term_fv (subst_term s t) `<=` seq_fset s.
@@ -1879,7 +1894,7 @@ Proof.
 elim: t => //.
 - move=> i /=.
   have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
-  by rewrite fsub1set seq_fsetE ; apply/(nthP _) ; exists i.
+  by rewrite fsub1set seq_fsetE; apply/(nthP _); exists i.
 - by move=> x; rewrite fsub0set.
 - by move=> i; rewrite fsub0set.
 - by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
@@ -1890,34 +1905,34 @@ Lemma fsubset_seq_fset (K : choiceType) (s1 s2 : seq K) :
     reflect {subset s1 <= s2} ((seq_fset s1) `<=` (seq_fset s2)).
 Proof.
 apply: (@equivP _ _ _ (@fsubsetP _ _ _)).
-by split => h x ; move/(_ x) : h ; rewrite !seq_fsetE.
+by split => h x; move/(_ x) : h; rewrite !seq_fsetE.
 Qed.
 
 Fact fv_tsubst_map (s : seq nat) (t : GRing.term F) :
-    term_fv (subst_term s t) `<=`
-           seq_fset [seq nth O s i | i <- (iota O (size s)) & (i \in term_fv t)].
+  term_fv (subst_term s t) `<=`
+  seq_fset [seq nth O s i | i <- (iota O (size s)) & (i \in term_fv t)].
 Proof.
 elim: t => //.
 - move=> i /=.
   have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
-  rewrite fsub1set seq_fsetE ; apply: map_f.
+  rewrite fsub1set seq_fsetE; apply: map_f.
   by rewrite mem_filter in_fset1 eqxx mem_iota leq0n add0n.
-- by move=> x ; rewrite fsub0set.
-- by move=> i ; rewrite fsub0set.
-- move=> t1 h1 t2 h2 /= ; rewrite fsubUset ; apply/andP ; split.
+- by move=> x; rewrite fsub0set.
+- by move=> i; rewrite fsub0set.
+- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
   + rewrite (fsubset_trans h1) //.
     apply/fsubset_seq_fset; apply: sub_map_filter => x.
     by rewrite in_fsetU => ->.
   + rewrite (fsubset_trans h2) //.
     apply/fsubset_seq_fset; apply: sub_map_filter => x.
-    by rewrite in_fsetU => -> ; rewrite orbT.
-- move=> t1 h1 t2 h2 /= ; rewrite fsubUset ; apply/andP ; split.
+    by rewrite in_fsetU => ->; rewrite orbT.
+- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
   + rewrite (fsubset_trans h1) //.
     apply/fsubset_seq_fset; apply: sub_map_filter => x.
     by rewrite in_fsetU => ->.
   + rewrite (fsubset_trans h2) //.
     apply/fsubset_seq_fset; apply: sub_map_filter => x.
-    by rewrite in_fsetU => -> ; rewrite orbT.
+    by rewrite in_fsetU => ->; rewrite orbT.
 Qed.
 
 Fact fv_subst_formula (s : seq nat) f :
@@ -1938,8 +1953,8 @@ move: s; elim: (qf_elim f) => // {f}.
 Qed.
 
 Fact fv_qf_subst_formula (s : seq nat) f :
-    formula_fv (qf_subst_formula s f) `<=`
-        seq_fset [seq nth O s i | i <- (iota O (size s)) & (i \in formula_fv f)].
+  formula_fv (qf_subst_formula s f) `<=`
+  seq_fset [seq nth O s i | i <- (iota O (size s)) & (i \in formula_fv f)].
 Proof.
 move: s; elim: f => //.
 - by move=> b s; rewrite fsub0set.
@@ -1979,7 +1994,7 @@ move: s; elim: f => //.
     apply: sub_map_filter.
     move=> i.
     by rewrite in_fsetU => ->; rewrite orbT.
-- by move=> t s ; apply: fv_tsubst_map.
+- by move=> t s; apply: fv_tsubst_map.
 - move=> f1 h1 f2 h2 s /=.
   rewrite fsubUset.
   apply/andP; split.
@@ -2019,8 +2034,8 @@ move: s; elim: f => //.
     apply: sub_map_filter.
     move=> i.
     by rewrite in_fsetU => ->; rewrite orbT.
-- by move=> i f hf s ; rewrite fsub0set.
-- by move=> i f hf s ; rewrite fsub0set.
+- by move=> i f hf s; rewrite fsub0set.
+- by move=> i f hf s; rewrite fsub0set.
 Qed.
 
 Fact fv_subst_formula_map (s : seq nat) f :
@@ -2050,7 +2065,7 @@ Lemma foldr_maxn_undup a s : foldr maxn a (undup s) = foldr maxn a s.
 Proof.
 elim: s => // b s ih /=.
 have [b_in_s | b_notin_s] := boolP (b \in s); rewrite /= ih //.
-by symmetry; apply/maxn_idPr ; rewrite leq_foldr_maxn.
+by symmetry; apply/maxn_idPr; rewrite leq_foldr_maxn.
 Qed.
 
 Lemma foldr_maxn_leq a s b :
@@ -2071,8 +2086,8 @@ Qed.
 Lemma leq_foldr_maxl a s : (a <= foldr maxn a s)%N.
 Proof. by elim: s => // *; rewrite (leq_trans _ (leq_maxr _ _)). Qed.
 
-Lemma aux_leq_max_max a (s1 s2 : seq nat) :
-uniq s1-> uniq s2 -> {subset s1 <= s2} -> (foldr maxn a s1 <= foldr maxn a s2)%N.
+Lemma aux_leq_max_max a (s1 s2 : seq nat) : uniq s1-> uniq s2 ->
+  {subset s1 <= s2} -> (foldr maxn a s1 <= foldr maxn a s2)%N.
 Proof.
 elim: s1; rewrite ?leq_foldr_maxl // => x s1 ih /andP [x_notin_s1 uniq_s1].
 move=> uniq_s2 /subset_cons [x_in_s2 sub_12].
@@ -2101,7 +2116,7 @@ rewrite /eq_vec /= eqSS big_ord_recl /=.
 split.
 move=> /andP [/eqP eq_ab /eqP eq_v2].
 rewrite fun_if /=; move/(ih v2) : eq_v2.
-by rewrite /eq_vec ; case: (_ == _).
+by rewrite /eq_vec; case: (_ == _).
 rewrite fun_if /= => h.
 apply/andP; split; first by move: h; case: (_ == _) => //; move=> [] ->.
 by apply/eqP/(ih v2); move: h;rewrite /eq_vec;case: (_ == _) => //; move=> [] _.
@@ -2119,8 +2134,8 @@ Canonical subst_env_tuple (i : nat) (t : i.-tuple nat) (e : seq F) :=
 
 Lemma f_is_funcE (f : {formula_(n + m) F}) :
     reflect
-    (forall (t : n.-tuple F) (u1 u2 : m.-tuple F), rcf_sat (t ++ u1) f
-                                               -> rcf_sat (t ++ u2) f -> u1 = u2)
+    (forall (t : n.-tuple F) (u1 u2 : m.-tuple F),
+      rcf_sat (t ++ u1) f -> rcf_sat (t ++ u2) f -> u1 = u2)
     (rcf_sat [::] (functional f)).
 Proof.
 rewrite /functional !nquantify_add !add0n.
@@ -2154,10 +2169,10 @@ apply: (iffP idP).
   by move/(congr1 val).
 Qed.
 
-Lemma satotE (s : {SAset F ^ (n + m)}) :
+Lemma SAtotE (s : {SAset F ^ (n + m)}) :
     reflect
     (forall (x : 'rV[F]_n), exists (y : 'rV[F]_m), (row_mx x y) \in s)
-    (s \in satot).
+    (s \in SAtot).
 Proof.
 rewrite inE; apply: (iffP (f_is_totalE _)) => s_sat x.
   have [y sat_s_xy] := s_sat (ngraph x).
@@ -2202,8 +2217,8 @@ Fact nvar_SAimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :
   `<=` mnfset 0 m.
 Proof.
 rewrite formula_fv_nexists fsubDset fsubUset.
-by rewrite !(fsubset_trans (fv_subst_formula _ _))
-                                         ?fsubsetUl // seq_fset_cat fsubset_refl.
+rewrite !(fsubset_trans (fv_subst_formula _ _));
+by rewrite ?fsubsetUl // seq_fset_cat fsubset_refl.
 Qed.
 
 Definition SAimset (f : {SAset F ^ (n + m)}) (s : {SAset F ^ n}) :=
@@ -2216,7 +2231,7 @@ apply: (iffP idP); rewrite /ex_y.
   rewrite -{1}[X in nquantify X _ _](size_ngraph t).
   move/rcf_satP/nexistsP=> [u  h].
   exists (\row_(i < m) (nth 0 u i)).
-  by rewrite ngraph_cat ngraph_tnth ; apply/rcf_satP.
+  by rewrite ngraph_cat ngraph_tnth; apply/rcf_satP.
 move=> [u]; rewrite ngraph_cat => ftu.
 apply/rcf_satP; rewrite -{1}[X in nquantify X _ _](size_ngraph t).
 by apply/nexistsP; exists (ngraph u); apply/rcf_satP.
@@ -2234,7 +2249,7 @@ Definition form_to_fun (f : {formula_(n + m) F}) : 'rV[F]_n -> 'rV[F]_m :=
 Record SAfun := MkSAfun
 {
   graph :> {SAset F ^ (n + m)};
-  _ : (graph \in SAfunc) && (graph \in satot)
+  _ : (graph \in SAfunc) && (graph \in SAtot)
 }.
 
 Definition SAfun_of of phant (F ^ n -> F ^ m) := SAfun.
@@ -2257,7 +2272,7 @@ Proof. by apply: SAfuncE; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Lemma SAfun_tot (f : {SAfun}) (x : 'rV[F]_n) :
     exists (y : 'rV[F]_m), (row_mx x y) \in (graph f).
-Proof. by apply: satotE ; case: f; move => /= [f h /andP [h1 h2]]. Qed.
+Proof. by apply: SAtotE; case: f; move => /= [f h /andP [h1 h2]]. Qed.
 
 Definition SAfun_to_fun (f : SAfun) : 'rV[F]_n -> 'rV[F]_m :=
     fun x => proj1_sig (sigW (SAfun_tot f x)).
@@ -2272,7 +2287,7 @@ Proof. by move: f => [g /= /andP [_ total_g]]. Qed.
 
 End SAFunction.
 Arguments SAfunc {F n m}.
-Arguments satot {F n m}.
+Arguments SAtot {F n m}.
 Notation "{ 'SAfun' T }" := (SAfun_of (Phant T)) : type_scope.
 
 Section ASet.
@@ -2348,7 +2363,8 @@ Lemma laya (e : seq F) (f1 f2 : formula F) :
     holds e (f1 /\ f2) <-> ((holds e f1) /\ (holds e f2)).
 Proof. by []. Qed.
 
-Lemma notP (e : seq F) (f : formula F) : holds e (~ f) <-> holds e (f ==> False).
+Lemma notP (e : seq F) (f : formula F) :
+  holds e (~ f) <-> holds e (f ==> False).
 Proof. by split => // h h'; move: (h h'). Qed.
 
 Lemma non_empty : forall (n : nat) (s : {SAset F ^ n}),
@@ -2378,7 +2394,7 @@ rewrite /SAset_join pi_form !inE.
 apply/idP/idP.
 move/rcf_satP => /=.
 by move=> [l|r]; apply/orP; [left|right]; apply/rcf_satP.
-by move/orP => [l|r]; apply/rcf_satP ; [left|right]; apply/rcf_satP.
+by move/orP => [l|r]; apply/rcf_satP; [left|right]; apply/rcf_satP.
 Qed.
 
 Lemma in_graph_SAfun (n m : nat) (f : {SAfun F^n -> F^m}) (x : 'rV[F]_n) :
@@ -2417,7 +2433,7 @@ Lemma SAsetfunsort (n m: nat) (f : {SAfun F^n -> F^m})
    reflect (exists2 x : 'rV[F]_n, x \in s & y = f x)
             (y \in (SAimset f s)).
 Proof.
-apply: (iffP idP); last by move=> [x h] -> ; apply: in_SAimset.
+apply: (iffP idP); last by move=> [x h] ->; apply: in_SAimset.
 rewrite /SAimset pi_form.
 move/rcf_satP.
 rewrite /= -[X in nquantify X _ _ _](size_ngraph y).
@@ -2426,7 +2442,7 @@ rewrite !holds_subst subst_env_cat; move => [h1 h2].
 exists (\row_(i < n) t`_i).
 + rewrite inE ngraph_tnth.
   apply/rcf_satP.
-  move: h2 ; rewrite -[ngraph y ++ t]cats0 -catA.
+  move: h2; rewrite -[ngraph y ++ t]cats0 -catA.
   by rewrite subst_env_iota //  ?size_tuple.
 + move: h1.
   rewrite subst_env_iota_catl ?size_ngraph //.
@@ -2453,7 +2469,8 @@ apply/eqP/idP => [<- | h]; first by rewrite in_graph_SAfun.
 exact: (SAfun_func (in_graph_SAfun _ _)).
 Qed.
 
-Lemma SAfunE (n m : nat) (f1 f2 : {SAfun F^n -> F^m}) : reflect (f1 =1 f2) (f1 == f2).
+Lemma SAfunE (n m : nat) (f1 f2 : {SAfun F^n -> F^m}) :
+  reflect (f1 =1 f2) (f1 == f2).
 Proof.
 apply: (iffP idP); first by move/eqP ->.
 move=> h; apply/SAsetP => x.
@@ -2482,8 +2499,6 @@ Qed.
 Definition max_vec (v : seq nat) (n : nat) : formula F :=
     ((\big[Or/False]_(i < size v) ('X_n == 'X_(nth O v i))) /\
     (\big[And/True]_(i < size v) ('X_(nth O v i) <=% 'X_n)))%oT.
-
-Local Notation "{ 'formulan' n }" := (formulan_of n (Phant F)).
 
 Definition abs (i j : nat) : formula F :=
     ((('X_j == 'X_i) \/ ('X_j == - 'X_i)) /\ (0 <=% 'X_j))%oT.
@@ -2514,19 +2529,19 @@ Qed.
 Fact nvar_abs2 : @nvar F (1 + 1) (abs O 1).
 Proof. by rewrite /nvar !fsubUset !fsub1set !seq_fsetE fsub0set. Qed.
 
-Definition absset := \pi_({SAset F ^ (1 + 1)}) (MkFormulan nvar_abs2).
+Definition absset := \pi_{SAset F ^ (1 + 1)} (MkFormulan nvar_abs2).
 
 Lemma functional_absset : absset \in SAfunc.
 Proof.
 apply/rcf_satP/nforallP => t.
 move=> [/holds_subst/holds_repr_pi/absP h1 /holds_subst/holds_repr_pi/absP h2].
-apply/holds_eq_vec ; move: h1 h2 ; case: t => s sz //= {sz}.
-case: s => // a s ; case: s => // b s -> {b} ; case: s => //.
+apply/holds_eq_vec; move: h1 h2; case: t => s sz //= {sz}.
+case: s => // a s; case: s => // b s -> {b}; case: s => //.
   by move <-.
 by move=> b // _ ->.
 Qed.
 
-Lemma total_absset : absset \in satot.
+Lemma total_absset : absset \in SAtot.
 Proof.
 apply/rcf_satP/nforallP => t /=.
 rewrite -[X in nquantify X _ _ _](size_tuple t).
@@ -2541,7 +2556,7 @@ have [le_e0|lt_0e] := ler0P x; first by right.
 by left.
 Qed.
 
-Fact SAfun_SAabs : (absset \in SAfunc) && (absset \in satot).
+Fact SAfun_SAabs : (absset \in SAfunc) && (absset \in SAtot).
 Proof. by rewrite functional_absset total_absset. Qed.
 
 Definition SAabs := MkSAfun SAfun_SAabs.
@@ -2549,7 +2564,7 @@ Definition SAabs := MkSAfun SAfun_SAabs.
 Definition diagf_form (f : {formula_(1 + 1) F}) (n : nat) (v1 v2 : seq nat) :=
 (if size v1 == size v2 then
 (\big[And/True]_(i < size v1)
-(subst_formula [::(nth O v1 (nat_of_ord i)) ; (nth O v2 (nat_of_ord i))] f)%oT)
+(subst_formula [::(nth O v1 (nat_of_ord i)); (nth O v2 (nat_of_ord i))] f)%oT)
                        else False).
 
 Fact pre_nvar_diagf_form (a b n : nat) (f : {formula_(1 + 1) F}) :
@@ -2570,13 +2585,13 @@ Fact nvar_diagf_form (f : {formula_(1 + 1) F}) (n : nat) :
 Proof. by rewrite -{1}[n]max0n pre_nvar_diagf_form. Qed.
 
 Definition diagf (n : nat) (f : {formula_(1 + 1) F}) :=
-  \pi_({SAset F ^ (n + n)}) (MkFormulan (nvar_diagf_form f n)).
+  \pi_{SAset F ^ (n + n)} (MkFormulan (nvar_diagf_form f n)).
 
 Lemma functional_diagf (f : {SAfun F^1 -> F^1}) (n : nat) :
   diagf n f \in SAfunc.
 Proof.
 apply/rcf_satP/nforallP => t [/holds_subst h1 /holds_subst h2].
-move: h1 h2 ; rewrite !subst_env_cat /diagf.
+move: h1 h2; rewrite !subst_env_cat /diagf.
 move/holds_repr_pi/rcf_satP => h1.
 move/holds_repr_pi/rcf_satP.
 move: h1.
@@ -2597,10 +2612,10 @@ move: (@SAfun_func F 1 1 f (const_mx t`_i)
 rewrite !inE !ngraph_cat /= enum_ordS.
 have -> : enum 'I_0 = [::] by apply: size0nil; rewrite size_enum_ord.
 rewrite /= !mxE mul2n -addnn.
-by move/(_ h1 h2)/matrixP/(_ ord0 ord0) ; rewrite !mxE.
+by move/(_ h1 h2)/matrixP/(_ ord0 ord0); rewrite !mxE.
 Qed.
 
-Lemma total_diagf (f : SAfun F 1 1) (n : nat) : diagf n f \in satot.
+Lemma total_diagf (f : SAfun F 1 1) (n : nat) : diagf n f \in SAtot.
 Proof.
 apply/rcf_satP/nforallP => t.
 rewrite -[X in nquantify X _ _ _](size_tuple t).
@@ -2628,7 +2643,7 @@ by rewrite mxE.
 Qed.
 
 Fact SAfun_diagf (f : {SAfun F^1 -> F^1}) (n : nat) :
-   (diagf n f \in SAfunc) && (diagf n f \in satot).
+   (diagf n f \in SAfunc) && (diagf n f \in SAtot).
 Proof. by rewrite functional_diagf total_diagf. Qed.
 
 Definition SAdiagf (f : {SAfun F^1 -> F^1}) (n : nat) :=
@@ -2647,7 +2662,7 @@ Proof.
 rewrite /nvar /comp_formula /= formula_fv_nexists fsubDset fsetUC -seq_fset_cat.
 rewrite -iota_add /= fsubUset.
 rewrite ?(fsubset_trans (fv_subst_formula _ _)) // => {f} {g};
-rewrite seq_fset_cat fsubUset; apply/andP ; split.
+rewrite seq_fset_cat fsubUset; apply/andP; split.
 case: n=> [|n]; rewrite ?seq_fset_nil ?fsub0set //.
 by rewrite mnfset_sub // leq0n /= add0n.
 case: p=> [|p]; rewrite ?seq_fset_nil ?fsub0set //.
@@ -2659,7 +2674,7 @@ by rewrite mnfset_sub // leq0n /= add0n.
 Qed.
 
 Definition compo (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
-  \pi_({SAset F ^ (m + p)}) (MkFormulan (nvar_comp_formula f g)).
+  \pi_{SAset F ^ (m + p)} (MkFormulan (nvar_comp_formula f g)).
 
 Fact take_tuple_addnP (T : Type) (a b : nat) (t : (a + b).-tuple T) :
     size (take a t) == a.
@@ -2675,7 +2690,7 @@ Canonical drop_tuple_addn_tuple (T : Type) (a b : nat)
 
 Fact tuple_addn (T : Type) (a b : nat) (t : (a + b).-tuple T) :
     cat_tuple (take_tuple_addn_tuple t) (drop_tuple_addn_tuple t) = t.
-Proof. by apply/val_inj ; rewrite /= cat_take_drop. Qed.
+Proof. by apply/val_inj; rewrite /= cat_take_drop. Qed.
 
 Lemma tuple_addn_ind(T : Type) (a b : nat) (P : (a + b).-tuple T -> Prop) :
 (forall (t1 : a.-tuple T), forall (t2 : b.-tuple T), P (cat_tuple t1 t2)) ->
@@ -2706,7 +2721,7 @@ apply: (iffP idP); last first.
   rewrite subst_env_iota_catl; last by rewrite size_map size_enum_ord.
   rewrite catA subst_env_iota_catr ?size_tuple ?card_ord //.
   rewrite subst_env_cat subst_env_iota_catr ?size_tuple ?card_ord //.
-  rewrite -catA subst_env_iota ; last 2 first.
+  rewrite -catA subst_env_iota; last 2 first.
   - by rewrite size_map size_enum_ord.
   - by rewrite size_map size_enum_ord.
   rewrite -[t]ngraph_tnth -!ngraph_cat.
@@ -2727,11 +2742,11 @@ apply: (iffP idP); last first.
 Qed.
 
 Fact SAfun_SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
-   (compo f g \in SAfunc) && (compo f g \in satot).
+   (compo f g \in SAfunc) && (compo f g \in SAtot).
 Proof.
 apply/andP; split.
-  by apply/SAfuncE => x y1 y2; rewrite !compoP; move/eqP -> ; move/eqP ->.
-by apply/satotE => x; exists (g (f x)); rewrite compoP.
+  by apply/SAfuncE => x y1 y2; rewrite !compoP; move=> /eqP-> /eqP->.
+by apply/SAtotE => x; exists (g (f x)); rewrite compoP.
 Qed.
 
 Definition SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
