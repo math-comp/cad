@@ -101,7 +101,9 @@ endif
 #                    #
 ######################
 
-VFILES:=auxresults.v\
+VFILES:=extra_ssr.v\
+  subresultant.v\
+  auxresults.v\
   semialgebraic.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
