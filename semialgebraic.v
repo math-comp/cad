@@ -2389,14 +2389,21 @@ exists (\row_(i < n) t`_i).
   by rewrite inE ngraph_cat ngraph_tnth; apply/rcf_satP.
 Qed.
 
-Import SET.Theory.
 Definition SAset_setMixin :=
-  SemisetMixin SAemptyP inSAset1B sub_SAset1 non_empty
+  SET.Semiset.Mixin SAemptyP inSAset1B sub_SAset1 non_empty
   les1s2 SAunion SAsetfunsort.
+
+Notation SemisetType set m :=
+  (@SET.Semiset.pack _ _ set _ _ m _ _ (fun => id) _ id).
+Canonical SAset_setType := SemisetType (fun n => {SAset F^n}) SAset_setMixin.
+
+(* Import SET.Theory. *)
+(* Definition SAset_setMixin := *)
+(*   SemisetMixin SAemptyP inSAset1B sub_SAset1 non_empty *)
+(*   les1s2 SAunion SAsetfunsort. *)
 
 (* Notation SemisetType set m := *)
 (*   (@SET.Semiset.pack _ _ set _ _ m _ _ (fun => id) _ id). *)
-Canonical SAset_setType := SemisetType (fun n => {SAset F^n}) SAset_setMixin.
 
 Lemma in_SAfun (n m : nat) (f : {SAfun F^n -> F^m})
    (x : 'rV[F]_n) (y : 'rV[F]_m):

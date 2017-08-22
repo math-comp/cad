@@ -392,3 +392,4 @@ Lemma sgr_gt0Blt0 (R : realDomainType) (x : R) :
 Proof. by case: sgrP; rewrite ?subr0 ?sub0r ?mulr1n. Qed.
 
 End extra_int.
+
