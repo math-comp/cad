@@ -1,0 +1,6 @@
+extra_ssr.v
+subresultant.v
+
+-R "." SubResultant
+
+

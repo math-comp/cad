@@ -1,0 +1,3 @@
+-Q ../auxresults AuxResults
+-Q ../coq-ssr-elliptic-curves EllipticCurves
+-R . Newtonsums

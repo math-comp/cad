@@ -1,0 +1,9 @@
+-Q ../auxresults AuxResults
+-Q ../coq-ssr-elliptic-curves EllipticCurves
+-Q ../subresultant SubResultant
+
+semialgebraic.v
+
+-R "." SemiAlgebraic
+
+

@@ -1,0 +1,14 @@
+-Q ../auxresults AuxResults
+-Q ../coq-ssr-elliptic-curves EllipticCurves
+
+valuation.v
+revpoly.v
+fraction.v
+fracrev.v
+truncpowerseries.v
+expansiblefracpoly.v
+newtonsums.v
+
+-R "." Newtonsums
+
+
