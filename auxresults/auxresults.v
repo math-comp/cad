@@ -523,6 +523,14 @@ move/eqP; rewrite eqSS; move/eqP => hs.
 by apply: HfsetU; apply: ih.
 Qed.
 
+(* Lemma finSet_ind2 (T : choiceType) (P : {fset T} -> Prop) :  *)
+(*   P fset0 -> (forall s x, P s -> x \notin s -> P (x |` s)) -> forall s, P s. *)
+(* Proof. *)
+(* move=> Hfset0 HfsetU s. *)
+(* move: {2}(#|`s|) (leqnn #|`s|) => r. *)
+(* move: s; elim: r *)
+(* Qed. *)
+
 Lemma neq_fset10 (i : nat) : ([fset i] == fset0) = false.
 Proof.
 apply/negbTE; rewrite -fproper0 fproperEcard cardfs0 cardfs1 andbT.

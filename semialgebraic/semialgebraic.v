@@ -285,7 +285,7 @@ Definition nquantify (n k : nat) (Q : nat -> formula R -> formula R)
     locked_with nquantify_key (iteri k (fun i f => (Q (n + k - i.+1)%N f)) f).
 
 Lemma nquantSout (n k : nat) Q (f : formula R) :
-    nquantify n k.+1 Q f = Q n (nquantify n.+1 k Q f).
+  nquantify n k.+1 Q f = Q n (nquantify n.+1 k Q f).
 Proof.
 rewrite /nquantify !unlock /= addnK; congr (Q _ _); apply: eq_iteri => i g.
 by rewrite addnS addSn.
@@ -298,7 +298,7 @@ Lemma nquantify1 (n : nat) Q (f : formula R) : nquantify n 1 Q f = Q n f.
 Proof. by rewrite nquantSout nquantify0. Qed.
 
 Lemma nquantify_add (m n k : nat) Q (f : formula R) :
-    nquantify m (n + k) Q f = nquantify m n Q (nquantify (m + n) k Q f).
+  nquantify m (n + k) Q f = nquantify m n Q (nquantify (m + n) k Q f).
 Proof.
 elim: n => [|n IHn] in k m *;
   rewrite ?(nquantify0, nquantSout, addn0, addSn) //=.
@@ -306,12 +306,12 @@ by rewrite IHn addnS addSn.
 Qed.
 
 Lemma nquantSin (n k : nat) Q (f : formula R) :
-    nquantify n k.+1 Q f = (nquantify n k Q (Q (n + k)%N f)).
+  nquantify n k.+1 Q f = (nquantify n k Q (Q (n + k)%N f)).
 Proof. by rewrite -addn1 nquantify_add nquantify1. Qed.
 
 Lemma nforallP (k : nat) (e : seq R) (f : formula R) :
-    (forall v : k.-tuple R, holds (e ++ v) f)
-    <-> (holds e (nquantify (size e) k Forall f)).
+  (forall v : k.-tuple R, holds (e ++ v) f)
+  <-> (holds e (nquantify (size e) k Forall f)).
 Proof.
 elim: k => [|k IHk] /= in e *.
   rewrite nquantify0; split.
@@ -328,8 +328,8 @@ by rewrite /e' /= rcons_set_nth cat_rcons.
 Qed.
 
 Lemma nexistsP (k : nat) (e : seq R) (f : formula R) :
-    (exists v : k.-tuple R, holds (e ++ v) f)
-    <-> (holds e (nquantify (size e) k Exists f)).
+  (exists v : k.-tuple R, holds (e ++ v) f)
+  <-> (holds e (nquantify (size e) k Exists f)).
 Proof.
 elim: k => [|k IHk] /= in e *.
 - rewrite nquantify0; split; first by move=> [v]; rewrite tuple0 cats0.
@@ -346,8 +346,8 @@ elim: k => [|k IHk] /= in e *.
 Qed.
 
 Lemma nforall_is_true (f : formula R) :
-    (forall (e : seq R), holds e f) ->
-    forall (n i : nat) (e : seq R), holds e (nquantify n i Forall f).
+  (forall (e : seq R), holds e f) ->
+  forall (n i : nat) (e : seq R), holds e (nquantify n i Forall f).
 Proof.
 move=> h n i; elim: i => [|i IHi] in n *;
 by rewrite ?(nquantify0, nquantSout) /=.
@@ -1127,7 +1127,7 @@ End Projection.
 Section Cylinder.
 
 Lemma nth_enum_ord2 (n m : nat) (i0 : 'I_n.+1) (j : 'I_m) (p : (m <= n.+1)%N) :
-    nth i0 (enum 'I_n.+1) j = widen_ord p j.
+  nth i0 (enum 'I_n.+1) j = widen_ord p j.
 Proof.
 elim: j => l pr; apply/val_inj => /=.
 by rewrite nth_enum_ord // (leq_trans pr).
@@ -1180,26 +1180,24 @@ by move=> h; apply/holds_take; rewrite take0.
 Qed.
 
 Lemma sa_lift_pointP (n : nat) (s : {SAset F^n}) (x : 'rV[F]_n.+1) :
-(x \in (sa_lift_form s)) = (\row_(i < n) (x ord0 (lift ord_max i)) \in s).
+  (x \in (sa_lift_form s)) = (\row_(i < n) (x ord0 (lift ord_max i)) \in s).
 Proof.
-move: s x; case: n => [s x|n s x].
+move: s x; case: n => [s x | n s x].
 by rewrite in_saset0 inE rcf_sat_repr_pi rcf_sat_saset0.
-have h : [seq (\row_i0 x ord0 (lift ord_max i0)) ord0 i | i <- enum 'I_n.+1] = take n.+1 [seq x ord0 i | i <- enum 'I_n.+2].
-apply: (@eq_from_nth _ 0) => [|i].
-by rewrite size_take size_map size_enum_ord size_map size_enum_ord ltnSn.
-rewrite size_map size_enum_ord ltnS /= => hi.
-rewrite nth_take // (nth_map ord0) ; last by rewrite size_enum_ord.
-rewrite (nth_map ord0); last by rewrite size_enum_ord ltnW.
-rewrite mxE; congr fun_of_matrix; apply/val_inj => /=.
-rewrite (nth_enum_ord ord0) //.
-rewrite (nth_enum_ord ord0); last by rewrite ltnW.
-by rewrite /bump ltnNge hi.
-rewrite /= /sa_lift_point /sa_lift_form /lift_form.
-rewrite !inE rcf_sat_repr_pi /= h.
-apply/rcf_satP/rcf_satP => /=.
-by move/holds_take.
-move=> h2.
-by apply/holds_take.
+have h : [seq (\row_i0 x ord0 (lift ord_max i0)) ord0 i | i <- enum 'I_n.+1] 
+  = take n.+1 [seq x ord0 i | i <- enum 'I_n.+2].
++ apply: (@eq_from_nth _ 0) => [|i].
+    by rewrite size_take size_map size_enum_ord size_map size_enum_ord ltnSn.
+  rewrite size_map size_enum_ord ltnS /= => hi.
+  rewrite nth_take // (nth_map ord0) ; last by rewrite size_enum_ord.
+  rewrite (nth_map ord0); last by rewrite size_enum_ord ltnW.
+  rewrite mxE; congr fun_of_matrix; apply/val_inj => /=.
+  rewrite !(nth_enum_ord ord0) // ; last by rewrite ltnW.
+  by rewrite /bump ltnNge hi.
++ rewrite /= /sa_lift_point /sa_lift_form /lift_form.
+  rewrite !inE rcf_sat_repr_pi /= h.
+  apply/rcf_satP/rcf_satP => /= ; first by move/holds_take.
+  by move=> * ; apply/holds_take.
 Qed.
 
 End Cylinder2.
@@ -1503,7 +1501,7 @@ by rewrite leq0n (leq_trans lt_xm) // (leq_trans lt_mn) // leq_addr.
 Qed.
 
 Canonical Structure formulan_nexists m n (f : {formula_m F}) :=
-    MkFormulan (nexists_formulan n f).
+  MkFormulan (nexists_formulan n f).
 
 Lemma ngraph_nil (t : 'rV[F]_0) : ngraph t = [tuple of nil].
 Proof. by apply/eq_from_tnth => - []. Qed.
@@ -2395,13 +2393,13 @@ by move/(_ ((\row_(i < a) t`_i))): sub12; rewrite !inE ngraph_tnth => ->.
 Qed.
 
 Lemma SAunion : forall (n : nat) (x : 'rV[F]_n) (s1 s2 : {SAset F^n}),
-    (x \in SAset_join s1 s2) = (x \in s1) || (x \in s2).
+  (x \in SAset_join s1 s2) = (x \in s1) || (x \in s2).
 Proof.
 move=> n x s1 s2.
 rewrite /SAset_join pi_form !inE.
 apply/idP/idP.
-move/rcf_satP => /=.
-by move=> [l|r]; apply/orP; [left|right]; apply/rcf_satP.
+  move/rcf_satP => /=.
+  by move=> [l|r]; apply/orP; [left|right]; apply/rcf_satP.
 by move/orP => [l|r]; apply/rcf_satP; [left|right]; apply/rcf_satP.
 Qed.
 
@@ -2824,15 +2822,19 @@ Qed.
 
 Section Interval.
 
-Fact nvar_interval_a_inf (a : F) : formula_fv ((a %:T) <% 'X_0)%oT `<=` mnfset 0 1.
+Fact nvar_interval_a_inf (a : F) : 
+  formula_fv ((a %:T) <% 'X_0)%oT `<=` mnfset 0 1.
 Proof. by rewrite /= fset0U; apply/fsubsetP => x; rewrite in_fset1. Qed.
 
-Definition interval_a_inf (a : F) := \pi_({SAset F^1}) (MkFormulan (nvar_interval_a_inf a)).
+Definition interval_a_inf (a : F) := 
+  \pi_({SAset F^1}) (MkFormulan (nvar_interval_a_inf a)).
 
-Fact nvar_interval_inf_b (b : F) : formula_fv ('X_0 <% (b %:T))%oT `<=` mnfset 0 1.
+Fact nvar_interval_inf_b (b : F) : 
+  formula_fv ('X_0 <% (b %:T))%oT `<=` mnfset 0 1.
 Proof. by rewrite /= fsetU0; apply/fsubsetP => x; rewrite in_fset1. Qed.
 
-Definition interval_inf_b (b : F) := \pi_({SAset F^1}) (MkFormulan (nvar_interval_inf_b b)).
+Definition interval_inf_b (b : F) := 
+  \pi_({SAset F^1}) (MkFormulan (nvar_interval_inf_b b)).
 
 Fact nvar_interval_a_b (a b : F) :
   formula_fv ((a %:T <% 'X_0) /\ ('X_0 <% b %:T))%oT `<=` mnfset 0 1.
@@ -2841,7 +2843,7 @@ by rewrite /= fset0U fsetU0 fsetUid; apply/fsubsetP => x; rewrite in_fset1.
 Qed.
 
 Definition interval_a_b (a b : F) : {SAset F^1} := 
-    \pi_({SAset F^1}) (MkFormulan (nvar_interval_a_b a b)).
+  \pi_({SAset F^1}) (MkFormulan (nvar_interval_a_b a b)).
 
 Fail Check (setT : {SAset F}).
 
@@ -2886,20 +2888,18 @@ End Interval.
 Section Continuity.
 
 Definition sub_vec (v1 v2 v3 : seq nat) : formula F :=
-if ((size v1 == size v2) && (size v1 == size v3)) then
-\big[And/True]_(i < size v1) ( 'X_(nth O v1 i) ==
-'X_(nth O v2 i) + 'X_(nth O v3 i))%oT else False.
+if ((size v1 == size v2) && (size v1 == size v3)) 
+  then \big[And/True]_(i < size v1) ( 'X_(nth O v1 i) ==
+       'X_(nth O v2 i) + 'X_(nth O v3 i))%oT 
+  else False.
 
 Lemma sub_vecP (e : seq F) (v1 v2 v3 : seq nat) :
 rcf_sat e (sub_vec v1 v2 v3) = ((size v1 == size v2) && (size v1 == size v3)) &&
-[forall i, (e`_(nth O v3 (i : 'I_(size v1))) == e`_(nth O v1 i) - e`_(nth O v2 i))].
+[forall i, 
+(e`_(nth O v3 (i : 'I_(size v1))) == e`_(nth O v1 i) - e`_(nth O v2 i))].
 Proof.
-rewrite /sub_vec.
-case : (_ == _) => //=.
-case : (_ == _) => //=.
-rewrite rcf_sat_forall.
-apply/eq_forallb => i.
-rewrite /=.
+rewrite /sub_vec ; case : (_ == _) ; case : (_ == _) => //.
+rewrite rcf_sat_forall ; apply/eq_forallb => i.
 by apply/rcf_satP/idP => //=; rewrite eq_sym subr_eq addrC; move/eqP.
 Qed.
 
@@ -2930,10 +2930,10 @@ Definition max_vec (v : seq nat) (n : nat) : formula F :=
 (* Qed. *)
 
 Definition bloc (n : nat) : formula F := 
-     (sub_vec (iota 0 n) (iota n n) (iota (n + n) n))
-     /\ (abs_vec (iota (n + n) n) (iota (3 * n) n))
-     /\ (max_vec (iota (3 * n) n) (4 * n))
-     /\ ('X_(4 * n) <=% 'X_((4 * n).+1)).
+  (sub_vec (iota 0 n) (iota n n) (iota (n + n) n))
+  /\ (abs_vec (iota (n + n) n) (iota (3 * n) n))
+  /\ (max_vec (iota (3 * n) n) (4 * n))
+  /\ ('X_(4 * n) <=% 'X_((4 * n).+1)).
 
 (* Lemma holds_bloc (e : seq F) (n : nat) : *)
 (*     holds e (bloc n) <->  *)
@@ -2966,29 +2966,19 @@ Lemma fsubst_forall (i j : nat) (f : formula F) (t : GRing.term F) :
 fsubst ('forall 'X_i, f) (j, t) = ('forall 'X_i, (fsubst f (j, t)))%oT. 
 Proof. by move/negbTE=> /= ->. Qed. 
 
-Lemma fsubst_nquantify (f : formula F) (i : nat) (t : GRing.term F) (a b : nat) : 
+Lemma fsubst_nquantify (f : formula F) (i : nat) (t : GRing.term F) a b: 
 (i < a)%N || (a + b <= i)%N -> 
-fsubst (nquantify a b Forall f) (i, t) = (nquantify a b Forall (fsubst f (i, t))). 
+  fsubst (nquantify a b Forall f) (i, t) = 
+  (nquantify a b Forall (fsubst f (i, t))). 
 Proof.
-move: f i t a.
-elim: b.
-move=> f i t a h.
-by rewrite !nquantify0.
-move=> b ihb f i t a h.
-rewrite nquantSin.
-rewrite ihb; last first.
-move/orP: h => [lt_ia | ].
-by rewrite lt_ia.
-rewrite addnS.
-move/ltnW ->.
-by rewrite orbT.
-rewrite nquantSin.
-rewrite fsubst_forall //.
-move/orP: h => [lt_ia |].
-rewrite neq_ltn.
-by rewrite (leq_trans lt_ia) ?orbT // ?leq_addr.
-rewrite addnS neq_ltn.
-by move ->.
+move: f i t a ; elim : b => [ | b ihb] f i t a h ; first by rewrite !nquantify0.
+rewrite nquantSin ihb; last first.
++ move/orP: h => [lt_ia | ] ; first by rewrite lt_ia.
+  by rewrite addnS ; move/ltnW -> ; rewrite orbT.
++ rewrite nquantSin fsubst_forall //.
+  move/orP: h => [lt_ia |].
+    by rewrite neq_ltn (leq_trans lt_ia) ?orbT // ?leq_addr.
+  by rewrite addnS neq_ltn ; move ->.
 Qed.
 
 Lemma continuousP (f : {SAfun F^n -> F^m}) : 
@@ -3183,14 +3173,16 @@ Definition disjoint_cells :=
  all (fun x => ((x.1 != x.2)%PAIR ==> (((x.1 :&: x.2)%PAIR) == set0))) 
      [seq (a, b) | a <- (enum_fset cad), b <- (enum_fset cad)].
 
-Definition union_cells := \big[setU/set0]_(i <- (enum_fset cad)) i == setT.
+Definition covers := \big[setU/set0]_(i <- (enum_fset cad)) i == setT.
 
 Definition projection_cell (k : 'I_n) :=
-all (fun x => ((x.1 != x.2)%PAIR ==> (((((rproj k x.1) :&: (rproj k x.2))%PAIR) == set0)
-                                      || ((((rproj k x.1) :&: (rproj k x.2))%PAIR) == setT) ))) 
-     [seq (a, b) | a <- (enum_fset cad), b <- (enum_fset cad)].
+all (fun x => 
+      ((x.1 != x.2)%PAIR ==> 
+        ( ((((rproj k x.1) :&: (rproj k x.2))%PAIR) == set0)
+          || ((((rproj k x.1) :&: (rproj k x.2))%PAIR) == setT) ))) 
+    [seq (a, b) | a <- (enum_fset cad), b <- (enum_fset cad)].
 
-Definition projection_cells := [forall k, projection_cell k].
+Definition cylindric := [forall k, projection_cell k].
 
 End AuxPredicates.
 
@@ -3198,9 +3190,9 @@ Record CAD_output := MkCAD
 {
   cells :> {fset {SAset F ^ n}};
   _ : (non_empty_cells cells) && (disjoint_cells cells)
-                              && (union_cells cells)
+                              && (covers cells)
                               && (connected_cells cells)
-                              && (projection_cells cells)
+                              && (cylindric cells)
 }.
 
 End Varn.
@@ -3494,295 +3486,274 @@ Proof. by case: s => // b s; move/andP => [_]. Qed.
 
 (* Qed. *)
 
-Lemma ltn_sorted_uniq_leq (s : seq F) : path.sorted ltr s = uniq s && path.sorted ler s.
+Lemma ltn_sorted_uniq_leq (s : seq F) : 
+  path.sorted ltr s = uniq s && path.sorted ler s.
 Proof.
 case: s => //= m s; elim: s m => //= p' s IHs m.
-rewrite inE.
-rewrite Num.Internals.ltr_def.
-rewrite negb_or IHs -!andbA.
-case sn: (m \in s); last first.
-rewrite //=.
-rewrite eq_sym.
-do !bool_congr.
+rewrite inE Num.Internals.ltr_def negb_or IHs -!andbA.
+case sn: (m \in s); last by rewrite eq_sym ; do !bool_congr.
 rewrite andbF.
 apply/and5P=> [[ne_nm lenm _ _ le_ms]]; case/negP: ne_nm.
-rewrite eqr_le lenm.
-rewrite andbT.
+rewrite eqr_le lenm andbT.
 by apply: (allP (@path.order_path_min F ler (@ler_trans F) p' s le_ms)).
 Qed.
 
 Lemma non_empty_aux_cells1 (x : F) (xs : seq F) : 
-path.path ltr x xs ->
-non_empty_cells (aux_cells1 x xs).
+  path.path ltr x xs -> non_empty_cells (aux_cells1 x xs).
 Proof.
-move: x.
-elim: xs.
-move=> x _.
-rewrite /=.
-rewrite /non_empty_cells.
-apply/allP => c.
-rewrite mem_enum_fset.
-rewrite in_fset1.
-move/eqP ->.
-apply/negP.
-move/SAsetP.
-(* move/(_ (\row_(i < 1) (x - 1))). *)
-move/(_ (\row_(i < 1) (x + 1)%R)).
-rewrite /=.
-rewrite in_SAset_bottom.
-rewrite in_interval_a_inf.
-rewrite -[X in X < _]addr0.
-rewrite ltr_add2l.
-by rewrite ltr01.
-move=> x s ih y.
-rewrite /=.
-move/andP => [lt_yx path_x_s].
-rewrite /non_empty_cells.
-apply/allP => c.
-rewrite in_fsetU.
-move/orP => [|]; last first.
-(* move: (path.path_sorted path_x_s)=> sorted_s. *)
-move=> h.
-move: (ih x path_x_s).
-rewrite /non_empty_cells.
-move/allP/(_ c).
-rewrite mem_enum_fset.
-by move ->.
-rewrite in_fset1.
-move/eqP ->.
-apply/negP.
-move/SAsetP.
-(* move/(_ (\row_(i < 1) (x - 1))). *)
-move/(_ (\row_(i < 1) ((x + y) / 2%:R))).
-rewrite in_interval_a_b.
-rewrite ltr_pdivl_mulr; last by rewrite ltr0n.
-rewrite ltr_pdivr_mulr; last by rewrite ltr0n.
-rewrite in_SAset_bottom. (* in_saset0 ne fonctionne pas ? *)
-rewrite mulr2n.
-rewrite !mulrDr.
-rewrite !mulr1.
-rewrite ltr_add2r ltr_add2l.
-rewrite andbb.
-by rewrite  lt_yx.
+move: x ; elim: xs => [x _ | x s ih y].
++ rewrite /non_empty_cells ; apply/allP => c.
+  rewrite mem_enum_fset in_fset1 ; move/eqP ->.
+  apply/negP.
+  move/SAsetP/(_ (\row_(i < 1) (x + 1)%R)).
+  by rewrite [RHS]inE in_interval_a_inf -[X in X < _]addr0 ltr_add2l ltr01.
++ move/andP => [lt_yx path_x_s].
+  rewrite /non_empty_cells ; apply/allP => c.
+  rewrite in_fsetU ; move/orP => [|h]; last first.
+    move: (ih x path_x_s) ; rewrite /non_empty_cells.
+    by move/allP/(_ c) ; rewrite mem_enum_fset ; move ->.
+  rewrite in_fset1 ; move/eqP ->.
+  apply/negP ; move/SAsetP.
+  move/(_ (\row_(i < 1) ((x + y) / 2%:R))).
+  rewrite in_interval_a_b ltr_pdivl_mulr; last by rewrite ltr0n.
+  rewrite ltr_pdivr_mulr; last by rewrite ltr0n.
+  by rewrite inE mulr2n !mulrDr !mulr1 ltr_add2r ltr_add2l andbb lt_yx.
 Qed.
 
 Lemma non_empty_cells1 (xs : {fset F}) : non_empty_cells (cells1 xs).
 Proof.
-rewrite /non_empty_cells.
-apply/allP => c.
-rewrite /cells1.
-rewrite mem_enum_fset.
-rewrite /sorted_seq.
-move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
-move: (@enum_fset_uniq F xs).
+rewrite /non_empty_cells ; apply/allP => c.
+rewrite /cells1 mem_enum_fset /sorted_seq.
+move: (@enum_fset_uniq F xs) 
+      (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
 rewrite -(@path.sort_uniq F ler).
-move: (path.sort <=%R (enum_fset xs)).
-(* move: (enum_fset xs). *)
-move=> {xs}.
-move=> s.
-case: s.
-move=> _ _.
-rewrite /=.
-rewrite in_fset1.
-move/eqP ->.
-apply/negP.
-rewrite /set0.
-rewrite /=.
-rewrite/setT.
-rewrite /=.
-move/SAsetP.
-move/(_ 0).
-rewrite in_SAset_bottom.
-rewrite -sub_SAset1.
-by rewrite SAset_topP.
-move=> a s.
-rewrite /=.
-move/andP=> [ha uniq_s].
-rewrite /=.
-move=> path_as.
-rewrite in_fset1U.
-move/orP=> [/eqP -> | h2].
-apply/negP.
-move/SAsetP.
-move/(_ (\row_(i < 1) (a - 1)%R)).
-rewrite /=.
-rewrite in_SAset_bottom.
-rewrite in_interval_inf_b.
-rewrite ltr_subl_addr.
-rewrite -[X in X < _]addr0 ltr_add2l.
-by rewrite ltr01.
-have path_as' : path.path <%R a s.
+move: (path.sort <=%R (enum_fset xs)) => {xs} s.
+case: s => [_ _ | a s /= /andP [ha uniq_s] path_as].
+  rewrite in_fset1 ; move/eqP ->.
+  rewrite -proper0 ; apply/properP ; split; rewrite ?le0x //.
+  exists 0; last exact: notin_set0.
+  by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
+rewrite in_fset1U => /orP [/eqP -> | h2].
+  apply/negP ; move/SAsetP/(_ (\row_(i < 1) (a - 1)%R)).
+  rewrite in_SAset_bottom in_interval_inf_b ltr_subl_addr.
+  by rewrite -[X in X < _]addr0 ltr_add2l ltr01.
+suffices path_as' : path.path <%R a s.
+  move: (@non_empty_aux_cells1 a s path_as').
+  rewrite /non_empty_cells.
+  by move/allP/(_ c) ; rewrite mem_enum_fset => ->.
 move: ha uniq_s path_as h2.
-case: s.
-by move=> _ _ _ _.
-move=> b s.
-rewrite /=.
-rewrite in_cons.
-rewrite negb_or.
+case: s => [ // | b s /=].
+rewrite in_cons negb_or.
 move/andP => [neq_ab a_notin_s].
 move/andP => [b_notin_s uniq_s].
 move/andP => [leq_ab path_bs].
-rewrite ltr_neqAle neq_ab leq_ab /=.
-move=> _.
+rewrite ltr_neqAle neq_ab leq_ab /= => _.
 rewrite pathE; last exact: ltr_trans.
-rewrite ltr_sorted_uniq_ler.
-rewrite uniq_s /=.
+rewrite ltr_sorted_uniq_ler uniq_s.
 apply/andP ; split; first exact: (@path.path_sorted _ _ b _).
 apply/allP => x x_in_s.
-rewrite ltr_neqAle.
-move: b_notin_s x_in_s.
-have [-> | Neq_bx] := eqVneq b x; first by case: (x \in s).
-move=> b_notin_s x_in_s.
-rewrite Neq_bx /=.
-move: path_bs.
-rewrite pathE; last exact: ler_trans.
+rewrite ltr_neqAle ; move: b_notin_s x_in_s.
+have [-> | Neq_bx] := eqVneq b x ; first by case: (x \in s).
+move=> b_notin_s x_in_s ; rewrite Neq_bx /=.
+move: path_bs ; rewrite pathE; last exact: ler_trans.
 by move => /andP [_ /allP ->].
-move: (@non_empty_aux_cells1 a s path_as').
-rewrite /non_empty_cells.
-move/allP.
-move/(_ c).
-rewrite mem_enum_fset.
-by move=> ->.
 Qed.
 
-(* Variables (elementType : Type) (eqType_of_elementType : elementType -> eqType) (d : unit)  *)
-(*           (set : SET.Semiset.Exports.semisetType eqType_of_elementType d) *)
-(*           (X : elementType) *)
-(*           (A B : SET.Semiset.sort set X) *)
-(*           (x : eqType_of_elementType X). *)
-
-(* Lemma test : (x \in setD A B).  = (x \notin B) && (x \in A). *)
-
-(*           (set : elementType -> cblatticeType (SET.display_set d)) *)
-(*           (m : SET.Semiset.Exports.semisetMixin eqType_of_elementType set) *)
-(*           (X Y : elementType). *)
-
-(* Check (set X). *)
-(* Lemma test (A : set X) (a : X) : a \in A. *)
-
-(* Lemma test (ss : {fset (set X)}) : *)
-
-(* Lemma test (ss : {fset (set X)}) :  *)
-(*   (\join_(s <- enum_fset ss) s)%O = (\join_(s <- enum_fset ss) s)%O. *)
-
-(* Lemma in_join_fset (ss : {fset {SAset F ^ n}}) (x : 'rV_n) : *)
-(*  x \in (\join_(s <- enum_fset ss) s)%O <-> exists (s : {SAset F ^ n}), (s \in ss) && (x \in s). *)
-(* Proof. *)
-(* Check (\join_(s <- enum_fset ss) s)%O. *)
-(* Check {SAset F ^ n}. *)
-(* Admitted.  *)
-
-(* Lemma in_join_fset2 (elementType : Type) (eqType_of_elementType : elementType -> eqType) *)
-(*  (disp : unit) (set : SET.Semiset.Exports.semisetType eqType_of_elementType disp) *)
-(*  (X : elementType) (A : SET.Semiset.sort set X) (x0 : X) :  x0 \in A.  *)
-
-(* (ss : {fset (SET.Semiset.sort set X)}) : *)
-(*  A \in (\join_(s <- enum_fset ss) s)%O <-> exists (s : {SAset F ^ n}), (s \in ss) && (A \in s). *)
-
-(* Lemma in_join_fset (ss : {fset {SAset F ^ n}}) (x : 'rV_n) : *)
-(*  x \in (\join_(s <- enum_fset ss) s)%O <-> exists (s : ss), x \in s. *)
-
-(* Variable (a : {fset F}). *)
-(* Check a. *)
-(* Check (a : finSet F). *)
-(* Check (fset_sub_finType a). *)
-
-Lemma Nfset0 (cT : choiceType )(x : (@fset0 cT)) : false.
+Fact Nfset0 (cT : choiceType )(x : (@fset0 cT)) : false.
 Proof. by case x. Qed.
 
-Lemma union_cells1 (xs : {fset F}) : union_cells (cells1 xs).
-Proof.
-rewrite /union_cells.
-apply/SAsetP.
-rewrite /=.
-rewrite /setT.
-rewrite /=.
-move=> x.
-rewrite in_SAset_top.
-rewrite /=.
-have hbool : forall (b : bool), is_true b -> b = true.
-move=> b //=.
-apply: hbool.
-rewrite /cells1.
-rewrite /sorted_seq.
-move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
-move: (@enum_fset_uniq F xs).
-rewrite -(@path.sort_uniq F ler).
-move: (path.sort <=%R (enum_fset xs)).
-(* move: (enum_fset xs). *)
-move=> {xs}.
-move=> s uniq_s sorted_s.
-have sorted_s':  path.sorted <%R s.
-by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
-move: uniq_s sorted_s sorted_s'.
-case: s.
-move=> _ _ _.
-rewrite /=.
-rewrite enum_fset1b.
-rewrite big_seq1.
-rewrite //=.
-by rewrite in_SAset_top.
-move=> a s /=.
-move/andP => [a_notin_s uniq_s].
-move=> path_as path_as'.
-move: x (interval_inf_b a |` aux_cells1 a s).
-(* Set Printing All. idtac. *) 
-move: {-1 5 7}1%nat.
-move => m x /= ss.
-admit.
-Admitted.
+Variables (m : nat) (s t : {fset {SAset F ^ m}}) (x : 'rV[F]_m).
 
-(* Definition elimination (n : nat) (s : {fset {mpoly F[n]}}) :=  *)
-(* let s' := s  in *)
-(* (\bigcup_(p <- (enum_fset s'))  *)
-(*   [fset (subresultant j (muni x) ((muni x)^`()))  *)
+Fail Check (setU s t)%set.
+
+(* Lemma testset (m : nat) (s t : {fset {SAset F ^ m}}) (x : 'rV[F]_m) : *)
+(* x \in (setU s t)%O. *)
+(* Proof. *)
+(* rewrite inE. *)
+
+(* rewrite in_set0. *)
+(* Qed. *)
+
+(* Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) : *)
+(* (\join_(i : s `|` t) val i)%O = setU (\join_(i : s) val i)%O *)
+(*                                 (\join_(i : t) val i)%O. *)
+(* Proof. *)
+
+(* rewrite joins_setU *)
+(* rewrite bigfcupP. *)
+(* move: bigfcupP. *)
+
+(* (* rewrite !join_seq. *) *)
+(* (* rewrite /=. *) *)
+(* (* Set Printing All. idtac. *) *)
+(* move: {2}#|` t| (leqnn #|` t|) s => ct. *)
+(* move: t. *)
+(* elim: ct. *)
+(* move=> t. *)
+(* rewrite leqn0. *)
+(* move/eqP/cardfs0_eq -> => s. *)
+(* by rewrite fsetU0 big_fset0 setU0. *)
+(* move=> ct ih t. *)
+(* elim: t. *)
+(* move=> _ s. *)
+(* by rewrite fsetU0 big_fset0 setU0. *)
+(* move=> s /= x _. *)
+(* rewrite cardfsU1. *)
+
+(* bigfcupP *)
+
+(* imfs et_rec *)
+(* case: t. *)
+(* elim: t. *)
+(* rewrite /=. *)
+
+(* rewrite fsetU0. *)
+(* rewrite big_fset0. *)
+(* by rewrite setU0. *)
+(* move=> /= t x ih s. *)
+(* move: t x ih. *)
+(* elim: s. *)
+(* move=> t x ih. *)
+(* rewrite fset0U. *)
+(* rewrite big_fset0. *)
+(* by rewrite set0U. *)
+(* move=> /= s x ih t y ih2. *)
+
+(* rewrite ih. *)
+(* rewrite fset0U fsetU0. *)
+
+
+(* move=> /= t x ih s. *)
+(* rewrite [X in (s `|` X)]fsetUC. *)
+(* rewrite [in LHS]fsetUA. *)
+(* move: (ih (t `|` [fset x])). *)
+(* rewrite [in LHS]ih. *)
+
+(* move: t. *)
+(* elim: s. *)
+(* move=> t. *)
+(* rewrite fset0U. *)
+(* rewrite big_fset0. *)
+(* by rewrite set0U. *)
+(* move=> /= s x ih t. *)
+(* rewrite -[in LHS]fsetUA. *)
+(* rewrite ih. *)
+(* Set Printing All. idtac. *)
+
+(* rewrite [in LHS]fsetUC. *)
+(* rewrite -[in LHS]fsetUA. *)
+(* rewrite //=. *)
+(* by *)
+(* move: t. *)
+(* elim: s. *)
+(* move=> t. *)
+(* by rewrite fset0U fsetU0. *)
+(* move=> /= s x ih t. *)
+(* rewrite -[in LHS]fsetUCA. *)
+
+(* by rewrite fsetU0 big_fset1 big_fset0 setU0. *)
+(* Qed. *)
+
+(* Lemma covers1 (xs : {fset F}) : covers (cells1 xs). *)
+(* Proof. *)
+(* rewrite /covers. *)
+(* apply/SAsetP. *)
+(* rewrite /=. *)
+(* rewrite /setT. *)
+(* rewrite /=. *)
+(* move=> x. *)
+(* rewrite in_SAset_top. *)
+(* rewrite /=. *)
+(* have hbool : forall (b : bool), is_true b -> b = true. *)
+(* move=> b //=. *)
+(* apply: hbool. *)
+(* rewrite /cells1. *)
+(* rewrite /sorted_seq. *)
+(* move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)). *)
+(* move: (@enum_fset_uniq F xs). *)
+(* rewrite -(@path.sort_uniq F ler). *)
+(* move: (path.sort <=%R (enum_fset xs)). *)
+(* (* move: (enum_fset xs). *) *)
+(* move=> {xs}. *)
+(* move=> s uniq_s sorted_s. *)
+(* have sorted_s':  path.sorted <%R s. *)
+(* by rewrite ltr_sorted_uniq_ler uniq_s sorted_s. *)
+(* move: uniq_s sorted_s sorted_s'. *)
+(* case: s. *)
+(* move=> _ _ _. *)
+(* rewrite /=. *)
+(* rewrite enum_fset1b. *)
+(* rewrite big_seq1. *)
+(* rewrite //=. *)
+(* by rewrite in_SAset_top. *)
+(* move=> a s /=. *)
+(* move/andP => [a_notin_s uniq_s]. *)
+(* move=> path_as path_as'. *)
+(* move: x (interval_inf_b a |` aux_cells1 a s). *)
+(* (* Set Printing All. idtac. *) *)
+(* move: {-1 5 7}1%nat. *)
+(* move => m x /= ss. *)
+(* admit. *)
+(* Admitted. *)
+
+(* (* Definition elimination (n : nat) (s : {fset {mpoly F[n]}}) :=  *) *)
+(* (* let s' := s  in *) *)
+(* (* (\bigcup_(p <- (enum_fset s'))  *) *)
+(* (*   [fset (subresultant j (muni x) ((muni x)^`()))  *) *)
+(* (*     | x in truncation p, j in mnfset O (size (muni x)).-2]) *) *)
+(* (* `|`  *) *)
+(* (* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR)  *) *)
+(* (*   [fset (subresultant j (muni (xy.1)) (muni (xy.2)))%PAIR . *) *)
+(* (*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)),  *) *)
+(* (*       j in mnfset O (size (muni xy.2))%PAIR.-1  *) *)
+(* (*     & ((size (muni (xy.2)%PAIR)) < (size (muni (xy.1)%PAIR)))%N]) *) *)
+(* (* `|`  *) *)
+(* (* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR)  *) *)
+(* (*   [fset (subresultant j (muni (xy.2)) (muni ((mwiden (lead_coef (muni xy.2))) * xy.1 - (mwiden (lead_coef (muni xy.1))) * xy.2)))%PAIR  *) *)
+(* (*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)),  *) *)
+(* (*       j in mnfset O (size (muni xy.2))%PAIR.-1  *) *)
+(* (*     & ((size (muni (xy.2)%PAIR)) == (size (muni (xy.1)%PAIR)))%N]). *) *)
+
+(* (* Check (p^`M(ord_max)). *) *)
+(* (* Check (q^`M(ord0)). *) *)
+
+(* (* mderiv *) *)
+(* (* mderivm *) *)
+
+(* Definition elimination (n : nat) (s : {fset {mpoly F[n.+1]}}) := *)
+(* let s' := s `|` [fset p^`M(ord_max) | p in s] in *)
+(* (\bigcup_(p <- (enum_fset s')) *)
+(*   [fset (subresultant j (muni x) ((muni x)^`())) *)
 (*     | x in truncation p, j in mnfset O (size (muni x)).-2]) *)
-(* `|`  *)
-(* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR)  *)
-(*   [fset (subresultant j (muni (xy.1)) (muni (xy.2)))%PAIR . *)
-(*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)),  *)
-(*       j in mnfset O (size (muni xy.2))%PAIR.-1  *)
+(* `|` *)
+(* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR) *)
+(*   [fset (subresultant j (muni (xy.1)) (muni (xy.2)))%PAIR *)
+(*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)), *)
+(*       j in mnfset O (size (muni xy.2))%PAIR.-1 *)
 (*     & ((size (muni (xy.2)%PAIR)) < (size (muni (xy.1)%PAIR)))%N]) *)
-(* `|`  *)
-(* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR)  *)
-(*   [fset (subresultant j (muni (xy.2)) (muni ((mwiden (lead_coef (muni xy.2))) * xy.1 - (mwiden (lead_coef (muni xy.1))) * xy.2)))%PAIR  *)
-(*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)),  *)
-(*       j in mnfset O (size (muni xy.2))%PAIR.-1  *)
+(* `|` *)
+(* (\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR) *)
+(*   [fset (subresultant j (muni (xy.2)) (muni ((mwiden (lead_coef (muni xy.2))) * xy.1 - (mwiden (lead_coef (muni xy.1))) * xy.2)))%PAIR *)
+(*     | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)), *)
+(*       j in mnfset O (size (muni xy.2))%PAIR.-1 *)
 (*     & ((size (muni (xy.2)%PAIR)) == (size (muni (xy.1)%PAIR)))%N]). *)
 
-(* Check (p^`M(ord_max)). *)
-(* Check (q^`M(ord0)). *)
+(* (* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n]}}) := match i with *) *)
+(* (*   | O => s *) *)
+(* (*   | i.+1 => cylindrifying i (elimination s) *) *)
+(* (* end. *) *)
 
-(* mderiv *)
-(* mderivm *)
+(* (* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n.+1]}}) := match i with *) *)
+(* (*   | O => s *) *)
+(* (*   | i.+1 => cylindrifying i (elimination s) *) *)
+(* (* end. *) *)
 
-Definition elimination (n : nat) (s : {fset {mpoly F[n.+1]}}) := 
-let s' := s `|` [fset p^`M(ord_max) | p in s] in
-(\bigcup_(p <- (enum_fset s')) 
-  [fset (subresultant j (muni x) ((muni x)^`())) 
-    | x in truncation p, j in mnfset O (size (muni x)).-2])
-`|` 
-(\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR) 
-  [fset (subresultant j (muni (xy.1)) (muni (xy.2)))%PAIR 
-    | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)), 
-      j in mnfset O (size (muni xy.2))%PAIR.-1 
-    & ((size (muni (xy.2)%PAIR)) < (size (muni (xy.1)%PAIR)))%N])
-`|` 
-(\bigcup_(p <- (enum_fset (s' `*` s')) | (p.1 != p.2)%PAIR) 
-  [fset (subresultant j (muni (xy.2)) (muni ((mwiden (lead_coef (muni xy.2))) * xy.1 - (mwiden (lead_coef (muni xy.1))) * xy.2)))%PAIR 
-    | xy in ((truncation (p.1)%PAIR) `*` (truncation (p.2)%PAIR)), 
-      j in mnfset O (size (muni xy.2))%PAIR.-1 
-    & ((size (muni (xy.2)%PAIR)) == (size (muni (xy.1)%PAIR)))%N]).
+(* Definition CAD_algo := forall (n : nat), seq (mpoly.mpoly n F) -> CAD_output. *)
 
-(* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n]}}) := match i with *)
-(*   | O => s *)
-(*   | i.+1 => cylindrifying i (elimination s) *)
-(* end. *)
-
-(* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n.+1]}}) := match i with *)
-(*   | O => s *)
-(*   | i.+1 => cylindrifying i (elimination s) *)
-(* end. *)
+(* Fixpoint cad_algo (s : seq (mpoly.mpoly n F)) : CAD_output := match n with *)
+(* | 0 => *)
+(* | 1 => *)
+(* | n.+1 => *)
 
 End CAD.
 
