@@ -510,8 +510,8 @@ Section MoreFinmap.
 
 Open Local Scope fset_scope.
 
-Lemma finSet_ind (T : choiceType) (P : {fset T} -> Prop) : 
-  P fset0 -> (forall s x, P s -> P (x |` s)) -> forall s, P s.
+Lemma finSet_notin_ind (T : choiceType) (P : {fset T} -> Prop) : 
+  P fset0 -> (forall s x, P s -> x \notin s -> P (x |` s)) -> forall s, P s.
 Proof.
 move=> Hfset0 HfsetU s.
 move: {2}(#|`s|) (erefl #|`s|) => r.
@@ -520,16 +520,29 @@ have s_neq0 : s != fset0 by rewrite -cardfs_gt0 hs.
 move: s_neq0 hs => /fset0Pn [x x_in_s].
 rewrite -(fsetD1K x_in_s) cardfsU1 in_fsetD1 x_in_s eqxx [in LHS]/= add1n.
 move/eqP; rewrite eqSS; move/eqP => hs.
-by apply: HfsetU; apply: ih.
+apply: HfsetU; first exact: ih.
+by rewrite inE negb_and negbK inE eqxx.
 Qed.
 
-(* Lemma finSet_ind2 (T : choiceType) (P : {fset T} -> Prop) :  *)
-(*   P fset0 -> (forall s x, P s -> x \notin s -> P (x |` s)) -> forall s, P s. *)
-(* Proof. *)
-(* move=> Hfset0 HfsetU s. *)
-(* move: {2}(#|`s|) (leqnn #|`s|) => r. *)
-(* move: s; elim: r *)
-(* Qed. *)
+Lemma finSet_card_ind (T : choiceType) (P : {fset T} -> Prop) :
+  P fset0 -> 
+  (forall (n : nat), 
+    ((forall s, (#|`s| <= n -> P s)) -> forall s, (#|`s| <= n.+1 -> P s))) -> 
+  forall s, P s.
+Proof.
+move=> Hfset0 HfsetU s.
+move: {2}(#|`s|) (leqnn #|`s|) => r.
+move: s; elim: r => [s|]; first by rewrite leqn0 cardfs_eq0 => /eqP ->.
+exact: HfsetU.
+Qed.
+
+Lemma finSet_ind (T : choiceType) (P : {fset T} -> Prop) : 
+  P fset0 -> (forall s x, P s -> P (x |` s)) -> forall s, P s.
+Proof.
+move=> Hfset0 HfsetU s.
+apply: finSet_notin_ind => // t x ht notin_xt.
+exact: HfsetU.
+Qed.
 
 Lemma neq_fset10 (i : nat) : ([fset i] == fset0) = false.
 Proof.
@@ -552,7 +565,7 @@ elim: s1 s2 => [s1|a s1 ih s2]; first by rewrite seq_fset_nil fset0U.
 by rewrite cat_cons fset_cons ih fset_cons fsetUA.
 Qed.
 
-Lemma eq_fsetD (A B C : finSet K) :
+Lemma eq_fsetD (A B C : {fset K}) :
   (A `\` B == C) = fdisjoint C B && ((C `<=` A) && (A `<=` B `|` C)).
 Proof. by rewrite eqEfsubset fsubDset fsubsetD andbCA andbA andbC. Qed.
 

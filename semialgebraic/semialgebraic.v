@@ -3562,11 +3562,7 @@ Qed.
 Fact Nfset0 (cT : choiceType )(x : (@fset0 cT)) : false.
 Proof. by case x. Qed.
 
-Variables (m : nat) (s t : {fset {SAset F ^ m}}) (x : 'rV[F]_m).
-
-Fail Check (setU s t)%set.
-
-(* Lemma testset (m : nat) (s t : {fset {SAset F ^ m}}) (x : 'rV[F]_m) : *)
+(* Lemma testset (m : nat) (s t : {SAset F ^ m}) (x : 'rV[F]_m) : *)
 (* x \in (setU s t)%O. *)
 (* Proof. *)
 (* rewrite inE. *)
@@ -3575,11 +3571,346 @@ Fail Check (setU s t)%set.
 (* Qed. *)
 
 (* Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) : *)
-(* (\join_(i : s `|` t) val i)%O = setU (\join_(i : s) val i)%O *)
+(* (\join_(i : s `|` t) val i)%O = fsetU (\join_(i : s) val i)%O *)
 (*                                 (\join_(i : t) val i)%O. *)
+
+(* Context {disp : unit}. *)
+(* Local Notation blatticeType := (blatticeType disp). *)
+(* Context {L : blatticeType}. *)
+(* Implicit Types (x y z : L). *)
+(* Variables (I : finType) (A B : {set I}) (G : I -> L). *)
+(* Check ((\join_(i in A) G i)%O). *)
+(* Check ((\join_(i in B) G i)%O). *)
+(* Check (join (\join_(i in A) G i)%O (\join_(i in B) G i)%O). *)
+
+
+(* Lemma joins_setU2 (I : finType) (A B : {set I}) (G : I -> L) : *)
+(*    (\join_(i in (finset.setU A B)) G i)%O = (join (\join_(i in A) G i) (\join_(i in B) G i))%O. *)
+(* Proof. *)
+(* apply/eqP.  *)
+(* rewrite eq_le.  *)
+(* rewrite leUx. *)
+(* rewrite !le_joins. *)
+(* rewrite ?andbT. *)
+(* apply/joinsP => i. *)
+(* rewrite finset.inE; move=> /orP. *)
+(* case=> ?. *)
+(* rewrite lexU //. *)
+(* rewrite join_sup //. *)
+(* Admitted. *)
+
+(* Variable (elementType : Type) (eqType_of_elementType : elementType -> eqType) *)
+(*          (disp : unit) *)
+(*          (set : SET.Semiset.Exports.semisetType eqType_of_elementType disp) *)
+(*          (X : elementType) (x : eqType_of_elementType X) *)
+(*          (A B : SET.Semiset.sort set X). *)
+
+(* Lemma aux (m : nat) (s t : {fset {SAset F ^ m}}) : *)
+(*  s `<=` t -> (\join_(i in fsub s t) val i = \join_(i : s) val i)%O. *)
 (* Proof. *)
 
-(* rewrite joins_setU *)
+Lemma auxh (m : nat) (s t : {fset {SAset F ^ m}}) 
+                    (i : (fset_sub_finType (s `&` t))) : val i \in s.
+Proof.
+move: (fsvalP i).
+rewrite finmap.inE.
+by move/andP=> [].
+Qed.
+
+Definition h (m : nat) (s t : {fset {SAset F ^ m}}) 
+                    (i : (fset_sub_finType (s `&` t))) : fset_sub_finType s 
+                                                       := FSetSub (auxh i).
+
+Lemma auxh2 (m : nat) (s t : {fset {SAset F ^ m}}) 
+                    (i : (fset_sub_finType s)) (pr : val i \in t) : val i \in (s `&` t).
+Proof.
+rewrite finmap.inE.
+apply/andP; split  => //.
+exact: fsvalP.
+Qed.
+
+(* Variables (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t)) *)
+(*                     (i : (fset_sub_finType s)).  *)
+(* Check (val i \in s). *)
+
+Definition h2 (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t))
+                    (i : (fset_sub_finType s)) : fset_sub_finType (s `&` t)
+                                               := 
+match boolP (val i \in t) with
+| AltTrue b => FSetSub (auxh2 b)
+| AltFalse _ => z
+end.
+
+Lemma h2P (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t))
+                    (i : (fset_sub_finType s)) : 
+  val i \in t -> val (h2 z i) = val i.
+Proof.
+rewrite /h2.
+Fail move ->.
+Admitted.
+
+(* if (val i \in t) then (FSetSub (auxh2 i)) else z. *)
+
+Lemma aux (m : nat) (s t : {fset {SAset F ^ m}}) :
+ (\join_(i in fsub s t) val i = \join_(i : s `&` t) val i)%O.
+Proof.
+Check (@h _ s t).
+Check [disjoint s & t].
+(* have [u|v] := boolP [disjoint s & t]. *)
+have [ st_eq0 | st_Neq0] := eqVneq (s `&` t) fset0.
+rewrite st_eq0 big_fset0 -big_map big_hasC //.
+apply/hasPn=> x.
+move/eqP: st_eq0.
+rewrite fsetI_eq0.
+rewrite fdisjoint_sym.
+move/fdisjointP_sym.
+move=> /= h.
+move/mapP.
+move=> /= [y hy] ->.
+have -> : (pred_of_set (fsub s t)) y = (y \in (fsub s t)) by [].
+rewrite in_fsub /=.
+apply: h.
+exact: fsvalP.
+move/fset0Pn : st_Neq0 => /= [y hy].
+rewrite (reindex (@h _ s t)); last first.
+rewrite /=.
+exists (h2 (FSetSub hy)).
+move=> x.
+rewrite inE.
+rewrite in_fsub.
+move=> _.
+Admitted.
+
+(* rewrite /=. *)
+
+
+(* move=> hx. *)
+(* rewrite /h2 /h. *)
+(* rewrite /=. *)
+
+
+(* rewrite finmap.inE. *)
+(* rewrite //=. *)
+(* Check ((pred_of_set (fsub s t)) y). *)
+(* Set Printing All. idtac. *)
+(* have -> : (fsub s t) y = y \in (fsub s t). *)
+(* Set Printing All. idtac. *)
+(* move: (in_fsub t y). *)
+
+(* have : (fsub s t) y. *)
+(* rewrite !finmap.inE /=. *)
+(* move: (eqVneq (s `&` t) fset0). *)
+(* move=> [/eqP|]; rewrite fsetI_eq0=> h.  *)
+
+
+(* have [st_eq0|st_Neq0] := eqVneq (s `&` t) fset0. *)
+(* rewrite st_eq0 big_fset0. *)
+(* rewrite -big_map. *)
+(* apply: big_hasC. *)
+(* apply/hasPn. *)
+(* move=> x. *)
+
+(* rewrite in_fsub. *)
+(* Check ((fsub s t) x). *)
+
+(* rewrite (reindex (@h _ s t)); last first. *)
+(* rewrite /=. *)
+(* exists h. *)
+
+
+(* Check (fsub s (s `&` t)). *)
+(* move: (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t)). *)
+(* Check (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t) s). *)
+(* move: (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t)). *)
+(* Set Printing All. idtac. *)
+(* Check (index_enum (fset_sub_finType (fsub s t))). *)
+(* rewrite -big_map. *)
+(* reindex *)
+
+(* Check (fsub s). *)
+
+
+(* rewrite (reindex (fsub s)). *)
+(* (* Set Printing All. idtac. *) *)
+(* have : \join_(i in fsub s t) val i = *)
+(* rewrite -big_map. *)
+
+(* rewrite /fsub /=. *)
+(* rewrite -big_map. *)
+(* rewrite /=. *)
+(* Check [seq j | j <- index_enum (fset_sub_finType s)]. *)
+(* Check (index_enum (fset_sub_finType (s `&` t))). *)
+(* fsub_inj *)
+(* rewrite -join_seq. *)
+(* rewrite (big_filter). *)
+(* move: (@big_filter_ _ ). *)
+
+(* Check ('rV[F]_m). *)
+(* Check ({SAset F ^ m} : set 'rV[F]_m). *)
+(* rewrite /=. *)
+(* move: {SAset F ^ m}. *)
+(* mathcomp.finmap.set *)
+(* Check ({SAset F ^ m}). *)
+(* Qed. *)
+
+(* Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) : *)
+(* (\join_(i : s `|` t) val i)%O = join (\join_(i : s) val i)%O *)
+(*                                 (\join_(i : t) val i)%O. *)
+(* Proof. *)
+(* move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t)) *)
+(*        (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)). *)
+(* rewrite aux. *)
+(* rewrite aux. *)
+(* rewrite fsetUKC. *)
+(* rewrite fsetUK. *)
+(* move <-. *)
+(* apply: eq_big. *)
+(* move=> i. *)
+(* rewrite finset.in_setU. *)
+(* rewrite !in_fsub. *)
+(* rewrite -in_fsetU. *)
+(* rewrite -in_fsub fsubT. *)
+(* by rewrite in_setT. *)
+(* by move=> i _. *)
+(* Qed. *)
+
+(* rewrite /=. *)
+(* rewrite inE. *)
+(* rewrite in_set1. *)
+(* rewrite finmap.inE. *)
+(* rewrite inE. *)
+
+(* rewrite inE. *)
+
+(* rewrite /=. *)
+
+(* rewrite fsetUKC. *)
+
+(* rewrite /=. *)
+
+(* Check (fsub (s `|` t) s). *)
+(* Check (\join_(i in fsub (s `|` t) s) fsval i)%O. *)
+(* Check (\join_(i : s) val i)%O. *)
+(* have h :  (\join_(i in fsub (s `|` t) s) fsval i)%O = (\join_(i : s) val i)%O. *)
+(* rewrite -big_filter. *)
+(* Check [seq i <- index_enum (fset_sub_finType (s `|` t)) | i \in fsub (s `|` t) s]. *)
+
+(* rewrite /=. *)
+(* rewrite join_seq. *)
+(* rewrite /=. *)
+(* apply: eq_big. *)
+(* (* Set Printing All. idtac. *) *)
+(* Check (index_enum *)
+(*        (@fset_sub_finType (SAset_of_choiceType F m) (@fsetU (SAset_of_choiceType F m) s t))). *)
+(* Check (index_enum *)
+(*        (@fset_sub_finType (SAset_of_choiceType F m) (s `|` t))). *)
+(* Check (index_enum *)
+(*        (fset_sub_finType (s `|` t))). *)
+(* rewrite -big_filter. *)
+(* rewrite -join_seq. *)
+(* Check (index_enum (fset_sub_finType s)). *)
+(* Set Printing All. idtac. *)
+
+(* apply: eq_big_seq. *)
+(* apply: eq_big_op. *)
+(* apply: eq_big. *)
+(* apply: eq_big_op. *)
+(* apply: eq_big. *)
+(* rewrite /=. *)
+
+(* Check (index_enum (fsub (s `|` t) s)). *)
+(* Check ((fsub (s `|` t) s :|: fsub (s `|` t) t))%O. *)
+
+
+(* move: {2}(#|`s `|` t|) (leqnn #|`s `|` t|) => r. *)
+(* move: s t ; elim: r => [|r ih] s t. *)
+(*   rewrite leqn0 cardfs_eq0 fsetU_eq0 => /andP [/eqP -> /eqP ->]. *)
+(*   by rewrite fsetU0 big_fset0 setU0. *)
+(* move: {2}(s `|` t) (erefl (s `|` t)) => /= u. *)
+(* elim/finSet_notin_ind: u. *)
+(*   move/eqP. *)
+(*   rewrite fsetU_eq0. *)
+(*   move/andP => [/eqP -> /eqP ->] _. *)
+(*   by rewrite fsetU0 big_fset0 set0U. *)
+(* move=> /= u y _ notin_yu hst. *)
+(* rewrite hst /=. *)
+(* rewrite cardfsU1 notin_yu /= add1n. *)
+(* rewrite ltnS. *)
+(* move ->. *)
+(* rewrite fset0U. *)
+(* by rewrite big_fset0 set0U. *)
+(* move=> /= s x _ notin_xs. *)
+(* rewrite -fsetUA. *)
+(* rewrite cardfsU1. *)
+
+
+
+(* move: t. *)
+(* elim/finSet_notin_ind: s. *)
+(* move=> t. *)
+(* by rewrite fset0U big_fset0 set0U. *)
+(* move=> /= s x ih notin_xs t. *)
+(* move: s x ih notin_xs. *)
+(* elim/finSet_notin_ind: t. *)
+(* move=> s x _ _. *)
+(* by rewrite fsetU0 big_fset0 setU0. *)
+(* move=> /= s x ih notin_xs t y ih2 notin_yt. *)
+
+(* Set Printing All. idtac. *)
+
+
+(* move: {2}(#|`s `|` t|) (leqnn #|`s `|` t|) => r. *)
+(* move: s t ; elim: r => [|r ih] s t. *)
+(* rewrite leqn0 cardfs_eq0 fsetU_eq0 => /andP [/eqP -> /eqP ->]. *)
+(* by rewrite fsetU0 big_fset0 setU0. *)
+(* move: {2}(s `|` t) (erefl (s `|` t)) => /= u. *)
+(* elim/finSet_notin_ind: u. *)
+(* move/eqP. *)
+(* rewrite fsetU_eq0. *)
+(* move/andP => [/eqP -> /eqP ->] _. *)
+(* by rewrite fsetU0 big_fset0 set0U. *)
+(* move=> /= u y _ notin_yu hst. *)
+(* rewrite hst /=. *)
+(* rewrite cardfsU1 notin_yu /= add1n. *)
+(* rewrite ltnS. *)
+(* move ->. *)
+(* rewrite fset0U. *)
+(* by rewrite big_fset0 set0U. *)
+(* move=> /= s x _ notin_xs. *)
+(* rewrite -fsetUA. *)
+(* rewrite cardfsU1. *)
+(* move => [-> ->]. *)
+(* move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t)) *)
+(*        (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)). *)
+
+(* rewrite fsubU. *)
+(* Check [blatticeType of {SAset F ^ m}]. *)
+(* Check (fset_sub_finType (s `|` t)). *)
+(* Check (fsub (s `|` t) s : {set fset_sub_finType (s `|` t)}). *)
+(* Check (fsub (s `|` t) t : {set fset_sub_finType (s `|` t)}).  *)
+(* Check (\join_(i : s) val i)%O. *)
+(* rewrite join_seq. *)
+(* rewrite join_seq. *)
+(* rewrite join_seq. *)
+
+(* rewrite joins_setU. *)
+(* rewrite joins_setU. *)
+
+
+
+(* Check (\join_(i : s) val i)%O. *)
+(* BigOp.bigop *)
+(* index_enum *)
+(* rewrite joins_setU. *)
+(* rewrite fsubU. *)
+(* Set Printing All. idtac. *)
+
+
+
+(* rewrite /=. *)
+(* Check ((fsub s) : {set fset_sub_finType s}). *)
+(* Check (s : {set fset_sub_finType s}). *)
+(* rewrite joins_setU. *)
 (* rewrite bigfcupP. *)
 (* move: bigfcupP. *)
 
