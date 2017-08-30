@@ -3684,51 +3684,29 @@ Admitted.
 Lemma aux (m : nat) (s t : {fset {SAset F ^ m}}) :
  (\join_(i in fsub s t) val i = \join_(i : s `&` t) val i)%O.
 Proof.
-Check (@h _ s t).
-Check [disjoint s & t].
-(* have [u|v] := boolP [disjoint s & t]. *)
-have [ st_eq0 | st_Neq0] := eqVneq (s `&` t) fset0.
-rewrite st_eq0 big_fset0 -big_map big_hasC //.
-apply/hasPn=> x.
-move/eqP: st_eq0.
-rewrite fsetI_eq0.
-rewrite fdisjoint_sym.
-move/fdisjointP_sym.
-move=> /= h.
-move/mapP.
-move=> /= [y hy] ->.
-have -> : (pred_of_set (fsub s t)) y = (y \in (fsub s t)) by [].
-rewrite in_fsub /=.
-apply: h.
-exact: fsvalP.
-move/fset0Pn : st_Neq0 => /= [y hy].
-rewrite (reindex (@h _ s t)); last first.
-rewrite /=.
-exists (h2 (FSetSub hy)).
-move=> x.
-rewrite inE.
-rewrite in_fsub.
-Check (h x).
-move=> in_hx_t.
-apply/val_inj.
-rewrite h2P //. 
-move=> x.
-rewrite inE.
-rewrite in_fsub.
-move=> in_xt.
-apply/val_inj.
-have h : val (h (h2 [` hy] x)) = val (h2 [` hy] x) by [].
-rewrite h.
-by rewrite h2P.
-rewrite /=.
-apply: eq_bigl.
-move=> i.
-rewrite in_fsub.
-rewrite hP.
-move: (fsvalP i).
-rewrite finmap.inE.
-by move/andP => [].
-Qed.
+case : (fset_0Vmem (s `&` t)) => [sintert_empty | [dv indef]].
+  rewrite sintert_empty big_fset0 big_pred0 // => x; apply/negP => abs.
+  suff : val x \in s `&` t by rewrite sintert_empty finmap.inE.
+  by rewrite finmap.inE; apply/andP;split;[apply/valP | move: abs; rewrite finmap.inE].
+have def := [` indef].
+have hP : forall (x : s), x \in fsub s t -> val x \in s `&` t.
+  by move => x; rewrite !finmap.inE => ->; rewrite andbT; apply/valP.
+have hP' : forall (x : s `&` t), val x \in s.
+  move=> x; have : val x \in s `&` t by apply/valP.
+  by rewrite finmap.inE; case/andP.
+set h := fun x => [` hP' x].
+have bijon : {on (fsub s t), bijective h}.
+  exists (fun x : s => insubd def (val x)).
+    move => x xfsubst.
+    by apply/val_inj; rewrite val_insubd (hP (h x) xfsubst).
+  move => x xfsubst; rewrite /h; apply/val_inj.
+  by rewrite -[LHS]/(val (insubd _ _)) val_insubd (hP _ xfsubst).
+rewrite (reindex h bijon) /=.
+apply: eq_big => // x; rewrite -[LHS]/(h x \in fsub s t).
+  rewrite finmap.inE /h /=.
+have : val x \in s `&` t by apply/valP.
+by rewrite finmap.inE; case/andP.
+Qed. 
 
 Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) :
 (\join_(i : s `|` t) val i)%O = join (\join_(i : s) val i)%O
