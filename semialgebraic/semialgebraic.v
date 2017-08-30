@@ -3621,6 +3621,11 @@ Definition h (m : nat) (s t : {fset {SAset F ^ m}})
                     (i : (fset_sub_finType (s `&` t))) : fset_sub_finType s 
                                                        := FSetSub (auxh i).
 
+Lemma hP (m : nat) (s t : {fset {SAset F ^ m}})
+                    (i : (fset_sub_finType (s `&` t))) :
+    val (h i) = val i.
+Proof. by []. Qed.
+
 Lemma auxh2 (m : nat) (s t : {fset {SAset F ^ m}}) 
                     (i : (fset_sub_finType s)) (pr : val i \in t) : val i \in (s `&` t).
 Proof.
@@ -3646,8 +3651,33 @@ Lemma h2P (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t)
   val i \in t -> val (h2 z i) = val i.
 Proof.
 rewrite /h2.
-Fail move ->.
+move/AltTrue=> in_it.
 Admitted.
+
+(* apply: in_it. *)
+(* have [|] := altP (val i \in t). *)
+(* case: _ / in_it. *)
+(* have [|] := boolP (val i \in t). *)
+
+
+(* rewrite {2}in_it. *)
+(* Set Printing All. idtac. *)
+(* rewrite in_it. *)
+
+(* case: _ /. *)
+
+(* move: {2}(val i \in t) (erefl (val i \in t)). *)
+(* move=> b. *)
+(* case: _ /. *)
+(* case: _ /. *)
+
+(* move=> in_it. *)
+(* case: in_it. *)
+(* have [Ex | E'x] := boolP (val i \in t). *)
+(* case:  (boolP (val i \in t)). *)
+(* case/boolP. : (val i \in t). *)
+(* Fail move ->. *)
+(* Admit *)
 
 (* if (val i \in t) then (FSetSub (auxh2 i)) else z. *)
 
@@ -3678,101 +3708,48 @@ exists (h2 (FSetSub hy)).
 move=> x.
 rewrite inE.
 rewrite in_fsub.
-move=> _.
-Admitted.
+Check (h x).
+move=> in_hx_t.
+apply/val_inj.
+rewrite h2P //. 
+move=> x.
+rewrite inE.
+rewrite in_fsub.
+move=> in_xt.
+apply/val_inj.
+have h : val (h (h2 [` hy] x)) = val (h2 [` hy] x) by [].
+rewrite h.
+by rewrite h2P.
+rewrite /=.
+apply: eq_bigl.
+move=> i.
+rewrite in_fsub.
+rewrite hP.
+move: (fsvalP i).
+rewrite finmap.inE.
+by move/andP => [].
+Qed.
 
-(* rewrite /=. *)
-
-
-(* move=> hx. *)
-(* rewrite /h2 /h. *)
-(* rewrite /=. *)
-
-
-(* rewrite finmap.inE. *)
-(* rewrite //=. *)
-(* Check ((pred_of_set (fsub s t)) y). *)
-(* Set Printing All. idtac. *)
-(* have -> : (fsub s t) y = y \in (fsub s t). *)
-(* Set Printing All. idtac. *)
-(* move: (in_fsub t y). *)
-
-(* have : (fsub s t) y. *)
-(* rewrite !finmap.inE /=. *)
-(* move: (eqVneq (s `&` t) fset0). *)
-(* move=> [/eqP|]; rewrite fsetI_eq0=> h.  *)
-
-
-(* have [st_eq0|st_Neq0] := eqVneq (s `&` t) fset0. *)
-(* rewrite st_eq0 big_fset0. *)
-(* rewrite -big_map. *)
-(* apply: big_hasC. *)
-(* apply/hasPn. *)
-(* move=> x. *)
-
-(* rewrite in_fsub. *)
-(* Check ((fsub s t) x). *)
-
-(* rewrite (reindex (@h _ s t)); last first. *)
-(* rewrite /=. *)
-(* exists h. *)
-
-
-(* Check (fsub s (s `&` t)). *)
-(* move: (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t)). *)
-(* Check (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t) s). *)
-(* move: (@fsub_inj [choiceType of {SAset F ^ m}] (s `&` t)). *)
-(* Set Printing All. idtac. *)
-(* Check (index_enum (fset_sub_finType (fsub s t))). *)
-(* rewrite -big_map. *)
-(* reindex *)
-
-(* Check (fsub s). *)
-
-
-(* rewrite (reindex (fsub s)). *)
-(* (* Set Printing All. idtac. *) *)
-(* have : \join_(i in fsub s t) val i = *)
-(* rewrite -big_map. *)
-
-(* rewrite /fsub /=. *)
-(* rewrite -big_map. *)
-(* rewrite /=. *)
-(* Check [seq j | j <- index_enum (fset_sub_finType s)]. *)
-(* Check (index_enum (fset_sub_finType (s `&` t))). *)
-(* fsub_inj *)
-(* rewrite -join_seq. *)
-(* rewrite (big_filter). *)
-(* move: (@big_filter_ _ ). *)
-
-(* Check ('rV[F]_m). *)
-(* Check ({SAset F ^ m} : set 'rV[F]_m). *)
-(* rewrite /=. *)
-(* move: {SAset F ^ m}. *)
-(* mathcomp.finmap.set *)
-(* Check ({SAset F ^ m}). *)
-(* Qed. *)
-
-(* Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) : *)
-(* (\join_(i : s `|` t) val i)%O = join (\join_(i : s) val i)%O *)
-(*                                 (\join_(i : t) val i)%O. *)
-(* Proof. *)
-(* move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t)) *)
-(*        (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)). *)
-(* rewrite aux. *)
-(* rewrite aux. *)
-(* rewrite fsetUKC. *)
-(* rewrite fsetUK. *)
-(* move <-. *)
-(* apply: eq_big. *)
-(* move=> i. *)
-(* rewrite finset.in_setU. *)
-(* rewrite !in_fsub. *)
-(* rewrite -in_fsetU. *)
-(* rewrite -in_fsub fsubT. *)
-(* by rewrite in_setT. *)
-(* by move=> i _. *)
-(* Qed. *)
+Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) :
+(\join_(i : s `|` t) val i)%O = join (\join_(i : s) val i)%O
+                                (\join_(i : t) val i)%O.
+Proof.
+move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t))
+       (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)).
+rewrite aux.
+rewrite aux.
+rewrite fsetUKC.
+rewrite fsetUK.
+move <-.
+apply: eq_big.
+move=> i.
+rewrite finset.in_setU.
+rewrite !in_fsub.
+rewrite -in_fsetU.
+rewrite -in_fsub fsubT.
+by rewrite in_setT.
+by move=> i _.
+Qed.
 
 (* rewrite /=. *)
 (* rewrite inE. *)
