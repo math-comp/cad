@@ -2853,7 +2853,8 @@ Import SET.SetSyntax.
 
 Check (setT : {SAset F^1}).
 
-Definition singleton (a : F) := SAset1 (\row_(i < 1) a).
+Definition singleton (a : F) : {SAset F ^ 1} := SET.set1 (\row_(i < 1) a).
+(* Definition singleton (a : F) := SAset1 (\row_(i < 1) a). *)
 
 Lemma in_interval_a_inf (a x : F) : 
   ((\row_(i < 1) x) \in (interval_a_inf a)) = (a < x).
@@ -3447,12 +3448,12 @@ Check (setT : {SAset F^1}).
 
 Fixpoint aux_cells1 (x : F) (xs : seq F) : {fset {SAset F ^ 1}} := match xs with
   | [::] => [fset (interval_a_inf x)]
-  | y::s => (interval_a_b x y) |` (aux_cells1 y s)
+  | y::s => (interval_a_b x y) |` ((singleton y) |` (aux_cells1 y s))
 end.
 
 Definition cells1 (xs : {fset F}) : {fset {SAset F ^ 1}} := match (sorted_seq (enum_fset xs)) with
   | [::] => [fset setT]
-  | x::s => (interval_inf_b x) |` (aux_cells1 x s)
+  | x::s => (interval_inf_b x) |` ((singleton x) |` (aux_cells1 x s))
 end.
 
 Lemma testpath (T : eqType) (leT : rel T) (a : T) (s : seq T) :
@@ -3509,9 +3510,11 @@ move: x ; elim: xs => [x _ | x s ih y].
   by rewrite [RHS]inE in_interval_a_inf -[X in X < _]addr0 ltr_add2l ltr01.
 + move/andP => [lt_yx path_x_s].
   rewrite /non_empty_cells ; apply/allP => c.
-  rewrite in_fsetU ; move/orP => [|h]; last first.
+  rewrite in_fsetU ; move/orP => [|]; last first.
+    rewrite finmap.inE finmap.inE.
+    move/orP => [/eqP ->|]; first by rewrite set1_neq0.
     move: (ih x path_x_s) ; rewrite /non_empty_cells.
-    by move/allP/(_ c) ; rewrite mem_enum_fset ; move ->.
+    by move/allP/(_ c) ; rewrite mem_enum_fset.
   rewrite in_fset1 ; move/eqP ->.
   apply/negP ; move/SAsetP.
   move/(_ (\row_(i < 1) ((x + y) / 2%:R))).
@@ -3533,7 +3536,7 @@ case: s => [_ _ | a s /= /andP [ha uniq_s] path_as].
   rewrite -proper0 ; apply/properP ; split; rewrite ?le0x //.
   exists 0; last exact: notin_set0.
   by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
-rewrite in_fset1U => /orP [/eqP -> | h2].
+rewrite in_fset1U ?finmap.inE => /orP [/eqP -> | /orP [/eqP -> | h2]]; rewrite ?set1_neq0 //.
   apply/negP ; move/SAsetP/(_ (\row_(i < 1) (a - 1)%R)).
   rewrite in_SAset_bottom in_interval_inf_b ltr_subl_addr.
   by rewrite -[X in X < _]addr0 ltr_add2l ltr01.
@@ -3609,51 +3612,6 @@ Proof. by case x. Qed.
 (*  s `<=` t -> (\join_(i in fsub s t) val i = \join_(i : s) val i)%O. *)
 (* Proof. *)
 
-Lemma auxh (m : nat) (s t : {fset {SAset F ^ m}}) 
-                    (i : (fset_sub_finType (s `&` t))) : val i \in s.
-Proof.
-move: (fsvalP i).
-rewrite finmap.inE.
-by move/andP=> [].
-Qed.
-
-Definition h (m : nat) (s t : {fset {SAset F ^ m}}) 
-                    (i : (fset_sub_finType (s `&` t))) : fset_sub_finType s 
-                                                       := FSetSub (auxh i).
-
-Lemma hP (m : nat) (s t : {fset {SAset F ^ m}})
-                    (i : (fset_sub_finType (s `&` t))) :
-    val (h i) = val i.
-Proof. by []. Qed.
-
-Lemma auxh2 (m : nat) (s t : {fset {SAset F ^ m}}) 
-                    (i : (fset_sub_finType s)) (pr : val i \in t) : val i \in (s `&` t).
-Proof.
-rewrite finmap.inE.
-apply/andP; split  => //.
-exact: fsvalP.
-Qed.
-
-(* Variables (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t)) *)
-(*                     (i : (fset_sub_finType s)).  *)
-(* Check (val i \in s). *)
-
-Definition h2 (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t))
-                    (i : (fset_sub_finType s)) : fset_sub_finType (s `&` t)
-                                               := 
-match boolP (val i \in t) with
-| AltTrue b => FSetSub (auxh2 b)
-| AltFalse _ => z
-end.
-
-Lemma h2P (m : nat) (s t : {fset {SAset F ^ m}}) (z : fset_sub_finType (s `&` t))
-                    (i : (fset_sub_finType s)) : 
-  val i \in t -> val (h2 z i) = val i.
-Proof.
-rewrite /h2.
-move/AltTrue=> in_it.
-Admitted.
-
 (* apply: in_it. *)
 (* have [|] := altP (val i \in t). *)
 (* case: _ / in_it. *)
@@ -3714,19 +3672,9 @@ Lemma joinU (m : nat) (s t : {fset {SAset F ^ m}}) :
 Proof.
 move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t))
        (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)).
-rewrite aux.
-rewrite aux.
-rewrite fsetUKC.
-rewrite fsetUK.
-move <-.
-apply: eq_big.
-move=> i.
-rewrite finset.in_setU.
-rewrite !in_fsub.
-rewrite -in_fsetU.
-rewrite -in_fsub fsubT.
-by rewrite in_setT.
-by move=> i _.
+rewrite !aux fsetUKC fsetUK => <-.
+apply: eq_big => [i|i _ //].
+by rewrite finset.in_setU !in_fsub -in_fsetU -in_fsub fsubT in_setT.
 Qed.
 
 (* rewrite /=. *)
@@ -3940,47 +3888,47 @@ Qed.
 (* by rewrite fsetU0 big_fset1 big_fset0 setU0. *)
 (* Qed. *)
 
-(* Lemma covers1 (xs : {fset F}) : covers (cells1 xs). *)
-(* Proof. *)
-(* rewrite /covers. *)
-(* apply/SAsetP. *)
-(* rewrite /=. *)
-(* rewrite /setT. *)
-(* rewrite /=. *)
-(* move=> x. *)
-(* rewrite in_SAset_top. *)
-(* rewrite /=. *)
-(* have hbool : forall (b : bool), is_true b -> b = true. *)
-(* move=> b //=. *)
-(* apply: hbool. *)
-(* rewrite /cells1. *)
-(* rewrite /sorted_seq. *)
-(* move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)). *)
-(* move: (@enum_fset_uniq F xs). *)
-(* rewrite -(@path.sort_uniq F ler). *)
-(* move: (path.sort <=%R (enum_fset xs)). *)
-(* (* move: (enum_fset xs). *) *)
-(* move=> {xs}. *)
-(* move=> s uniq_s sorted_s. *)
-(* have sorted_s':  path.sorted <%R s. *)
-(* by rewrite ltr_sorted_uniq_ler uniq_s sorted_s. *)
-(* move: uniq_s sorted_s sorted_s'. *)
-(* case: s. *)
-(* move=> _ _ _. *)
-(* rewrite /=. *)
-(* rewrite enum_fset1b. *)
-(* rewrite big_seq1. *)
-(* rewrite //=. *)
-(* by rewrite in_SAset_top. *)
-(* move=> a s /=. *)
-(* move/andP => [a_notin_s uniq_s]. *)
-(* move=> path_as path_as'. *)
-(* move: x (interval_inf_b a |` aux_cells1 a s). *)
-(* (* Set Printing All. idtac. *) *)
-(* move: {-1 5 7}1%nat. *)
-(* move => m x /= ss. *)
-(* admit. *)
-(* Admitted. *)
+Lemma covers1 (xs : {fset F}) : covers (cells1 xs).
+Proof.
+rewrite /covers.
+apply/SAsetP.
+rewrite /=.
+rewrite /setT.
+rewrite /=.
+move=> x.
+rewrite in_SAset_top.
+rewrite /=.
+have hbool : forall (b : bool), is_true b -> b = true.
+move=> b //=.
+apply: hbool.
+rewrite /cells1.
+rewrite /sorted_seq.
+move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
+move: (@enum_fset_uniq F xs).
+rewrite -(@path.sort_uniq F ler).
+move: (path.sort <=%R (enum_fset xs)).
+(* move: (enum_fset xs). *)
+move=> {xs}.
+move=> s uniq_s sorted_s.
+have sorted_s':  path.sorted <%R s.
+by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
+move: uniq_s sorted_s sorted_s'.
+case: s.
+move=> _ _ _.
+rewrite /=.
+rewrite enum_fset1b.
+rewrite big_seq1.
+rewrite //=.
+by rewrite in_SAset_top.
+move=> a s /=.
+move/andP => [a_notin_s uniq_s].
+move=> path_as path_as'.
+move: x (interval_inf_b a |` aux_cells1 a s).
+(* Set Printing All. idtac. *)
+move: {-1 5 7}1%nat.
+move => m x /= ss.
+admit.
+Admitted.
 
 (* (* Definition elimination (n : nat) (s : {fset {mpoly F[n]}}) :=  *) *)
 (* (* let s' := s  in *) *)
