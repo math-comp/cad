@@ -3967,64 +3967,8 @@ congr setU.
 by apply: ih.
 Qed.
 
-(* Lemma aux_covers1 (x : F) (xs : seq F) :  *)
-(*   path.path ltr x xs -> covers (aux_cells1 x xs) (interval_a_inf x). *)
-(* Proof. *)
-(* rewrite /aux_cells1. *)
-(* rewrite /covers. *)
-(* move: x. *)
-(* elim: xs. *)
-(* move=> x _. *)
-(* rewrite big_fset1. *)
-(* rewrite /=. *)
-(* by rewrite lexx. *)
-(* move=> a xs ih x. *)
-(* rewrite /=. *)
-(* move/andP => [lt_xa path_a_xs]. *)
-(* rewrite joinU. *)
-(* rewrite big_fset1. *)
-(* rewrite /=. *)
-(* rewrite joinU. *)
-(* rewrite big_fset1. *)
-(* rewrite /=. *)
-(* have -> : interval_a_inf x = setU (interval_a_b x a) (setU (singleton a) (interval_a_inf a)). *)
-(* apply/setP => /= y. *)
-(* rewrite [y]mx11_scalar. *)
-(* have h : (y 0 0)%:M = (\row_(i < 1) (y 0 0)). *)
-(* apply/matrixP => i j. *)
-(* rewrite !mxE /=. *)
-(* case: i => i. *)
-(* case: i => //. *)
-(* case: j => j. *)
-(* by case: j => //. *)
-(* rewrite h. *)
-(* rewrite in_interval_a_inf. *)
-(* rewrite inE in_setU. *)
-(* pose y0 := y 0 0. *)
-(* rewrite in_singleton. *)
-(* rewrite in_interval_a_b. *)
-(* rewrite in_interval_a_inf. *)
-(* rewrite eq_sym. *)
-(* rewrite -ler_eqVlt. *)
-(* have [|] := boolP (a <= y0). *)
-(* rewrite orbT. *)
-(* move=> leq_ay0. *)
-(* by rewrite (ltr_le_trans lt_xa). *)
-(* rewrite -ltrNge. *)
-(* move ->. *)
-(* rewrite orbF. *)
-(* by rewrite andbT. *)
-(* rewrite subUset. *)
-(* rewrite subUset. *)
-(* apply/andP; split. *)
-(* by rewrite subsetUl. *)
-(* apply/andP; split. *)
-(* rewrite setUCA. *)
-(* by rewrite subsetUl. *)
-(* rewrite (subset_trans _ (subsetUr _ _)) //. *)
-(* rewrite (subset_trans _ (subsetUr _ _)) //. *)
-(* by apply: ih. *)
-(* Qed. *)
+Lemma is_ord0 n' (h : (0 < n'.+1)%N) : Ordinal h = 0.
+Proof. by apply/val_inj. Qed.
 
 Lemma covers1 (xs : {fset F}) : covers (cells1 xs) setT.
 Proof.
@@ -4061,13 +4005,26 @@ move=> a s /=.
 move/andP => [a_notin_s uniq_s].
 move=> path_as path_as'.
 rewrite -in_join.
+rewrite /auxp /=.
 apply/existsP.
-rewrite /=.
-rewrite /auxp.
 rewrite /=.
 pose x0 := x 0 0.
 have /orP [/orP [lt_xa|eq_ax] |lt_ax] : (x0 < a)|| (x0 == a) || (a < x0).
 by rewrite eq_sym -orbA -ler_eqVlt lerNgt orbN.
+have h : (interval_inf_b a) \in (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
+by rewrite !finmap.inE eqxx.
+exists [`h].
+rewrite -topredE.
+rewrite /=.
+have xq : x = \row__ x0.
+apply/matrixP => i j.
+by rewrite !ord1 mxE.
+
+fail.
+rewrite in_interval_inf_b.
+rewrite finmap.inE.
+exists (interval_inf_b a).
+
 Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
 
 exists (interval_inf_b a).
