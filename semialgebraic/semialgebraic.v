@@ -2856,33 +2856,63 @@ Check (setT : {SAset F^1}).
 Definition singleton (a : F) : {SAset F ^ 1} := SET.set1 (\row_(i < 1) a).
 (* Definition singleton (a : F) := SAset1 (\row_(i < 1) a). *)
 
-Lemma in_interval_a_inf (a x : F) : 
-  ((\row_(i < 1) x) \in (interval_a_inf a)) = (a < x).
+Lemma in_interval_a_inf (a : F) (x : 'rV_1) : 
+  (x \in (interval_a_inf a)) = (a < x 0 0).
 Proof.
 rewrite /interval_a_inf inE rcf_sat_repr_pi.
-by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE.
+by apply/rcf_satP/idP ; rewrite /= enum_ordS.
 Qed.
 
-Lemma in_interval_inf_b (b x : F) : 
-  ((\row_(i < 1) x) \in (interval_inf_b b)) = (x < b).
+(* Lemma in_interval_a_inf (a x : F) :  *)
+(*   ((\row_(i < 1) x) \in (interval_a_inf a)) = (a < x). *)
+(* Proof. *)
+(* rewrite /interval_a_inf inE rcf_sat_repr_pi. *)
+(* by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE. *)
+(* Qed. *)
+
+Lemma in_interval_inf_b (b : F) (x : 'rV_1) : 
+  (x \in (interval_inf_b b)) = (x 0 0 < b).
 Proof.
 rewrite /interval_a_inf inE rcf_sat_repr_pi.
-by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE.
+by apply/rcf_satP/idP ; rewrite /= enum_ordS.
 Qed.
 
-Lemma in_interval_a_b (a b x : F) : 
-  ((\row_(i < 1) x) \in (interval_a_b a b)) = (a < x < b).
+(* Lemma in_interval_inf_b (b x : F) :  *)
+(*   ((\row_(i < 1) x) \in (interval_inf_b b)) = (x < b). *)
+(* Proof. *)
+(* rewrite /interval_a_inf inE rcf_sat_repr_pi. *)
+(* by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE. *)
+(* Qed. *)
+
+Lemma in_interval_a_b (a b : F) (x : 'rV_1) : 
+  (x \in (interval_a_b a b)) = (a < x 0 0 < b).
 Proof.
 rewrite /interval_a_inf inE rcf_sat_repr_pi.
-by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE ; move/andP.
+by apply/rcf_satP/idP ; rewrite /= enum_ordS ; move/andP.
 Qed.
 
-Lemma in_singleton (a x : F) : ((\row_(i < 1) x) \in (singleton a)) = (x == a).
+(* Lemma in_interval_a_b (a b x : F) :  *)
+(*   ((\row_(i < 1) x) \in (interval_a_b a b)) = (a < x < b). *)
+(* Proof. *)
+(* rewrite /interval_a_inf inE rcf_sat_repr_pi. *)
+(* by apply/rcf_satP/idP ; rewrite /= enum_ordS /= mxE ; move/andP. *)
+(* Qed. *)
+
+Lemma in_singleton (a : F) (x : 'rV_1) : (x \in (singleton a)) = (x 0 0 == a).
 Proof.
-rewrite /singleton inE rcf_sat_repr_pi /SAset1_formula /=. 
-rewrite enum_ordS map_cons mxE big_ord_recl big_ord0 mxE.
+rewrite /singleton inE rcf_sat_repr_pi /SAset1_formula /=.
+rewrite enum_ordS map_cons big_ord_recl big_ord0 mxE.
 by apply/rcf_satP/idP => [ [/eqP eq_xa _] | /eqP ->].
 Qed.
+
+(* Lemma in_singleton (a x : F) : ((\row_(i < 1) x) \in (singleton a)) = (x == a). *)
+(* Proof. *)
+(* rewrite /singleton inE rcf_sat_repr_pi /SAset1_formula /=.  *)
+(* rewrite enum_ordS map_cons mxE big_ord_recl big_ord0 mxE. *)
+(* by apply/rcf_satP/idP => [ [/eqP eq_xa _] | /eqP ->]. *)
+(* Qed. *)
+
+Definition in_interval := (in_interval_a_inf, in_interval_inf_b, in_interval_a_b, in_singleton).
 
 End Interval.
 
@@ -3513,7 +3543,7 @@ move: x ; elim: xs => [x _ | x s ih y].
   rewrite mem_enum_fset in_fset1 ; move/eqP ->.
   apply/negP.
   move/SAsetP/(_ (\row_(i < 1) (x + 1)%R)).
-  by rewrite [RHS]inE in_interval_a_inf -[X in X < _]addr0 ltr_add2l ltr01.
+  by rewrite [RHS]inE in_interval mxE -[X in X < _]addr0 ltr_add2l ltr01.
 + move/andP => [lt_yx path_x_s].
   rewrite /non_empty_cells ; apply/allP => c.
   rewrite in_fsetU ; move/orP => [|]; last first.
@@ -3524,7 +3554,7 @@ move: x ; elim: xs => [x _ | x s ih y].
   rewrite in_fset1 ; move/eqP ->.
   apply/negP ; move/SAsetP.
   move/(_ (\row_(i < 1) ((x + y) / 2%:R))).
-  rewrite in_interval_a_b ltr_pdivl_mulr; last by rewrite ltr0n.
+  rewrite in_interval mxE ltr_pdivl_mulr; last by rewrite ltr0n.
   rewrite ltr_pdivr_mulr; last by rewrite ltr0n.
   by rewrite inE mulr2n !mulrDr !mulr1 ltr_add2r ltr_add2l andbb lt_yx.
 Qed.
@@ -3545,7 +3575,7 @@ case: s => [_ _ | a s /= /andP [ha uniq_s] path_as].
   by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
 rewrite in_fset1U ?finmap.inE => /orP [/eqP -> | /orP [/eqP -> | h2]]; rewrite ?set1_neq0 //.
   apply/negP ; move/SAsetP/(_ (\row_(i < 1) (a - 1)%R)).
-  rewrite in_SAset_bottom in_interval_inf_b ltr_subl_addr.
+  rewrite in_SAset_bottom in_interval mxE ltr_subl_addr.
   by rewrite -[X in X < _]addr0 ltr_add2l ltr01.
 suffices path_as' : path.path <%R a s.
   move: (@non_empty_aux_cells1 a s path_as').
@@ -3687,383 +3717,40 @@ Qed.
 Definition auxp (m : nat) (s : {fset {SAset F ^ m}}) (y : 'rV[F]_m) : (pred (fset_sub_type s)) 
   := (fun (z : s) => y \in (val z)).
 
-(* Variables (m : nat) (s : {fset {SAset F ^ m}}). *)
-(* Variable (y : 'rV[F]_m). *)
-
-(* Check (exists x : s, x \in (@auxp _ _ y)). *)
-(* Check ((\join_(i : s) val i)%O). *)
-(* Check (y \in (\join_(i : s) val i)%O). *)
-
-(* Check ([exists x, x \in (@auxp _ _ y)]). *)
-
-Lemma in_join (m : nat) (s : {fset {SAset F ^ m}}) (y : 'rV[F]_m) :
-  [exists x, x \in (@auxp _ s y)] = (y \in (\join_(i : s) val i)%O).
-Proof.
-apply/idP/idP.
-move/existsP.
-(* existsP *)
-(* bigfcupP *)
-move=> /= [x hx].
-Admitted.
-
-(* rewrite /=. *)
-(* rewrite inE. *)
-(* rewrite in_set1. *)
-(* rewrite finmap.inE. *)
-(* rewrite inE. *)
-
-(* rewrite inE. *)
-
-(* rewrite /=. *)
-
-(* rewrite fsetUKC. *)
-
-(* rewrite /=. *)
-
-(* Check (fsub (s `|` t) s). *)
-(* Check (\join_(i in fsub (s `|` t) s) fsval i)%O. *)
-(* Check (\join_(i : s) val i)%O. *)
-(* have h :  (\join_(i in fsub (s `|` t) s) fsval i)%O = (\join_(i : s) val i)%O. *)
-(* rewrite -big_filter. *)
-(* Check [seq i <- index_enum (fset_sub_finType (s `|` t)) | i \in fsub (s `|` t) s]. *)
-
-(* rewrite /=. *)
-(* rewrite join_seq. *)
-(* rewrite /=. *)
-(* apply: eq_big. *)
-(* (* Set Printing All. idtac. *) *)
-(* Check (index_enum *)
-(*        (@fset_sub_finType (SAset_of_choiceType F m) (@fsetU (SAset_of_choiceType F m) s t))). *)
-(* Check (index_enum *)
-(*        (@fset_sub_finType (SAset_of_choiceType F m) (s `|` t))). *)
-(* Check (index_enum *)
-(*        (fset_sub_finType (s `|` t))). *)
-(* rewrite -big_filter. *)
-(* rewrite -join_seq. *)
-(* Check (index_enum (fset_sub_finType s)). *)
-(* Set Printing All. idtac. *)
-
-(* apply: eq_big_seq. *)
-(* apply: eq_big_op. *)
-(* apply: eq_big. *)
-(* apply: eq_big_op. *)
-(* apply: eq_big. *)
-(* rewrite /=. *)
-
-(* Check (index_enum (fsub (s `|` t) s)). *)
-(* Check ((fsub (s `|` t) s :|: fsub (s `|` t) t))%O. *)
-
-
-(* move: {2}(#|`s `|` t|) (leqnn #|`s `|` t|) => r. *)
-(* move: s t ; elim: r => [|r ih] s t. *)
-(*   rewrite leqn0 cardfs_eq0 fsetU_eq0 => /andP [/eqP -> /eqP ->]. *)
-(*   by rewrite fsetU0 big_fset0 setU0. *)
-(* move: {2}(s `|` t) (erefl (s `|` t)) => /= u. *)
-(* elim/finSet_notin_ind: u. *)
-(*   move/eqP. *)
-(*   rewrite fsetU_eq0. *)
-(*   move/andP => [/eqP -> /eqP ->] _. *)
-(*   by rewrite fsetU0 big_fset0 set0U. *)
-(* move=> /= u y _ notin_yu hst. *)
-(* rewrite hst /=. *)
-(* rewrite cardfsU1 notin_yu /= add1n. *)
-(* rewrite ltnS. *)
-(* move ->. *)
-(* rewrite fset0U. *)
-(* by rewrite big_fset0 set0U. *)
-(* move=> /= s x _ notin_xs. *)
-(* rewrite -fsetUA. *)
-(* rewrite cardfsU1. *)
-
-
-
-(* move: t. *)
-(* elim/finSet_notin_ind: s. *)
-(* move=> t. *)
-(* by rewrite fset0U big_fset0 set0U. *)
-(* move=> /= s x ih notin_xs t. *)
-(* move: s x ih notin_xs. *)
-(* elim/finSet_notin_ind: t. *)
-(* move=> s x _ _. *)
-(* by rewrite fsetU0 big_fset0 setU0. *)
-(* move=> /= s x ih notin_xs t y ih2 notin_yt. *)
-
-(* Set Printing All. idtac. *)
-
-
-(* move: {2}(#|`s `|` t|) (leqnn #|`s `|` t|) => r. *)
-(* move: s t ; elim: r => [|r ih] s t. *)
-(* rewrite leqn0 cardfs_eq0 fsetU_eq0 => /andP [/eqP -> /eqP ->]. *)
-(* by rewrite fsetU0 big_fset0 setU0. *)
-(* move: {2}(s `|` t) (erefl (s `|` t)) => /= u. *)
-(* elim/finSet_notin_ind: u. *)
-(* move/eqP. *)
-(* rewrite fsetU_eq0. *)
-(* move/andP => [/eqP -> /eqP ->] _. *)
-(* by rewrite fsetU0 big_fset0 set0U. *)
-(* move=> /= u y _ notin_yu hst. *)
-(* rewrite hst /=. *)
-(* rewrite cardfsU1 notin_yu /= add1n. *)
-(* rewrite ltnS. *)
-(* move ->. *)
-(* rewrite fset0U. *)
-(* by rewrite big_fset0 set0U. *)
-(* move=> /= s x _ notin_xs. *)
-(* rewrite -fsetUA. *)
-(* rewrite cardfsU1. *)
-(* move => [-> ->]. *)
-(* move: (@joins_setU _ [blatticeType of {SAset F ^ m}] (fset_sub_finType (s `|` t)) *)
-(*        (fsub (s `|` t) s) (fsub (s `|` t) t) (fun x => fsval x)). *)
-
-(* rewrite fsubU. *)
-(* Check [blatticeType of {SAset F ^ m}]. *)
-(* Check (fset_sub_finType (s `|` t)). *)
-(* Check (fsub (s `|` t) s : {set fset_sub_finType (s `|` t)}). *)
-(* Check (fsub (s `|` t) t : {set fset_sub_finType (s `|` t)}).  *)
-(* Check (\join_(i : s) val i)%O. *)
-(* rewrite join_seq. *)
-(* rewrite join_seq. *)
-(* rewrite join_seq. *)
-
-(* rewrite joins_setU. *)
-(* rewrite joins_setU. *)
-
-
-
-(* Check (\join_(i : s) val i)%O. *)
-(* BigOp.bigop *)
-(* index_enum *)
-(* rewrite joins_setU. *)
-(* rewrite fsubU. *)
-(* Set Printing All. idtac. *)
-
-
-
-(* rewrite /=. *)
-(* Check ((fsub s) : {set fset_sub_finType s}). *)
-(* Check (s : {set fset_sub_finType s}). *)
-(* rewrite joins_setU. *)
-(* rewrite bigfcupP. *)
-(* move: bigfcupP. *)
-
-(* (* rewrite !join_seq. *) *)
-(* (* rewrite /=. *) *)
-(* (* Set Printing All. idtac. *) *)
-(* move: {2}#|` t| (leqnn #|` t|) s => ct. *)
-(* move: t. *)
-(* elim: ct. *)
-(* move=> t. *)
-(* rewrite leqn0. *)
-(* move/eqP/cardfs0_eq -> => s. *)
-(* by rewrite fsetU0 big_fset0 setU0. *)
-(* move=> ct ih t. *)
-(* elim: t. *)
-(* move=> _ s. *)
-(* by rewrite fsetU0 big_fset0 setU0. *)
-(* move=> s /= x _. *)
-(* rewrite cardfsU1. *)
-
-(* bigfcupP *)
-
-(* imfs et_rec *)
-(* case: t. *)
-(* elim: t. *)
-(* rewrite /=. *)
-
-(* rewrite fsetU0. *)
-(* rewrite big_fset0. *)
-(* by rewrite setU0. *)
-(* move=> /= t x ih s. *)
-(* move: t x ih. *)
-(* elim: s. *)
-(* move=> t x ih. *)
-(* rewrite fset0U. *)
-(* rewrite big_fset0. *)
-(* by rewrite set0U. *)
-(* move=> /= s x ih t y ih2. *)
-
-(* rewrite ih. *)
-(* rewrite fset0U fsetU0. *)
-
-
-(* move=> /= t x ih s. *)
-(* rewrite [X in (s `|` X)]fsetUC. *)
-(* rewrite [in LHS]fsetUA. *)
-(* move: (ih (t `|` [fset x])). *)
-(* rewrite [in LHS]ih. *)
-
-(* move: t. *)
-(* elim: s. *)
-(* move=> t. *)
-(* rewrite fset0U. *)
-(* rewrite big_fset0. *)
-(* by rewrite set0U. *)
-(* move=> /= s x ih t. *)
-(* rewrite -[in LHS]fsetUA. *)
-(* rewrite ih. *)
-(* Set Printing All. idtac. *)
-
-(* rewrite [in LHS]fsetUC. *)
-(* rewrite -[in LHS]fsetUA. *)
-(* rewrite //=. *)
-(* by *)
-(* move: t. *)
-(* elim: s. *)
-(* move=> t. *)
-(* by rewrite fset0U fsetU0. *)
-(* move=> /= s x ih t. *)
-(* rewrite -[in LHS]fsetUCA. *)
-
-(* by rewrite fsetU0 big_fset1 big_fset0 setU0. *)
-(* Qed. *)
+(* Lemma in_join (m : nat) (s : {fset {SAset F ^ m}}) (y : 'rV[F]_m) : *)
+(*   [exists x, x \in (@auxp _ s y)] = (y \in (\join_(i : s) val i)%O). *)
+(* Proof. *)
+(* Admitted. *)
 
 Lemma aux_covers1 (x : F) (xs : seq F) : 
   path.path ltr x xs -> 
   (\big[setU/set0]_(i : (aux_cells1 x xs )) val i) = (interval_a_inf x).
 Proof.
-rewrite /aux_cells1.
-move: x.
-elim: xs.
-move=> x _.
-by rewrite big_fset1.
-move=> a xs ih x.
-rewrite /=.
+rewrite /aux_cells1 ; move: x ; elim: xs => [x _ | a xs ih x]. 
+  by rewrite big_fset1.
 move/andP => [lt_xa path_a_xs].
-rewrite joinU.
-rewrite big_fset1.
-rewrite /=.
-rewrite joinU.
-rewrite big_fset1.
-rewrite /=.
-have -> : interval_a_inf x = setU (interval_a_b x a) (setU (singleton a) (interval_a_inf a)).
-apply/setP => /= y.
-rewrite [y]mx11_scalar.
-have h : (y 0 0)%:M = (\row_(i < 1) (y 0 0)).
-apply/matrixP => i j.
-rewrite !mxE /=.
-case: i => i.
-case: i => //.
-case: j => j.
-by case: j => //.
-rewrite h.
-rewrite in_interval_a_inf.
-rewrite inE in_setU.
-pose y0 := y 0 0.
-rewrite in_singleton.
-rewrite in_interval_a_b.
-rewrite in_interval_a_inf.
-rewrite eq_sym.
-rewrite -ler_eqVlt.
-have [|] := boolP (a <= y0).
-rewrite orbT.
-move=> leq_ay0.
-by rewrite (ltr_le_trans lt_xa).
-rewrite -ltrNge.
-move ->.
-rewrite orbF.
-by rewrite andbT.
-congr setU.
-congr setU.
-by apply: ih.
+rewrite !joinU !big_fset1 ; apply/setP => y.
+rewrite inE in_setU ih // !in_interval eq_sym -ler_eqVlt.
+have [leq_ay|] := boolP (a <= y 0 0); first by rewrite orbT (ltr_le_trans lt_xa).
+by rewrite -ltrNge => -> ; rewrite andbT orbF.
 Qed.
-
-Lemma is_ord0 n' (h : (0 < n'.+1)%N) : Ordinal h = 0.
-Proof. by apply/val_inj. Qed.
 
 Lemma covers1 (xs : {fset F}) : covers (cells1 xs) setT.
 Proof.
-rewrite /covers.
-rewrite le1x.
-apply/SAsetP.
-rewrite /=.
-move=> x.
-rewrite /setT -[RHS]sub_SAset1 SAset_topP.
-(* rewrite in_SAset_top. *)
-rewrite /=.
-have hbool : forall (b : bool), is_true b -> b = true.
-move=> b //=.
-apply: hbool.
-rewrite /cells1.
-rewrite /sorted_seq.
+rewrite /covers le1x ; apply/SAsetP => x.
+rewrite /setT -[RHS]sub_SAset1 SAset_topP /cells1 /sorted_seq.
 move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
 move: (@enum_fset_uniq F xs).
 rewrite -(@path.sort_uniq F ler).
-move: (path.sort <=%R (enum_fset xs)).
-(* move: (enum_fset xs). *)
-move=> {xs}.
-move=> s uniq_s sorted_s.
-have sorted_s':  path.sorted <%R s.
-by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
+move: (path.sort <=%R (enum_fset xs)) => {xs} s uniq_s sorted_s.
+have sorted_s': path.sorted <%R s by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
 move: uniq_s sorted_s sorted_s'.
-case: s.
-move=> _ _ _.
-rewrite /=.
-rewrite big_fset1.
-rewrite /=.
-by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
-move=> a s /=.
-move/andP => [a_notin_s uniq_s].
-move=> path_as path_as'.
-rewrite -in_join.
-rewrite /auxp /=.
-apply/existsP.
-rewrite /=.
-pose x0 := x 0 0.
-have /orP [/orP [lt_xa|eq_ax] |lt_ax] : (x0 < a)|| (x0 == a) || (a < x0).
-by rewrite eq_sym -orbA -ler_eqVlt lerNgt orbN.
-have h : (interval_inf_b a) \in (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
-by rewrite !finmap.inE eqxx.
-exists [`h].
-rewrite -topredE.
-rewrite /=.
-have xq : x = \row__ x0.
-apply/matrixP => i j.
-by rewrite !ord1 mxE.
-
-fail.
-rewrite in_interval_inf_b.
-rewrite finmap.inE.
-exists (interval_inf_b a).
-
-Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
-
-exists (interval_inf_b a).
-
-
-rewrite ltr_def.
-rewrite eq_sym.
-rewrite ltrNge.
-
-rewrite ltr_def.
-
-rewrite -lter_anti.
-rewrite orb_andr.
-
-Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
-have -> :
-(x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) =
-[exists u, u \in (@auxp _ (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x)].
-
-move: x (interval_inf_b a |` aux_cells1 a s).
-(* Set Printing All. idtac. *)
-move => x /= ss.
-(* move: {-1 5 7}1%nat *)
-Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
-have -> :
-(x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) =
-[exists u, u \in (@auxp _ ss x)].
-admit.
-apply/existsP.
-rewrite /=.
-
-move: (@in_join 1 (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x).
-
-Set Printing All. idtac.
-rewrite join_seq.
-rewrite -in_join.
-admit.
-
-Admitted.
+case: s => [_ _ _ | a s /=].
+by rewrite big_fset1 /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
+move/andP => [a_notin_s uniq_s] path_as path_as'.
+rewrite !joinU inE in_setU !big_fset1 aux_covers1 // !in_interval.
+by rewrite eq_sym -ler_eqVlt lerNgt orbN.
+Qed.
 
 (* (* Definition elimination (n : nat) (s : {fset {mpoly F[n]}}) :=  *) *)
 (* (* let s' := s  in *) *)
