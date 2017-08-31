@@ -3918,16 +3918,14 @@ Admitted.
 (* Qed. *)
 
 Lemma aux_covers1 (x : F) (xs : seq F) : 
-  path.path ltr x xs -> covers (aux_cells1 x xs) (interval_a_inf x).
+  path.path ltr x xs -> 
+  (\big[setU/set0]_(i : (aux_cells1 x xs )) val i) = (interval_a_inf x).
 Proof.
 rewrite /aux_cells1.
-rewrite /covers.
 move: x.
 elim: xs.
 move=> x _.
-rewrite big_fset1.
-rewrite /=.
-by rewrite lexx.
+by rewrite big_fset1.
 move=> a xs ih x.
 rewrite /=.
 move/andP => [lt_xa path_a_xs].
@@ -3956,83 +3954,159 @@ rewrite in_interval_a_b.
 rewrite in_interval_a_inf.
 rewrite eq_sym.
 rewrite -ler_eqVlt.
-admit.
-rewrite subUset.
-rewrite subUset.
-apply/andP; split.
-by rewrite subsetUl.
-apply/andP; split.
-rewrite setUCA.
-by rewrite subsetUl.
-rewrite (subset_trans _ (subsetUr _ _)) //.
-rewrite (subset_trans _ (subsetUr _ _)) //.
+have [|] := boolP (a <= y0).
+rewrite orbT.
+move=> leq_ay0.
+by rewrite (ltr_le_trans lt_xa).
+rewrite -ltrNge.
+move ->.
+rewrite orbF.
+by rewrite andbT.
+congr setU.
+congr setU.
 by apply: ih.
-Admitted.
+Qed.
 
-(* Lemma covers1 (xs : {fset F}) : covers (cells1 xs). *)
+(* Lemma aux_covers1 (x : F) (xs : seq F) :  *)
+(*   path.path ltr x xs -> covers (aux_cells1 x xs) (interval_a_inf x). *)
 (* Proof. *)
+(* rewrite /aux_cells1. *)
 (* rewrite /covers. *)
-(* apply/SAsetP. *)
-(* rewrite /=. *)
-(* rewrite /setT. *)
-(* rewrite /=. *)
-(* move=> x. *)
-(* rewrite in_SAset_top. *)
-(* rewrite /=. *)
-(* have hbool : forall (b : bool), is_true b -> b = true. *)
-(* move=> b //=. *)
-(* apply: hbool. *)
-(* rewrite /cells1. *)
-(* rewrite /sorted_seq. *)
-(* move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)). *)
-(* move: (@enum_fset_uniq F xs). *)
-(* rewrite -(@path.sort_uniq F ler). *)
-(* move: (path.sort <=%R (enum_fset xs)). *)
-(* (* move: (enum_fset xs). *) *)
-(* move=> {xs}. *)
-(* move=> s uniq_s sorted_s. *)
-(* have sorted_s':  path.sorted <%R s. *)
-(* by rewrite ltr_sorted_uniq_ler uniq_s sorted_s. *)
-(* move: uniq_s sorted_s sorted_s'. *)
-(* case: s. *)
-(* move=> _ _ _. *)
-(* rewrite /=. *)
+(* move: x. *)
+(* elim: xs. *)
+(* move=> x _. *)
 (* rewrite big_fset1. *)
 (* rewrite /=. *)
-(* by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *) *)
-(* move=> a s /=. *)
-(* move/andP => [a_notin_s uniq_s]. *)
-(* move=> path_as path_as'. *)
-(* rewrite -in_join. *)
-(* apply/existsP. *)
+(* by rewrite lexx. *)
+(* move=> a xs ih x. *)
 (* rewrite /=. *)
-(* rewrite /auxp. *)
+(* move/andP => [lt_xa path_a_xs]. *)
+(* rewrite joinU. *)
+(* rewrite big_fset1. *)
 (* rewrite /=. *)
-(* Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)). *)
-(* have -> :  *)
-(* (x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) = *)
-(* [exists u, u \in (@auxp _ (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x)]. *)
-
-(* move: x (interval_inf_b a |` aux_cells1 a s). *)
-(* (* Set Printing All. idtac. *) *)
-(* move => x /= ss. *)
-(* (* move: {-1 5 7}1%nat *) *)
-(* Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)). *)
-(* have -> :  *)
-(* (x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) = *)
-(* [exists u, u \in (@auxp _ ss x)]. *)
-(* admit. *)
-(* apply/existsP. *)
+(* rewrite joinU. *)
+(* rewrite big_fset1. *)
 (* rewrite /=. *)
+(* have -> : interval_a_inf x = setU (interval_a_b x a) (setU (singleton a) (interval_a_inf a)). *)
+(* apply/setP => /= y. *)
+(* rewrite [y]mx11_scalar. *)
+(* have h : (y 0 0)%:M = (\row_(i < 1) (y 0 0)). *)
+(* apply/matrixP => i j. *)
+(* rewrite !mxE /=. *)
+(* case: i => i. *)
+(* case: i => //. *)
+(* case: j => j. *)
+(* by case: j => //. *)
+(* rewrite h. *)
+(* rewrite in_interval_a_inf. *)
+(* rewrite inE in_setU. *)
+(* pose y0 := y 0 0. *)
+(* rewrite in_singleton. *)
+(* rewrite in_interval_a_b. *)
+(* rewrite in_interval_a_inf. *)
+(* rewrite eq_sym. *)
+(* rewrite -ler_eqVlt. *)
+(* have [|] := boolP (a <= y0). *)
+(* rewrite orbT. *)
+(* move=> leq_ay0. *)
+(* by rewrite (ltr_le_trans lt_xa). *)
+(* rewrite -ltrNge. *)
+(* move ->. *)
+(* rewrite orbF. *)
+(* by rewrite andbT. *)
+(* rewrite subUset. *)
+(* rewrite subUset. *)
+(* apply/andP; split. *)
+(* by rewrite subsetUl. *)
+(* apply/andP; split. *)
+(* rewrite setUCA. *)
+(* by rewrite subsetUl. *)
+(* rewrite (subset_trans _ (subsetUr _ _)) //. *)
+(* rewrite (subset_trans _ (subsetUr _ _)) //. *)
+(* by apply: ih. *)
+(* Qed. *)
 
-(* move: (@in_join 1 (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x). *)
+Lemma covers1 (xs : {fset F}) : covers (cells1 xs) setT.
+Proof.
+rewrite /covers.
+rewrite le1x.
+apply/SAsetP.
+rewrite /=.
+move=> x.
+rewrite /setT -[RHS]sub_SAset1 SAset_topP.
+(* rewrite in_SAset_top. *)
+rewrite /=.
+have hbool : forall (b : bool), is_true b -> b = true.
+move=> b //=.
+apply: hbool.
+rewrite /cells1.
+rewrite /sorted_seq.
+move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
+move: (@enum_fset_uniq F xs).
+rewrite -(@path.sort_uniq F ler).
+move: (path.sort <=%R (enum_fset xs)).
+(* move: (enum_fset xs). *)
+move=> {xs}.
+move=> s uniq_s sorted_s.
+have sorted_s':  path.sorted <%R s.
+by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
+move: uniq_s sorted_s sorted_s'.
+case: s.
+move=> _ _ _.
+rewrite /=.
+rewrite big_fset1.
+rewrite /=.
+by rewrite /setT -sub_SAset1 SAset_topP. (* should be in set.v ? *)
+move=> a s /=.
+move/andP => [a_notin_s uniq_s].
+move=> path_as path_as'.
+rewrite -in_join.
+apply/existsP.
+rewrite /=.
+rewrite /auxp.
+rewrite /=.
+pose x0 := x 0 0.
+have /orP [/orP [lt_xa|eq_ax] |lt_ax] : (x0 < a)|| (x0 == a) || (a < x0).
+by rewrite eq_sym -orbA -ler_eqVlt lerNgt orbN.
+Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
 
+exists (interval_inf_b a).
+
+
+rewrite ltr_def.
+rewrite eq_sym.
+rewrite ltrNge.
+
+rewrite ltr_def.
+
+rewrite -lter_anti.
+rewrite orb_andr.
+
+Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
+have -> :
+(x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) =
+[exists u, u \in (@auxp _ (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x)].
+
+move: x (interval_inf_b a |` aux_cells1 a s).
 (* Set Printing All. idtac. *)
-(* rewrite join_seq. *)
-(* rewrite -in_join. *)
-(* admit. *)
+move => x /= ss.
+(* move: {-1 5 7}1%nat *)
+Check (interval_inf_b a |` (singleton a |` aux_cells1 a s)).
+have -> :
+(x \in (\join_(i <- enum_fset (interval_inf_b a |` (singleton a |` aux_cells1 a s))) i)%O) =
+[exists u, u \in (@auxp _ ss x)].
+admit.
+apply/existsP.
+rewrite /=.
 
-(* Admitted. *)
+move: (@in_join 1 (interval_inf_b a |` (singleton a |` aux_cells1 a s)) x).
+
+Set Printing All. idtac.
+rewrite join_seq.
+rewrite -in_join.
+admit.
+
+Admitted.
 
 (* (* Definition elimination (n : nat) (s : {fset {mpoly F[n]}}) :=  *) *)
 (* (* let s' := s  in *) *)
