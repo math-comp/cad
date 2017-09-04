@@ -3166,6 +3166,9 @@ Definition disjoint_cells :=
  all (fun x => ((x.1 != x.2)%PAIR ==> (((x.1 :&: x.2)%PAIR) == set0))) 
      [seq (a, b) | a <- (enum_fset cad), b <- (enum_fset cad)].
 
+(* Definition disjoint_cells2 := *)
+(*   all predT (enum_fset [fset (a, b) | a : cad, b : cad]). *)
+
 (* Variables (m : nat) (s : {SAset F ^ m}). *)
 (* Check (\big[setU/set0]_(i : cad) val i) : {}. *)
 (* Check (setT). *)
@@ -3194,6 +3197,39 @@ Record CAD_output := MkCAD
 }.
 
 End Varn.
+
+(* Variables (n : nat) (x : {SAset F ^ n}) (s : {fset {SAset F ^ n}}). *)
+
+(* Check (all true ). *)
+
+Lemma disjoint_cellsP (n : nat) (x : {SAset F ^ n}) (s : {fset {SAset F ^ n}}) :
+  x \notin s ->
+  disjoint_cells (x |` s) = 
+  (all (fun (y : {SAset F ^ n}) 
+   => (SET.SetSyntax.setI y x == 0)%O) (enum_fset s)) && (disjoint_cells s).
+Proof.
+move=> notin_xs ; rewrite /disjoint_cells /=.
+have h : enum_fset (x |` s) =i x :: (enum_fset s).
+  by move=> y ; rewrite in_cons !inE.
+have h2 : [seq (a, b) | a <- enum_fset (x |` s), b <- enum_fset (x |` s)] =i
+          [seq (a, b) | a <- x :: (enum_fset s), b <- x :: (enum_fset s)].
+  by apply: mem_allpairs.
+rewrite (eq_all_r h2) => {h2} /=.
+rewrite eqxx all_cat.
+have h2 : [seq (a, b) | a <- enum_fset s, b <- x :: enum_fset s] =i
+          [seq (a, x) | a <- enum_fset s] ++
+          [seq (a, b) | a <- enum_fset s, b <- enum_fset s].
+  by rewrite -cat1s => y ; rewrite allpairs_catr mem_cat.
+rewrite /=.
+rewrite (eq_all_r h2) => {h2}.
+rewrite all_cat andbA ; congr andb => //=.
+rewrite andb_idl ; last first.
+  rewrite !all_map ; apply: sub_all => y /=. 
+  by rewrite eq_sym SET.SemisetTheory.setIC.
+rewrite all_map ; apply: eq_in_all => /= y.
+case: (SET.SetSyntax.setI y x == 0%O) => //= ; rewrite ?implybT //=.
+by rewrite implybF negbK ; apply: contraTF ; move/eqP ->.
+Qed.
 
 Check (forall (n : nat), seq (mpoly.mpoly n F) -> CAD_output n).
 
@@ -3700,7 +3736,8 @@ have [leq_ay|] := boolP (a <= y 0 0); first by rewrite orbT (ltr_le_trans lt_xa)
 by rewrite -ltrNge => -> ; rewrite andbT orbF.
 Qed.
 
-Lemma covers1 (xs : {fset F}) : covers (cells1 xs) setT.
+Lemma covers1 (xs : {fset F}) : 
+  covers (cells1 xs) setT.
 Proof.
 rewrite /covers le1x ; apply/SAsetP => x.
 rewrite /setT -[RHS]sub_SAset1 SAset_topP /cells1 /sorted_seq.
@@ -3716,6 +3753,211 @@ move/andP => [a_notin_s uniq_s] path_as path_as'.
 rewrite !joinU inE in_setU !big_fset1 aux_covers1 // !in_interval.
 by rewrite eq_sym -ler_eqVlt lerNgt orbN.
 Qed.
+
+Lemma aux_disjoint1 x s : 
+  path.path ltr x s -> disjoint_cells (aux_cells1 x s).
+Proof.
+rewrite /aux_cells1.
+rewrite /disjoint_cells.
+rewrite /=.
+move=> path_xs.
+apply/allP.
+rewrite /=.
+move=> [u v].
+move/allpairsP.
+rewrite /=.
+move=> /= [[u' v']].
+rewrite /=.
+move=> [].
+move=> h1 h2.
+move/eqP.
+rewrite -pair_eqE /=.
+move/andP => [/eqP equ /eqP eqv]. 
+apply/implyP.
+(* move=> Neq_uv. *)
+move: h1 h2.
+rewrite equ eqv.
+move=> {equ} {eqv} {u} {v}.
+move: u' v' x path_xs.
+elim: s.
+move=> u v x.
+rewrite !finmap.inE.
+move=> path_as.
+move=> /eqP hu.
+move=> /eqP hv.
+by rewrite hu hv eqxx.
+move=> a l ih u v x.
+rewrite /=.
+move/andP => [lt_xa path_al].
+rewrite !finmap.inE.
+move/or3P => [/eqP hu1|/eqP hu2|hu3] ; move/or3P => [/eqP hv1|/eqP hv2|hv3].
++ by rewrite hu1 hv1 eqxx.
++ move=> _ ; rewrite hu1 hv2.
+  apply/eqP/setP => i.
+  rewrite in_set0 in_setI !in_interval.
+  apply/negbTE ; rewrite [_ < a]ltr_def andbAC eq_sym.
+  by case: (_ == _) ; rewrite ?andbF. 
++ admit.
++ move=> _ ; rewrite hu2 hv1.
+  apply/eqP/setP => i.
+  rewrite in_set0 in_setI !in_interval.
+  apply/negbTE.
+  rewrite andbCA.
+  rewrite [_ < a]ltr_def eq_sym.
+  by case: (_ == _) ; rewrite ?andbF.
++ by rewrite hu2 hv2 eqxx.
++ admit.
++ admit.
++ apply: (@ih _ _ _ path_al) => //.
+  rewrite hv2.
+  rewrite //=.
++ admit.
+Admitted.
+
+(* by apply: (@ih _ _ _ path_al). *)
+
+
+(* rewrite -andbA. *)
+
+(*   rewrite ltr_def. *)
+(*   case: (_ == _) ; rewrite ?andbF. *)
+(*   rewrite !andbA. *)
+(*   rewrite ltr_def. *)
+(*   apply/negbTE ; rewrite ltr_def andbAC eq_sym. *)
+(*   by case: (_ == _) ; rewrite ?andbF. *)
+
+
+(*   rewrite andbA. *)
+  
+(*   rewrite negb_and. *)
+(*   apply/orP. *)
+  
+(*   rewrite andbC. *)
+    
+(*   move/andP. *)
+(* + *)
+(* + *)
+(* + *)
+(* + *)
+
+
+(* move/orP => [/eqP ->|] ; move/orP => [/eqP ->|]. *)
+(* by rewrite eqxx. *)
+
+(* rewrite inE. *)
+
+
+(* elim: s. *)
+(* move=> /= [u v]. *)
+(* rewrite /=. *)
+(* move/allpairsP. *)
+(* rewrite finmap.inE. *)
+(* move=> [/eqP -> /eqP ->]. *)
+(* move/eqP. *)
+(* rewrite -pair_eqE /=. *)
+(* move/andP => [/eqP -> /eqP ->]. *)
+(* by rewrite eqxx. *)
+
+(* move: x. *)
+(* elim: s => /= [x|x l ih]. *)
+(* apply/allP => /= [[u v]]. *)
+
+(* move=> [[u' v'] /= ]. *)
+(* rewrite !finmap.inE. *)
+(* move=> [/eqP -> /eqP ->]. *)
+(* move/eqP. *)
+(* rewrite -pair_eqE /=. *)
+(* move/andP => [/eqP -> /eqP ->]. *)
+(* by rewrite eqxx. *)
+(* move=> a. *)
+(* rewrite /=. *)
+
+(* Qed. *)
+
+
+Lemma disjoint1 (xs : {fset F}) : disjoint_cells (cells1 xs).
+Proof.
+rewrite /cells1 /sorted_seq.
+move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
+move: (@enum_fset_uniq F xs).
+rewrite -(@path.sort_uniq F ler).
+rewrite /=.
+move: (path.sort <=%R (enum_fset xs)) => {xs} s uniq_s sorted_s.
+have sorted_s': path.sorted <%R s by rewrite ltr_sorted_uniq_ler uniq_s sorted_s.
+move: uniq_s sorted_s sorted_s'.
+case: s => [_ _ _ | a s /=].
+rewrite /disjoint_cells.
+rewrite /=.
+apply/allP.
+move=> /= x /=.
+move/allpairsP.
+rewrite /=.
+move=> [[u v]] /= [].
+rewrite !finmap.inE.
+move/eqP -> ; move/eqP -> => ->.
+by rewrite eqxx /=.
+move=> b s' /=.
+Check (interval_inf_b a) : {SAset F ^ 1}.
+Check (aux_cells1 a s).
+move/allP.
+
+
+rewrite /disjoint_cells.
+apply/allP.
+
+move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
+move: (@enum_fset_uniq F xs).
+rewrite -(@path.sort_uniq F ler).
+move: (path.sort <=%R (enum_fset xs)) => {xs} s uniq_s sorted_s.
+rewrite -(@path.sort_uniq F ler).
+rewrite /=.
+apply/allP.
+move=> /= [x y] /=.
+move/allpairsP.
+rewrite /=.
+(* move=> [[u v] /= [hu hv]]. *)
+move=> [[u v] /= ].
+rewrite mem
+move=> [hu hv].
+move/eqP.
+rewrite -pair_eqE /=.
+move/andP => [/eqP eq_xu /eqP eq_yv].
+apply/implyP.
+move=> Neq_xy.
+
+rewrite /=.
+exists (x, y).
+rewrite mem_map.
+move/mapP.
+rewrite in_map.
+Qed.
+
+
+Variable (xs : {fset F}).
+
+Definition cs := cells1 xs.
+
+Lemma csP : (non_empty_cells cs) && (disjoint_cells cs)
+                              && (@covers 1 cs (setT ))
+                              && (connected_cells cs)
+                              && (cylindric cs).
+Proof.
+rewrite -!andbA; apply/and5P; split.
++ exact: non_empty_cells1.
++ exact: 
++
++
++
+apply/andP.
+split.
+apply/and5P.
+apply/and5P.
+Qed.
+
+Check (MkCAD (non_empty_cells1 xs)).
+
+
+End CAD.
 
 Definition elimination (n : nat) (s : {fset {mpoly F[n.+2]}}) 
                                                       : {fset {mpoly F[n.+1]}} :=
@@ -3741,11 +3983,12 @@ let ps :=
 [fset (lead_coef (muni p)) | x in truncation p])
 in [fset x | x in ps & (1 < size (muni x))%N].
 
-(* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n.+2]}}) :=  *)
-(* match i with *)
-(*   | O => s *)
-(*   | _ => (elimination s) *)
-(* end. *)
+Fixpoint cylindrifying (n : nat) (i : 'I_n) (s : {fset {mpoly F[n.+2]}}) : 
+{fset {mpoly F[(n - i).+2]}} := 
+match i as x in {fset {mpoly F[n.+2]}} return {fset {mpoly F[(n - i).+2]}} with
+  | O => s
+  | _ => (elimination s)
+end.
 
 (* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n.+2]}}) :=  *)
 (* match i with *)
@@ -3753,7 +3996,6 @@ in [fset x | x in ps & (1 < size (muni x))%N].
 (*   | 1 => s *)
 (*   | i.+2 => cylindrifying i (elimination s) *)
 (* end. *)
-
 
 (* (* Check (p^`M(ord_max)). *) *)
 (* (* Check (q^`M(ord0)). *) *)
