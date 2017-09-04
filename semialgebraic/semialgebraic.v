@@ -2876,6 +2876,91 @@ Qed.
 Definition in_interval := 
   (in_interval_a_inf, in_interval_inf_b, in_interval_a_b, in_singleton).
 
+Lemma intervalI_inf_b_sing (b a : F) :
+  SET.SetSyntax.setI (interval_inf_b b) (singleton a) = 
+  if a < b then (singleton a) else set0.
+Proof.
+have [lt_ab|] := boolP (a < b).
++ apply/eqP/SAsetP => x.
+  rewrite !in_interval SET.SemisetTheory.in_setI !in_interval.
+  have [->|/negbTE ->] := eqVneq (x 0 0) a; first by rewrite eqxx andbT.
+  by rewrite andbF.
++ rewrite -lerNgt => leq_ba.
+  apply/eqP/SAsetP => x.
+  rewrite SET.SemisetTheory.in_setI !in_interval SET.SemisetTheory.in_set0.
+  move: leq_ba ; apply: contraTF.
+  by rewrite andbC => /andP [] /eqP -> ; rewrite ltrNge.
+Qed.
+
+Lemma intervalI_inf_b_int (c a b : F) :
+  SET.SetSyntax.setI (interval_inf_b c) (interval_a_b a b) = 
+  interval_a_b a (Num.min c b).
+Proof.
+apply/eqP/SAsetP => x.
+rewrite !in_interval SET.SemisetTheory.in_setI !in_interval.
+by rewrite andbC ltr_minr andbAC andbA.
+Qed.
+
+Lemma intervalI_inf_b_a_inf (b a : F) :
+  SET.SetSyntax.setI (interval_inf_b b) (interval_a_inf a) = 
+  interval_a_b a b.
+Proof.
+apply/eqP/SAsetP => x.
+by rewrite !in_interval SET.SemisetTheory.in_setI !in_interval andbC.
+Qed.
+
+Definition intervalI :=
+  (intervalI_inf_b_sing, intervalI_inf_b_int, intervalI_inf_b_a_inf).
+
+(* generalization ? *)
+Lemma neq_interval_a_b_sing (a b c : F) : interval_a_b a b != singleton c. 
+Proof.
+apply/negP.
+move/SAsetP.
+have [lt_ab| /negP leq_ba] := boolP (a < b) ; last first.
+move/(_ (\row_(i < 1) c)).
+rewrite !in_interval !mxE eqxx /=.
+move/andP => [lt_ac lt_cb].
+by move: (ltr_trans lt_ac lt_cb).
+have [| c_notin_ab] := boolP ((\row_(i < 1) c) \in (interval_a_b a b)).
+rewrite in_interval mxE.
+move/andP => [lt_ac lt_cb].
+move/(_ ((\row_(i < 1) ((c + b) / 2%:R)))).
+rewrite !in_interval mxE.
+rewrite !midf_lt //= andbT.
+rewrite ltr_pdivl_mulr; last by rewrite ltr0n.
+rewrite {1}mulr2n !mulrDr !mulr1 ltr_add //=.
+have -> : ((c + b) / 2%:R == c) = ((c + b) == c + c)%R.
+have h : 2%:R != 0 :> F by rewrite lt0r_neq0 // ltr0Sn.
+move/(_ ((c + b) / 2%:R) c): (@GRing.mulfI F (2%:R) h) => ->.
+move: (@scaler_injl F).
+rewrite scaler_injl.
+rewrite -subr_eq0.
+rewrite raddfD /=.
+rewrite [(c + b)%R]addrC.
+rewrite addrA.
+rewrite addrK.
+rewrite subr_eq0.
+move: lt_cb ; rewrite ltr_def.
+by move/andP => [/negbTE ->].
+
+
+rewrite raddfD.
+rewrite ltr_add2l.
+move/Logic.eq_sym.
+
+rewrite lt_cb.
+move/Logic.eq_sym.
+symmetry.
+rewrite (@GRing.mulfI _ 2%:R).
+rewrite ltr_pdivr_mulr.
+
+ltr_add2l.
+
+by rewrite inE mulr2n !mulrDr !mulr1 ltr_add2r ltr_add2l andbb lt_yx.
+Qed.
+
+
 End Interval.
 
 Section Continuity.
@@ -3560,6 +3645,46 @@ move: x ; elim: xs => [x _ | x s ih y].
   by rewrite inE mulr2n !mulrDr !mulr1 ltr_add2r ltr_add2l andbb lt_yx.
 Qed.
 
+Lemma ltrxSx (x : F) : (x < x + 1)%R.
+Proof. by rewrite -[X in X < _]addr0 ltr_add2l ltr01. Qed.
+
+Lemma sing_in_aux_cells (a x : F) (xs : seq F) : 
+  path.path ltr x xs -> (singleton a) \in (aux_cells1 x xs) = (a \in xs).
+Proof.
+move: a x.
+elim: xs => [a x _ | b xs ih a x].
+rewrite /= finmap.inE in_nil. 
+apply/negbTE.
+apply/negP.
+move/SAsetP.
+move/(_ (\row_(i < 1) ((Num.max a x) + 1)%R)).
+rewrite !in_interval mxE.
+rewrite (ler_lt_trans _ (ltrxSx _)) ; last by rewrite ler_maxr lerr orbT.
+apply/negP.
+rewrite neqr_lt.
+rewrite (ler_lt_trans _ (ltrxSx _)) ?orbT //=.
+by rewrite ler_maxr lerr.
+rewrite /=.
+move/andP => [lt_ya path_ax].
+rewrite inE !finmap.inE.
+rewrite ih //.
+have /negbTE -> : singleton a != interval_a_b x b.
+rewrite eqEsubset.
+rewrite negb_and.
+
+apply/negP.
+move/SAsetP.
+
+
+move: (@ltr_maxr F x a x).
+rewrite ltr_maxr.
+
+rewrite in_interval finmap.inE.
+rewrite /=.
+
+in_interval.
+Qed.
+
 Lemma non_empty_cells1 (xs : {fset F}) : non_empty_cells (cells1 xs).
 Proof.
 rewrite /non_empty_cells ; apply/allP => c.
@@ -3897,6 +4022,19 @@ rewrite !finmap.inE.
 move/eqP -> ; move/eqP -> => ->.
 by rewrite eqxx /=.
 move=> b s' /=.
+rewrite disjoint_cellsP; last first.
+rewrite !finmap.inE.
+rewrite negb_or.
+admit.
+rewrite disjoint_cellsP; last first.
+admit.
+move=> path_as.
+rewrite aux_disjoint1 //.
+rewrite andbT.
+apply/andP ; split.
+
+
+rewrite /=.
 Check (interval_inf_b a) : {SAset F ^ 1}.
 Check (aux_cells1 a s).
 move/allP.
