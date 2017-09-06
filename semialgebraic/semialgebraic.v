@@ -2909,6 +2909,66 @@ apply/eqP/SAsetP => x.
 by rewrite !in_interval SET.SemisetTheory.in_setI !in_interval andbC.
 Qed.
 
+(* Definition is_pos_nat (x : F) := *)
+(*   if x > 0 then  *)
+(*            else false. *)
+
+(* Definition is_nat (x : F) := *)
+
+(* Variables (f : nat -> nat) (x : nat) (y : F). *)
+
+(* Check ((f x).+1 : nat). *)
+(* Check (x%:R : F). *)
+(* Check (((f x).+1)%:R : F). *)
+
+(* Definition send_to_F (f : nat -> nat) : F -> F := *)
+(*   fun (x : nat) => *)
+
+(* Definition dec_eq (A : Type) := forall (f g : A -> A), Decidable.decidable (f =1 g). *)
+
+(* Lemma not_dec_eq_nat : ~ (dec_eq nat).  *)
+(* Proof. *)
+(* rewrite /dec_eq => h. *)
+
+(* Qed. *)
+
+
+(* Lemma not_dec_equality : ~ (forall (f g : F -> F), Decidable.decidable (f =1 g)). *)
+(* Proof. *)
+(* suff h : ~ (forall (f : F -> F), Decidable.decidable (forall x, f x = 0)). *)
+(* move=> h2. *)
+(* apply: h => f. *)
+(* move/(_ f)/(_ (fun x => 0)) : h2. *)
+(* move=> [eq_f0|Neq_f0]. *)
+(* left => x. *)
+(* by rewrite eq_f0. *)
+(* right. *)
+(* move=> h. *)
+(* apply: Neq_f0. *)
+(* by move=> y. *)
+(* rewrite /Decidable.decidable. *)
+(* move=> h. *)
+
+(* rewrite /=. *)
+
+
+
+(* move=> h. *)
+(* pose g0 : F -> F := fun x => 0. *)
+
+(* Qed. *)
+
+(* Variables (f g : F -> F). *)
+
+(* Check (f =1 g). *)
+(* Check (Decidable.decidable (f =1 g)). *)
+
+(* Decidable.decidable *)
+
+(* Definition eq_dec := forall (f g : F -> F),  *)
+
+(* Lemma not_dec_equality : forall (f g : F -> F),  *)
+
 Definition intervalI :=
   (intervalI_inf_b_sing, intervalI_inf_b_int, intervalI_inf_b_a_inf).
 
@@ -2918,11 +2978,11 @@ Proof.
 apply/negP.
 move/SAsetP.
 have [lt_ab| /negP leq_ba] := boolP (a < b) ; last first.
-move/(_ (\row_(i < 1) c)).
-rewrite !in_interval !mxE eqxx /=.
-move/andP => [lt_ac lt_cb].
-by move: (ltr_trans lt_ac lt_cb).
-have [| c_notin_ab] := boolP ((\row_(i < 1) c) \in (interval_a_b a b)).
+  move/(_ (\row_(i < 1) c)).
+  rewrite !in_interval !mxE eqxx /=.
+  move/andP => [lt_ac lt_cb].
+  by move: (ltr_trans lt_ac lt_cb).
+have [|] := boolP ((\row_(i < 1) c) \in (interval_a_b a b)).
 rewrite in_interval mxE.
 move/andP => [lt_ac lt_cb].
 move/(_ ((\row_(i < 1) ((c + b) / 2%:R)))).
@@ -2930,34 +2990,22 @@ rewrite !in_interval mxE.
 rewrite !midf_lt //= andbT.
 rewrite ltr_pdivl_mulr; last by rewrite ltr0n.
 rewrite {1}mulr2n !mulrDr !mulr1 ltr_add //=.
-have -> : ((c + b) / 2%:R == c) = ((c + b) == c + c)%R.
-have h : 2%:R != 0 :> F by rewrite lt0r_neq0 // ltr0Sn.
-move/(_ ((c + b) / 2%:R) c): (@GRing.mulfI F (2%:R) h) => ->.
-move: (@scaler_injl F).
-rewrite scaler_injl.
-rewrite -subr_eq0.
-rewrite raddfD /=.
-rewrite [(c + b)%R]addrC.
-rewrite addrA.
-rewrite addrK.
-rewrite subr_eq0.
-move: lt_cb ; rewrite ltr_def.
-by move/andP => [/negbTE ->].
-
-
-rewrite raddfD.
-rewrite ltr_add2l.
-move/Logic.eq_sym.
-
-rewrite lt_cb.
-move/Logic.eq_sym.
-symmetry.
-rewrite (@GRing.mulfI _ 2%:R).
-rewrite ltr_pdivr_mulr.
-
-ltr_add2l.
-
-by rewrite inE mulr2n !mulrDr !mulr1 ltr_add2r ltr_add2l andbb lt_yx.
+move/(@Logic.eq_sym _ _ _).
+have -> : ((c + b) / 2%:R == c) = ((c + b) == c + c)%R ; last first.
+move/eqP/addrI/eqP.
+by rewrite gtr_eqF.
+apply/eqP/eqP; last first.
+  by move=> -> ; rewrite -mulr2n -[X in X / _]mulr_natr mulfK // pnatr_eq0.
+move/(congr1 (fun x => x * 2%:R)).
+rewrite mulfVK; last by rewrite pnatr_eq0.
+by move=> -> ; rewrite mulr2n !mulrDr !mulr1.
+rewrite in_interval mxE.
+rewrite negb_and.
+move/orP=> [/negbTE le_ca| /negbTE le_bc].
+move/(_ (\row_(i < 1) c)).
+by rewrite !in_interval mxE eqxx le_ca.
+move/(_ (\row_(i < 1) c)).
+by rewrite !in_interval mxE eqxx le_bc andbF .
 Qed.
 
 
@@ -3058,6 +3106,8 @@ rewrite nquantSin ihb; last first.
     by rewrite neq_ltn (leq_trans lt_ia) ?orbT // ?leq_addr.
   by rewrite addnS neq_ltn ; move ->.
 Qed.
+
+
 
 Lemma continuousP (f : {SAfun F^n -> F^m}) : 
   reflect (continuous_spec f) (is_continuous f).
@@ -3673,17 +3723,17 @@ rewrite eqEsubset.
 rewrite negb_and.
 
 apply/negP.
-move/SAsetP.
+(* move/SAsetP. *)
 
 
-move: (@ltr_maxr F x a x).
-rewrite ltr_maxr.
+(* move: (@ltr_maxr F x a x). *)
+(* rewrite ltr_maxr. *)
 
-rewrite in_interval finmap.inE.
-rewrite /=.
+(* rewrite in_interval finmap.inE. *)
+(* rewrite /=. *)
 
-in_interval.
-Qed.
+(* in_interval. *)
+Admitted.
 
 Lemma non_empty_cells1 (xs : {fset F}) : non_empty_cells (cells1 xs).
 Proof.
@@ -4034,65 +4084,65 @@ rewrite andbT.
 apply/andP ; split.
 
 
-rewrite /=.
-Check (interval_inf_b a) : {SAset F ^ 1}.
-Check (aux_cells1 a s).
-move/allP.
+(* rewrite /=. *)
+(* Check (interval_inf_b a) : {SAset F ^ 1}. *)
+(* Check (aux_cells1 a s). *)
+(* move/allP. *)
 
 
-rewrite /disjoint_cells.
-apply/allP.
+(* rewrite /disjoint_cells. *)
+(* apply/allP. *)
 
-move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)).
-move: (@enum_fset_uniq F xs).
-rewrite -(@path.sort_uniq F ler).
-move: (path.sort <=%R (enum_fset xs)) => {xs} s uniq_s sorted_s.
-rewrite -(@path.sort_uniq F ler).
-rewrite /=.
-apply/allP.
-move=> /= [x y] /=.
-move/allpairsP.
-rewrite /=.
+(* move: (@path.sort_sorted F _ (@ler_total F) (enum_fset xs)). *)
+(* move: (@enum_fset_uniq F xs). *)
+(* rewrite -(@path.sort_uniq F ler). *)
+(* move: (path.sort <=%R (enum_fset xs)) => {xs} s uniq_s sorted_s. *)
+(* rewrite -(@path.sort_uniq F ler). *)
+(* rewrite /=. *)
+(* apply/allP. *)
+(* move=> /= [x y] /=. *)
+(* move/allpairsP. *)
+(* rewrite /=. *)
 (* move=> [[u v] /= [hu hv]]. *)
-move=> [[u v] /= ].
-rewrite mem
-move=> [hu hv].
-move/eqP.
-rewrite -pair_eqE /=.
-move/andP => [/eqP eq_xu /eqP eq_yv].
-apply/implyP.
-move=> Neq_xy.
+(* move=> [[u v] /= ]. *)
+(* rewrite mem *)
+(* move=> [hu hv]. *)
+(* move/eqP. *)
+(* rewrite -pair_eqE /=. *)
+(* move/andP => [/eqP eq_xu /eqP eq_yv]. *)
+(* apply/implyP. *)
+(* move=> Neq_xy. *)
 
-rewrite /=.
-exists (x, y).
-rewrite mem_map.
-move/mapP.
-rewrite in_map.
-Qed.
+(* rewrite /=. *)
+(* exists (x, y). *)
+(* rewrite mem_map. *)
+(* move/mapP. *)
+(* rewrite in_map. *)
+Admitted.
 
 
-Variable (xs : {fset F}).
+(* Variable (xs : {fset F}). *)
 
-Definition cs := cells1 xs.
+(* Definition cs := cells1 xs. *)
 
-Lemma csP : (non_empty_cells cs) && (disjoint_cells cs)
-                              && (@covers 1 cs (setT ))
-                              && (connected_cells cs)
-                              && (cylindric cs).
-Proof.
-rewrite -!andbA; apply/and5P; split.
-+ exact: non_empty_cells1.
-+ exact: 
-+
-+
-+
-apply/andP.
-split.
-apply/and5P.
-apply/and5P.
-Qed.
+(* Lemma csP : (non_empty_cells cs) && (disjoint_cells cs) *)
+(*                               && (@covers 1 cs (setT )) *)
+(*                               && (connected_cells cs) *)
+(*                               && (cylindric cs). *)
+(* Proof. *)
+(* rewrite -!andbA; apply/and5P; split. *)
+(* + exact: non_empty_cells1. *)
+(* + exact:  *)
+(* + *)
+(* + *)
+(* + *)
+(* apply/andP. *)
+(* split. *)
+(* apply/and5P. *)
+(* apply/and5P. *)
+(* Qed. *)
 
-Check (MkCAD (non_empty_cells1 xs)).
+(* Check (MkCAD (non_empty_cells1 xs)). *)
 
 
 End CAD.
@@ -4121,12 +4171,12 @@ let ps :=
 [fset (lead_coef (muni p)) | x in truncation p])
 in [fset x | x in ps & (1 < size (muni x))%N].
 
-Fixpoint cylindrifying (n : nat) (i : 'I_n) (s : {fset {mpoly F[n.+2]}}) : 
-{fset {mpoly F[(n - i).+2]}} := 
-match i as x in {fset {mpoly F[n.+2]}} return {fset {mpoly F[(n - i).+2]}} with
-  | O => s
-  | _ => (elimination s)
-end.
+(* Fixpoint cylindrifying (n : nat) (i : 'I_n) (s : {fset {mpoly F[n.+2]}}) :  *)
+(* {fset {mpoly F[(n - i).+2]}} :=  *)
+(* match i as x in {fset {mpoly F[n.+2]}} return {fset {mpoly F[(n - i).+2]}} with *)
+(*   | O => s *)
+(*   | _ => (elimination s) *)
+(* end. *)
 
 (* Fixpoint cylindrifying (i n : nat) (s : {fset {mpoly F[n.+2]}}) :=  *)
 (* match i with *)
@@ -4147,8 +4197,6 @@ end.
 (* | 0 => *)
 (* | 1 => *)
 (* | n.+1 => *)
-
-End CAD.
 
 End SAsetTheory.
 
