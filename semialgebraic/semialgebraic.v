@@ -1108,7 +1108,7 @@ Proof.
 move : s; apply : quotP => f hf.
 rewrite /SA_all_proj; unlock.
 apply/eqP; rewrite eqmodE hf.
-apply/rcf_satP/nforallP => u; rewrite cat0s.
+apply/rcf_satP/nforallP => u; rewrite cat0s /=.
 split=> h x.
 + by move/(_ x)/holds_repr_pi/(_ x) : h; rewrite set_set_nth eqxx.
 + apply/holds_repr_pi => y; rewrite set_set_nth eqxx.
@@ -3437,9 +3437,9 @@ Fail Fixpoint test (p : {poly F}) :=
                      else (test p^`())*(2%:R).
 
 Check (fun (p : {poly F}) => if (size p <= 1)%N then [::] else (polyrcf.rootsR p)).
-Fixpoint vroot (p : {poly F}) := 
-  if (size p <= 1)%N then [::] 
-                     else let s := vroot (p^`()) in (polyrcf.rootsR p).
+(* Fixpoint vroot (p : {poly F}) :=  *)
+(*   if (size p <= 1)%N then [::]  *)
+(*                      else let s := vroot (p^`()) in (polyrcf.rootsR p). *)
 
 (* Variables (A : choiceType) (x : {fset A}) (P : pred A) (a : A) (ha : P a) (i : nat). *)
 (* Check (unpickle P i x). *)

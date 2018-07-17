@@ -508,7 +508,7 @@ End MorePath.
 
 Section MoreFinmap.
 
-Open Local Scope fset_scope.
+Local Open Scope fset_scope.
 
 Lemma finSet_notin_ind (T : choiceType) (P : {fset T} -> Prop) : 
   P fset0 -> (forall s x, P s -> x \notin s -> P (x |` s)) -> forall s, P s.
