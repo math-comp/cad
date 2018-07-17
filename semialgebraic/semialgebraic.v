@@ -8,7 +8,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-Require Import ZArith Init.
+Require Import ZArith Init Lia.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice fintype div.
@@ -17,6 +17,7 @@ From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial finalg.
 From mathcomp Require Import zmodp mxpoly mxtens qe_rcf ordered_qelim realalg.
 From mathcomp Require Import matrix finmap order set polyorder polyrcf.
 From SsrMultinomials Require Import mpoly.
+From PP Require Import Ppsimplmathcomp.
 
 (* Module mp := mpoly. *) 
 
@@ -42,14 +43,12 @@ Local Open Scope fset_scope.
 Local Open Scope fmap_scope.
 Local Open Scope quotient_scope.
 
-
 Reserved Notation "'{formula_' n F }"
   (n at level 0, format "'{formula_' n  F }").
 Reserved Notation "{ 'SAset' F }"
   (format "{ 'SAset'  F }").
 Reserved Notation "{ 'SAfun' T }"
   (format "{ 'SAfun'  T }").
-
 
 Notation mnfset i j := (seq_fset (iota i j)).
 Notation "f <==> g" := ((f ==> g) /\ (g ==> f))%oT (at level 0) : oterm_scope.
@@ -82,7 +81,7 @@ Fixpoint gen_var_seq (s : seq nat) (f : formula T) := match s with
 end%oT.
 
 Definition equiv_formula (f g : formula T) :=
-    gen_var_seq (enum_fset ((formula_fv f) `|` (formula_fv g))) (f <==> g)%oT.
+  gen_var_seq (enum_fset ((formula_fv f) `|` (formula_fv g))) (f <==> g)%oT.
 
 Definition nvar n : pred_class := fun f :
   formula T => (formula_fv f `<=` mnfset O n).
@@ -389,6 +388,9 @@ apply: (iH n e ('exists 'X_(n + k), f)%oT); last by move: hf; rewrite nquantSin.
 move=> e' /= [x nk_f].
 by exists x; apply: h; apply: nk_f.
 Qed.
+
+(* Variable (f : formula R). *)
+(* Check (nquantify 4 3 Exists ('X_2 <=% 'X_4 + 'X_5 /\ 'X_2 <=% 'X_4 + 'X_5)). *)
 
 Lemma monotonic_forall_if (i : nat) (e : seq R) (f g : formula R) :
 (forall (e' : seq R), holds e' f -> holds e' g) ->
@@ -700,6 +702,11 @@ Variable n : nat.
 (* We define a relation in formulae *)
 Definition equivf (f g : formula F) :=
 rcf_sat [::] (nquantify O n Forall ((f ==> g) /\ (g ==> f))).
+
+(* Variables (f g : formula F). *)
+
+(* Check (forall (e : seq F), holds (take n e) f <-> holds (take n e) g). *)
+(* Check (forall (e : n.-tuple F), holds e f <-> holds e g). *)
 
 Lemma equivf_refl : reflexive equivf.
 Proof. by move=> f; apply/rcf_satP; apply: nforall_is_true => e /=. Qed.
@@ -1578,9 +1585,9 @@ apply: (iffP idP) => [h x | h].
   by move/rcf_satP => h; apply/nexistsP; exists t.
 Qed.
 
-Definition subst_term s :=
+Definition subst_term (s : seq nat) :=
  let fix sterm (t : GRing.term F) := match t with
-  | 'X_i => if (i < size s)%N then 'X_(nth O s i) else 0
+  | 'X_i => if (i < size s)%N then 'X_(nth O s i) else 0 
   | t1 + t2 => (sterm t1) + (sterm t2)
   | - t => - (sterm t)
   | t *+ i => (sterm t) *+ i
@@ -1589,6 +1596,46 @@ Definition subst_term s :=
   | t ^+ i => (sterm t) ^+ i
   | _ => t
 end%T in sterm.
+
+Definition subst_term2 (s : seq (GRing.term F)) :=
+ let fix sterm (t : GRing.term F) := match t with
+  | 'X_i => if (i < size s)%N then (nth 'X_O s i) else 0
+  | t1 + t2 => (sterm t1) + (sterm t2)
+  | - t => - (sterm t)
+  | t *+ i => (sterm t) *+ i
+  | t1 * t2 => (sterm t1) * (sterm t2)
+  | t ^-1 => (sterm t) ^-1
+  | t ^+ i => (sterm t) ^+ i
+  | _ => t
+end%T in sterm.
+
+Definition subst_term3 (s : seq nat) :=
+ let fix sterm (t : GRing.term F) := match t with
+  | 'X_i => 'X_(nth i s i)
+  | t1 + t2 => (sterm t1) + (sterm t2)
+  | - t => - (sterm t)
+  | t *+ i => (sterm t) *+ i
+  | t1 * t2 => (sterm t1) * (sterm t2)
+  | t ^-1 => (sterm t) ^-1
+  | t ^+ i => (sterm t) ^+ i
+  | _ => t
+end%T in sterm.
+
+Lemma subst_termE (s : seq nat) (t : GRing.term F) : 
+  subst_term s t = subst_term2 [seq ('X_i)%T | i <- s] t.
+Proof.
+elim: t => //.
+- move=> i /=.
+  rewrite size_map.
+  have [lt_is|leq_si] := ltnP i (size s) => //.
+  by rewrite (nth_map O). 
+- by move=> t1 /= -> t2 ->.
+- by move=> t /= ->.
+- by move=> t1 /= -> i.
+- by move=> t1 /= -> t2 ->.
+- by move=> t /= ->.
+- by move=> t /= -> i.
+Qed.
 
 (* quantifier elim + evaluation of invariant variables to 0 *)
 Definition qf_elim (f : formula F) : formula F :=
@@ -1742,7 +1789,8 @@ apply: iff_sym.
 by apply: (iff_trans _ (rwP (elim_rformP _ (to_rform_rformula _)))).
 Qed.
 
-Fixpoint qf_subst_formula s (f : formula F) := let sterm := subst_term s in
+Fixpoint qf_subst_formula (s : seq nat) (f : formula F) := 
+let sterm := subst_term s in
 match f with
   | (t1 == t2) => (sterm t1) == (sterm t2)
   | t1 <% t2 => (sterm t1) <% (sterm t2)
@@ -1756,12 +1804,70 @@ match f with
   | _ => f
 end%oT.
 
+Fixpoint qf_subst_formula2 s (f : formula F) := let sterm := subst_term2 s in
+match f with
+  | (t1 == t2) => (sterm t1) == (sterm t2)
+  | t1 <% t2 => (sterm t1) <% (sterm t2)
+  | t1 <=% t2 => (sterm t1) <=% (sterm t2)
+  | Unit t => Unit (sterm t)
+  | f1 /\ f2 => (qf_subst_formula2 s f1) /\ (qf_subst_formula2 s f2)
+  | f1 \/ f2 => (qf_subst_formula2 s f1) \/ (qf_subst_formula2 s f2)
+  | f1 ==> f2 => (qf_subst_formula2 s f1) ==> (qf_subst_formula2 s f2)
+  | ~ f => ~ (qf_subst_formula2 s f)
+  | ('forall 'X_i, _) | ('exists 'X_i, _) => False
+  | _ => f
+end%oT.
+
+Fixpoint qf_subst_formula3 (s : seq nat) (f : formula F) := 
+let sterm := subst_term3 s in
+match f with
+  | (t1 == t2) => (sterm t1) == (sterm t2)
+  | t1 <% t2 => (sterm t1) <% (sterm t2)
+  | t1 <=% t2 => (sterm t1) <=% (sterm t2)
+  | Unit t => Unit (sterm t)
+  | f1 /\ f2 => (qf_subst_formula3 s f1) /\ (qf_subst_formula3 s f2)
+  | f1 \/ f2 => (qf_subst_formula3 s f1) \/ (qf_subst_formula3 s f2)
+  | f1 ==> f2 => (qf_subst_formula3 s f1) ==> (qf_subst_formula3 s f2)
+  | ~ f => ~ (qf_subst_formula3 s f)
+  | ('forall 'X_i, _) | ('exists 'X_i, _) => False
+  | _ => f
+end%oT.
+
+Lemma qf_subst_formulaE s f :
+  qf_subst_formula s f = qf_subst_formula2 [seq ('X_i)%oT | i <- s] f.
+Proof.
+elim: f=> //=.
+- by move=> t1 t2 ; rewrite !subst_termE.
+- by move=> t1 t2 ; rewrite !subst_termE.
+- by  move=> t1 t2 ; rewrite !subst_termE.
+- by move=> t ; rewrite subst_termE.
+- by move=> f1 -> f2 ->.
+- by move=> f1 -> f2 ->.
+- by move=> f1 -> f2 ->.
+- by move=> f ->.
+Qed.
+
 Definition subst_formula s (f : formula F) := qf_subst_formula s (qf_elim f).
+Definition subst_formula2 s (f : formula F) := qf_subst_formula2 s (qf_elim f).
+Definition subst_formula3 s (f : formula F) := qf_subst_formula3 s (qf_elim f).
+
+Lemma subst_formulaE s f : 
+subst_formula s (qf_elim f) = subst_formula2 [seq ('X_i)%oT | i <- s] (qf_elim f).
+Proof. by rewrite /subst_formula /subst_formula2 qf_subst_formulaE. Qed.
 
 Definition eq_vec (v1 v2 : seq nat) : formula F :=
   if size v1 == size v2 then
   (\big[And/True]_(i < size v1) ('X_(nth 0%N v1 i) == 'X_(nth 0%N v2 i)))%oT
   else False%oT.
+
+Check (iota 0 n ++ iota n m).
+Check (iota 0 n ++ iota (n + m) m).
+Check (map (@Var F) (iota 0 n ++ iota (n + m) m)).
+
+Check (fun (f : {formula_(n+m) F}) =>
+(subst_formula2 (map (@GRing.Var F) (iota 0 n ++ iota (n + m) m)) f)).
+Check (fun (f : {formula_(n+m) F}) =>
+(subst_formula2 (map (@GRing.Var _) (iota 0 n ++ iota (n + m) m)) f)).
 
 Definition functional (f : {formula_(n+m) F}) :=
   (nquantify O (n + m + m) Forall (
@@ -1769,10 +1875,22 @@ Definition functional (f : {formula_(n+m) F}) :=
   /\ (subst_formula (iota 0 n ++ iota (n + m) m) f))
   ==> (eq_vec (iota n m) (iota (n + m) m)))).
 
+Definition functional3 (f : {formula_(n+m) F}) :=
+  (nquantify O (n + m + m) Forall (
+  ((subst_formula3 (iota 0 n ++ iota n m) f)
+  /\ (subst_formula3 (iota 0 n ++ iota (n + m) m) f))
+  ==> (eq_vec (iota n m) (iota (n + m) m)))).
+
 Definition SAfunc : pred_class :=
   [pred s : {SAset F ^ _} | rcf_sat [::] (functional s)].
 
+Definition SAfunc3 : pred_class :=
+  [pred s : {SAset F ^ _} | rcf_sat [::] (functional3 s)].
+
 Definition subst_env (s : seq nat) (e : seq F) := [seq nth 0 e i | i <- s].
+
+Definition subst_env3 (s : seq nat) (e : seq F) := 
+  (subst_env s e) ++ (drop (size s) e).
 
 Lemma subst_env_cat s1 s2 e :
   subst_env (s1 ++ s2) e = subst_env s1 e ++ subst_env s2 e.
@@ -1820,6 +1938,69 @@ elim: t.
 - by move=> /= t -> i.
 Qed.
 
+Lemma eval_subst3 (e : seq F) (s : seq nat) (t : GRing.term F) :
+  GRing.eval e (subst_term3 s t) = GRing.eval (subst_env3 s e) t.
+Proof.
+rewrite /subst_env3.
+elim: t.
+- move=> i //=.
+  rewrite nth_cat size_map.
+  have [lt_is| leq_si] := ltnP i (size s); last first.
+  + by rewrite nth_drop subnKC // [X in e`_X]nth_default.
+  + by rewrite (nth_map i).
+- by move=> x.
+- by move=> i.
+- by move=> /= t1 -> t2 ->.
+- by move=> /= t ->.
+- by move=> /= t -> i.
+- by move=> /= t1 -> t2 ->.
+- by move=> /= t ->.
+- by move=> /= t -> i.
+Qed.
+
+Lemma eval_nil_subst_term2 (e : seq F) (t : GRing.term F) :
+  GRing.eval e t = GRing.eval [::] (subst_term2 [seq (x%:T)%oT | x <- e] t).
+Proof.
+elim: t.
+- move=> i /=.
+  rewrite size_map.
+  have [lt_is| leq_si] := ltnP i (size e) ; last by rewrite nth_default.
+  by rewrite (@nth_map _ 0).
+- by move=> x.
+- by move=> i.
+- by move=> /= t1 -> t2 ->. 
+- by move=> /= t ->. 
+- by move=> /= t -> i. 
+- by move=> /= t1 -> t2 ->. 
+- by move=> /= t ->. 
+- by move=> /= t -> i. 
+Qed.
+
+Lemma eval_subst2 (e : seq F) (s : seq (GRing.term F)) (t : GRing.term F) :
+  GRing.eval e (subst_term2 s t) = 
+  GRing.eval [::] 
+    (subst_term2 [seq (subst_term2 [seq (x%:T)%oT | x <- e] u) | u <- s] t).
+Proof.
+elim: t.
+- move=> i //=.
+  rewrite size_map.
+  have [lt_is| leq_si] := ltnP i (size s) => //.
+  by rewrite (nth_map ('X_0)%oT) // eval_nil_subst_term2.
+- by move=> x.
+- by move=> i. 
+- by move=> /= t1 -> t2 ->. 
+- by move=> /= t ->. 
+- by move=> /= t -> i. 
+- by move=> /= t1 -> t2 ->. 
+- by move=> /= t ->. 
+- by move=> /= t -> i. 
+Qed.
+
+(* Variables (t t1 t2 : GRing.term F). *)
+
+(* Check [::O;O;1%N;2;3]. *)
+(* Check (subst_term2 [::'X_0 ; 'X_1 ; t1 ; 'X_3 ; t2 ; 'X_5]%oT t). *)
+
 Lemma holds_subst e s f :
   holds e (subst_formula s f) <-> holds (subst_env s e) f.
 Proof.
@@ -1833,6 +2014,49 @@ move: e s; elim: (qf_elim f) (qf_elim_qf f) => // {f}.
 - by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
 - by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
 - by move=> f1 h1 ? e s /=; rewrite h1.
+Qed.
+
+Lemma holds_subst3 e s f :
+  holds e (subst_formula3 s f) <-> holds (subst_env3 s e) f.
+Proof.
+rewrite (rwP (@qf_elim_holdsP f _)) -(rwP (@rcf_satP _ _ _)) /subst_formula3.
+move: e s; elim: (qf_elim f) (qf_elim_qf f) => // {f}.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst3.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst3.
+- by move=> t1 t2 ? e s /=; rewrite !eval_subst3.
+- by move=> t ? e s /=; rewrite eval_subst3.
+- by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
+- by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
+- by move=> f1 h1 f2 h2 /andP[??] e s /=; rewrite h1 // h2.
+- by move=> f1 h1 ? e s /=; rewrite h1.
+Qed.
+
+(* Variables (e : seq F) (s : seq (GRing.term F)) (f : formula F) *)
+(*           (t : GRing.term F) (x : F). *)
+
+(* Check (subst_formula2 s f). *)
+(* Check (GRing.Const x). *)
+(* Check ((x%:T)%oT). *)
+(* Check (map GRing.Const e). *)
+(* Check (subst_term2 (map GRing.Const e) t). *)
+(* Check [seq (subst_term2 (map GRing.Const e) u) | u <- s]. *)
+
+Lemma holds_subst2 e s f :
+  holds e (subst_formula2 s f) 
+  <-> holds [::] (subst_formula2 
+        [seq (subst_term2 (map GRing.Const e) t) | t <- s] f).
+Proof.
+rewrite /subst_formula2. 
+move: (qf_elim f) => {f} f. 
+move: e s; elim: f => //.
+- by move=> t1 t2 e s /= ; rewrite eval_subst2 [X in _ = X]eval_subst2.
+- by move=> t1 t2 e s /= ; rewrite eval_subst2 [X in _ < X]eval_subst2.
+- by move=> t1 t2 e s /= ; rewrite eval_subst2 [X in _ <= X]eval_subst2.
+- by move=> t e s /= ; rewrite eval_subst2.
+- by move=> f1 h1 f2 h2 e s /= ; rewrite h1 h2.
+- by move=> f1 h1 f2 h2 e s /= ; rewrite h1 h2.
+- by move=> f1 h1 f2 h2 e s /= ; rewrite h1 h2.
+- by move=> f h e s /= ; rewrite h.
 Qed.
 
 Lemma fv0_holds (e : seq F) f :
@@ -1888,8 +2112,16 @@ Qed.
 Fact fv_tsubst_nil (t : GRing.term F) : term_fv (subst_term [::] t) = fset0.
 Proof. by elim: t => //= t1 -> t2 ->; rewrite fsetU0. Qed.
 
+Fact fv_tsubst3_nil (t : GRing.term F) : term_fv (subst_term3 [::] t) = term_fv t.
+Proof.
+elim: t => //=.
+- by move=> i; rewrite nth_nil.
+- by move=> t1 -> t2 ->.  
+- by move=> t1 -> t2 ->.
+Qed.
+
 Fact fv_tsubst (s : seq nat) (t : GRing.term F) :
-    term_fv (subst_term s t) `<=` seq_fset s.
+  term_fv (subst_term s t) `<=` seq_fset s.
 Proof.
 elim: t => //.
 - move=> i /=.
@@ -1901,8 +2133,33 @@ elim: t => //.
 - by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
 Qed.
 
+(* Definition max_var (t : GRing.term F) := foldr maxn O (enum_fset (term_fv t)) = *)
+(*   match t with *)
+(*   | 'X_i => i *)
+(*   | t1 + t2 => (max_var t1) (max_var t2) *)
+(*   | - t => - (sterm t) *)
+(*   | t *+ i => (sterm t) *+ i *)
+(*   | t1 * t2 => (sterm t1) * (sterm t2) *)
+(*   | t ^-1 => (sterm t) ^-1 *)
+(*   | t ^+ i => (sterm t) ^+ i *)
+(*   | _ => t *)
+(* end%T. *)
+
+(* Fact fv_tsubst3 (s : seq nat) (t : GRing.term F) : *)
+(*   (#|` term_fv t| <= size s)%N -> term_fv (subst_term3 s t) `<=` seq_fset s. *)
+(* Proof. *)
+(* elim: t => //. *)
+(* - move=> i /=. *)
+(*   have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //. *)
+(*   by rewrite fsub1set seq_fsetE; apply/(nthP _); exists i. *)
+(* - by move=> x; rewrite fsub0set. *)
+(* - by move=> i; rewrite fsub0set. *)
+(* - by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split. *)
+(* - by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split. *)
+(* Qed. *)
+
 Lemma fsubset_seq_fset (K : choiceType) (s1 s2 : seq K) :
-    reflect {subset s1 <= s2} ((seq_fset s1) `<=` (seq_fset s2)).
+  reflect {subset s1 <= s2} ((seq_fset s1) `<=` (seq_fset s2)).
 Proof.
 apply: (@equivP _ _ _ (@fsubsetP _ _ _)).
 by split => h x; move/(_ x) : h; rewrite !seq_fsetE.
@@ -2460,6 +2717,15 @@ Definition SAset_setMixin :=
   SET.Semiset.Mixin SAemptyP inSAset1B sub_SAset1 non_empty
   les1s2 SAunion SAsetfunsort.
 
+Check (@SET.Semiset.Mixin _ _ _ _ _ _ SAemptyP inSAset1B sub_SAset1 non_empty les1s2 SAunion _ _ _ SAsetfunsort).
+
+Check (@SET.Semiset.Mixin nat (fun n => [eqType of 'rV_n]) tt (fun n => SAset_cblatticeType F n) (fun (m : nat) (s : @SAtype_of F m _) x => x \in s) (@SAset1 F) SAemptyP inSAset1B sub_SAset1 non_empty les1s2 SAunion (fun a b => @SAfun_of F a b _) (fun a b (f : {SAfun F^a -> F^b}) => (f : 'rV_a -> 'rV_b)) (fun a b => @SAimset F a b)).
+
+Definition SAset_setMixin2 :=
+  @SET.Semiset.Mixin nat (fun n => [eqType of 'rV_n]) tt (fun n => SAset_cblatticeType F n) (fun (m : nat) (s : @SAtype_of F m _) x => x \in s) (@SAset1 F) SAemptyP inSAset1B sub_SAset1 non_empty les1s2 SAunion (fun a b => @SAfun_of F a b _) (fun a b (f : {SAfun F^a -> F^b}) => (f : 'rV_a -> 'rV_b)) (fun a b => @SAimset F a b) SAsetfunsort.
+
+(* Set Printing All. *)
+
 Notation SemisetType set m :=
   (@SET.Semiset.pack _ _ set _ _ m _ _ (fun => id) _ id).
 Canonical SAset_setType := SemisetType (SAtype F) SAset_setMixin.
@@ -2526,6 +2792,12 @@ Lemma absP2 (e : seq F) (i j : nat) : rcf_sat e (abs i j) = (e`_j == `|e`_i|).
 Proof.
 apply/rcf_satP/eqP; first by move/absP.
 by move=> h; apply/absP.
+Qed.
+
+Lemma fv_abs (i j : nat) : (formula_fv (abs i j)) = [fset i; j].
+Proof.
+rewrite /abs /= fset0U fsetUid; apply/fsetP=> x.
+by rewrite !inE -orbA orbC -orbA Bool.orb_diag.
 Qed.
 
 Fact nvar_abs (i j : nat) : @nvar F (maxn i j).+1 (abs i j).
@@ -3029,6 +3301,27 @@ rewrite rcf_sat_forall ; apply/eq_forallb => i.
 by apply/rcf_satP/idP => //=; rewrite eq_sym subr_eq addrC; move/eqP.
 Qed.
 
+Lemma fv_sub_vec (v1 v2 v3 : seq nat) : 
+  size v1 = size v2 -> size v1 = size v3 ->
+  formula_fv (sub_vec v1 v2 v3) = seq_fset v1 `|` seq_fset v2 `|` seq_fset v3.
+Proof.
+move=> size12 size13.
+rewrite /sub_vec -size12 -size13 eqxx /=.
+rewrite formula_fv_bigU; apply/fsetP => i.
+rewrite !inE !seq_fsetE; apply/bigfcupP/idP.
++ move=> [j hj]. 
+  rewrite !inE.
+  by move/or3P => [||] /eqP ->; rewrite mem_nth -?size12 -?size13 ?orbT.
++ by rewrite -orbA => /or3P [||] i_in_v; 
+  [rewrite -index_mem in i_in_v 
+  |rewrite -index_mem -size12 in i_in_v
+  |rewrite -index_mem -size13 in i_in_v];
+  exists (Ordinal i_in_v); rewrite !inE //=;   
+  [rewrite index_mem in i_in_v 
+  |rewrite size12 index_mem in i_in_v 
+  |rewrite size13 index_mem in i_in_v]; rewrite nth_index // eqxx ?orbT.
+Qed.
+
 Definition abs_vec (v1 v2 : seq nat) : formula F := 
   if size v1 == size v2 
     then (\big[And/True]_(i < size v1) (abs (nth O v1 i)) (nth O v2 i))%oT 
@@ -3043,12 +3336,45 @@ rewrite rcf_sat_forall; apply/eq_forallb => i.
 by rewrite absP2.
 Qed.
 
+Reserved Notation "[ \/ P1 , P2 , P3 , P4 | P5 ]" (at level 0, format
+  "'[hv' [ \/ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 ']' '/ '  |  P5 ] ']'").
+
+Inductive or5 (P1 P2 P3 P4 P5 : Prop) : Prop :=
+  Or51 of P1 | Or52 of P2 | Or53 of P3 | Or54 of P4 | Or55 of P5.
+
+Notation "[ \/ P1 , P2 , P3 , P4 | P5 ]" := (or5 P1 P2 P3 P4 P5) : type_scope.
+
+Lemma or5P (b1 b2 b3 b4 b5 : bool) :
+  reflect [\/ b1, b2, b3, b4 | b5] [|| b1, b2, b3, b4 | b5].
+Proof.
+case b1; first by constructor; constructor 1.
+case b2; first by constructor; constructor 2.
+case b3; first by constructor; constructor 3.
+case b4; first by constructor; constructor 4.
+case b5; first by constructor; constructor 5.
+by constructor; case.
+Qed.
+
+Lemma fv_abs_vec (v1 v2 : seq nat) :
+  size v1 = size v2 -> formula_fv (abs_vec v1 v2) =  seq_fset v1 `|` seq_fset v2.
+Proof.
+move=> hsize.
+rewrite /abs_vec hsize eqxx /= formula_fv_bigU; apply/fsetP => i.
+rewrite !inE !seq_fsetE; apply/bigfcupP/idP.
++ move=> [j hj].
+  rewrite !inE -!orbA.
+  move/or5P => [||||]; move/eqP ->; rewrite mem_nth ?orbT //= hsize //.
++ by move/orP => [] i_in_v; rewrite -index_mem in i_in_v; [rewrite hsize in i_in_v|];
+  exists (Ordinal i_in_v) => //; rewrite fv_abs !inE /=; [rewrite -hsize in i_in_v|];
+  rewrite index_mem in i_in_v; rewrite nth_index // eqxx ?orbT.
+Qed.
+
 Definition max_vec (v : seq nat) (n : nat) : formula F :=
   ((\big[Or/False]_(i < size v) ('X_n == 'X_(nth O v i))) /\
   (\big[And/True]_(i < size v) ('X_(nth O v i) <=% 'X_n)))%oT.
 
 (* Lemma max_vecP (e : seq F) (v : seq nat) (n : nat) : *)
-(* rcf_sat e (max_vec v n) = . *)
+(*   rcf_sat e (max_vec v n) = (e`_n == 0). *)
 (* Proof. *)
 (* maxr *)
 (* foldr *)
@@ -3059,9 +3385,6 @@ Definition bloc (n : nat) : formula F :=
   /\ (abs_vec (iota (n + n) n) (iota (3 * n) n))
   /\ (max_vec (iota (3 * n) n) (4 * n))
   /\ ('X_(4 * n) <=% 'X_((4 * n).+1)).
-
-(* Lemma holds_bloc (e : seq F) (n : nat) : *)
-(*     holds e (bloc n) <->  *)
 
 Variables (n m : nat).
 
@@ -3107,11 +3430,27 @@ rewrite nquantSin ihb; last first.
   by rewrite addnS neq_ltn ; move ->.
 Qed.
 
+Check (2%:R : F).
 
+Fail Fixpoint test (p : {poly F}) :=
+  if (size p <= 1)%N then (1 : F)
+                     else (test p^`())*(2%:R).
+
+Check (fun (p : {poly F}) => if (size p <= 1)%N then [::] else (polyrcf.rootsR p)).
+Fixpoint vroot (p : {poly F}) := 
+  if (size p <= 1)%N then [::] 
+                     else let s := vroot (p^`()) in (polyrcf.rootsR p).
+
+(* Variables (A : choiceType) (x : {fset A}) (P : pred A) (a : A) (ha : P a) (i : nat). *)
+(* Check (unpickle P i x). *)
 
 Lemma continuousP (f : {SAfun F^n -> F^m}) : 
   reflect (continuous_spec f) (is_continuous f).
 Proof.
+have fsubset_trans2 :
+    forall (x y z : {fset nat}), (x `<=` y) -> ((z `<=` x) -> (z `<=` y)).
+      move=> u v w huw hwu.
+      by apply: (fsubset_trans hwu).
 rewrite /continuous_spec /is_continuous. 
 rewrite /is_continuous_form /pre_is_continuous_form /bloc.
 apply: (iffP idP).
@@ -3135,31 +3474,34 @@ apply: (iffP idP).
     by rewrite leq_mul.
   rewrite fsubst_nquantify; last first.
     apply/orP; right.
-    admit.
+    by ppsimpl; lia.
   have h : size ([seq x ord0 i | i <- enum 'I_n]) = n.
     rewrite size_map.
     by rewrite size_enum_ord.
   rewrite -[in X in nquantify X _ _ _]h.
   move/nforallP.
   have h2 : forall (a : nat), (2 * a = a + a)%N.
-    admit.
+    by move=> a; ppsimpl; lia.
   rewrite h2.
   move/(_ (ngraph (row_mx x y))).
   rewrite /=.
   rewrite fsubst_nquantify; last first.
-    admit.
+    by ppsimpl; lia.
   rewrite fsubst_nquantify; last first.
-    admit.
+    by ppsimpl; lia.
   rewrite fsubst_nquantify; last first.
-    admit.
+    by ppsimpl; lia.
   rewrite fsubst_nquantify; last first.
-    admit.
+    by ppsimpl; lia.
   rewrite /=.
   have -> : (4 * n)%N == (4 * n + 1)%N = false.
-    admit.
+    rewrite eqn_leq.
+    rewrite -[X in _ && X]ltnS.
+    rewrite addn1.
+    by rewrite ltnn andbF.
   rewrite -[((4 * n) .+1)%N]addn1 eqxx /=.
   have -> : (4 * n)%N == (4 * n + 4 * m + 3)%N = false.
-    admit.
+    by ppsimpl; lia.
   rewrite /=.
   rewrite [X in fsubst X]fsubst_id; last first.
     rewrite /sub_vec.
@@ -3167,16 +3509,20 @@ apply: (iffP idP).
     rewrite formula_fv_bigU.
     rewrite /=.
     apply/bigfcupP.
-    move=> [i hi].
+    move=> /= [i hi].
     rewrite !inE.
     rewrite !nth_iota ?ltn_ord //.
-    admit.
-  rewrite fsubst_id; last first.
-    admit.
+    have hi2 := ltn_ord i.
+    by ppsimpl; lia.
+  rewrite fsubst_id; last first.  
+    rewrite fv_sub_vec ?size_iota // !inE !mnfsetE.
+    by apply/negP; ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
-    admit.
-  rewrite fsubst_id; last first.
-    admit.
+    rewrite fv_abs_vec ?size_iota // !inE !mnfsetE. 
+    by apply/negP; ppsimpl; lia.       
+  rewrite fsubst_id; last first.  
+    rewrite fv_abs_vec ?size_iota // !inE !mnfsetE.
+    by apply/negP; ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
     rewrite formula_fv_bigOr.
     rewrite /=.
@@ -3185,7 +3531,8 @@ apply: (iffP idP).
     move=> [i /= _].
     rewrite !inE.
     rewrite !nth_iota ?ltn_ord //.
-    admit.
+    have hi2 := ltn_ord i.
+    by ppsimpl; lia.
   rewrite fsubst_id; last first.
   rewrite formula_fv_bigOr.
   apply/bigfcupP.
@@ -3193,7 +3540,8 @@ apply: (iffP idP).
   move=> [i /= _].
   rewrite !inE.
   rewrite !nth_iota ?ltn_ord //.
-    admit.
+    have hi2 := ltn_ord i.
+    by ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
     rewrite formula_fv_bigAnd /=.
     apply/bigfcupP.
@@ -3201,40 +3549,63 @@ apply: (iffP idP).
     move=> [i /= _].
     rewrite !inE.
     rewrite !nth_iota ?ltn_ord //.
-    admit.
+    have hi2 := ltn_ord i.
+    by ppsimpl; lia.
   rewrite fsubst_id; last first.
     rewrite formula_fv_bigAnd /=.
     apply/bigfcupP.
     rewrite size_iota.
-    move=> [i /= _].
+    move=> /= [i /= _].
     rewrite !inE.
     rewrite !nth_iota ?ltn_ord //.
-    admit.
+    have hi2 := ltn_ord i.
+    by ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
     rewrite -fsub1set.
-    have fsubset_trans2 :
-    forall (x y z : {fset nat}), (x `<=` y) -> ((z `<=` x) -> (z `<=` y)).
-      move=> u v w huw hwu.
-      by apply: (fsubset_trans hwu).
     apply: (@contra _ ([fset (4 * n + 1)%N]
    `<=`seq_fset (iota (4 * n + 2) (4 * m + 1)))); last first.
       rewrite fsub1set.
       rewrite seq_fsetE.
       rewrite mem_iota.
-      admit.
+      by apply/negP; ppsimpl; lia.
     apply: fsubset_trans2.
     by rewrite fv_subst_formula.
   rewrite fsubst_id; last first.
-    admit.
+  rewrite -fsub1set.
+  apply: (contra (@fsubset_trans2 _ _ _ (fv_subst_formula _ _))).
+  rewrite fsub1set mnfsetE.
+  by apply/negP; ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
-    admit.
+    rewrite -fsub1set.
+    apply: (contra (@fsubset_trans2 _ _ _ (fv_subst_formula _ _))).
+    rewrite fsub1set seq_fsetE mem_cat !mem_iota.
+    by apply/negP; ppsimpl; lia.
   rewrite fsubst_id; last first.
-    admit.
+  rewrite -fsub1set.
+  apply: (contra (@fsubset_trans2 _ _ _ (fv_subst_formula _ _))).
+  rewrite fsub1set seq_fsetE mem_cat !mem_iota.
+    by apply/negP; ppsimpl; lia.
   rewrite [X in fsubst X]fsubst_id; last first.
-    admit.
+  rewrite -fsub1set.
+  apply: (contra (@fsubset_trans2 _ _ _ (fv_subst_formula _ _))).
+  rewrite fsub1set seq_fsetE mem_cat !mem_iota.
+    by apply/negP; ppsimpl; lia.   
   rewrite fsubst_id; last first.
-    admit.
-Admitted.
+  rewrite -fsub1set.
+  apply: (contra (@fsubset_trans2 _ _ _ (fv_subst_formula _ _))).
+  rewrite fsub1set seq_fsetE mem_cat !mem_iota.
+    by apply/negP; ppsimpl; lia.    
+  
+  rewrite /=.
+  rewrite -[in X in nquantify X _ _ _]h.
+  Admitted.
+(*   move/nforallP. *)
+(*   rewrite /=. *)
+(* rewrite -addnA. *)
+(* rewrite nquantify_add. *)
+(* move/nforallP. *)
+(* move=> h x eps. *)
+(* Admitted. *)
 
 End Continuity.
 

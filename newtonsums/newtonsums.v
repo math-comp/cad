@@ -830,6 +830,7 @@ rewrite modp_small; last first.
 rewrite Tfpsfp_frac; last first.
   by rewrite coef0_revp; move/monicP : p_monic ->; apply: oner_neq0.
 congr (_ / _).
+
 rewrite deriv_tfpsE /= modp_small // size_polyXn size_revp.
 by rewrite (leq_ltn_trans (leq_subr _ _)).
 Qed.

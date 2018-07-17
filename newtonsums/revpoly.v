@@ -66,6 +66,7 @@ rewrite revpE size_poly_eq // prednK ?subn_gt0 ?valp_small // ?subKn //.
 by rewrite coef_valp_neq0.
 Qed.
 
+
 Lemma revp_eq0 p : (revp p == 0) = (p == 0).
 Proof.
 by rewrite -size_poly_eq0 size_revp subn_eq0 (geq_leqif (valp_leqif _)).

@@ -734,19 +734,41 @@ Variables (K : fieldType) (n : nat).
 
 Implicit Types (f g : {tfps K n}).
 
-Definition coef0_is_0 : pred_class := fun f : {tfps K n} => f`_0 == 0.
-
-Lemma coef0_is_0E f : (f \in coef0_is_0) = (f`_0 == 0).
-Proof. by rewrite -topredE. Qed.
-
 Definition coef0_is_1 : pred_class := fun f : {tfps K n} => f`_0 == 1.
 
 Lemma coef0_is_1E f : (f \in coef0_is_1) = (f`_0 == 1).
 Proof. by rewrite -topredE. Qed.
 
+Definition coef0_is_0 : pred_class := fun f : {tfps K n} => f`_0 == 0.
+
+Lemma coef0_is_0E f : (f \in coef0_is_0) = (f`_0 == 0).
+Proof. by rewrite -topredE. Qed.
+
+Lemma exp_tfps_eq0 (f : {tfps K n}) (m : nat) : 
+  f \in coef0_is_0 -> n < m -> f ^+ m = 0.
+Proof.
+rewrite coef0_is_0E => /eqP f0_is_0 lt_nm.
+by apply/val_inj ; rewrite val_exp_tfps modX_eq0.
+Qed.
+
+Lemma mul_exp_tfps_eq0 (f g : {tfps K n}) (i j : nat) : 
+  f \in coef0_is_0 -> g \in coef0_is_0 -> n < i + j -> (f ^+ i) * (g ^+ j) = 0.
+Proof.
+rewrite !coef0_is_0E => /eqP f0_is_0 /eqP g0_is_0 lt_nij.
+apply/val_inj. 
+rewrite /=.
+rewrite !val_exp_tfps. 
+rewrite modp_mul modp_mul2.
+rewrite modp_eq0 //.
+by rewrite (dvdp_trans (dvdp_exp2l ('X : {poly K}) lt_nij)) // exprD dvdp_mul // dvdp_exp2r //; apply/polyXP.
+Qed.
+
 Definition exp f :=
   if f \notin coef0_is_0 then 0 else
   Tfpsp n (\sum_(i < n.+1) ((i`! %:R) ^-1) *: (val f ^+i)).
+
+Definition exp2 f :=
+  if f \notin coef0_is_0 then 0 else \sum_(i < n.+1) ((i`! %:R) ^-1) *: (f ^+i).
 
 Definition log f :=
   if f \notin coef0_is_1 then 0 else
@@ -853,6 +875,7 @@ rewrite map_modp rmorphX /= map_polyX modp_mod map_divp map_polyX.
 by rewrite [(_ ^ _ %% _)]modp_small // size_polyXn size_map_poly ltnS size_tfps.
 Qed.
 
+
 Section Derivative.
 
 Variables (K : fieldType) (n : nat).
@@ -883,6 +906,33 @@ rewrite (leq_trans _ leq_nm) // (leq_trans (leq_size_deriv _)) //.
 have [->//|sfN0] := eqVneq (size (val f)) 0%N.
 by rewrite -ltnS prednK ?size_tfps // lt0n.
 Qed.
+
+(* Fact testval (m : nat) (f : {tfps K n}) : val f^`() = ((val f)^`())%R. *)
+(* Proof. *)
+(* rewrite -(mod_deriv_tfps f (leqnn n)). *)
+(* rewrite modp_small ; last first. *)
+(* rewrite /=. *)
+(* rewrite size_polyXn. *)
+(* rewrite (leq_ltn_trans (leq_size_deriv _)) //. *)
+(* admit. *)
+
+(* rewrite -(@modp_small _ _ 'X^n). *)
+(* rewrite mod_deriv_tfps. *)
+(* move: f. *)
+(* case: n. *)
+(* move=> f. *)
+(* rewrite [f]tfps_is_cst. *)
+(* move: f`_0 => x {f}. *)
+(* rewrite [RHS]/=. *)
+
+(* rewrite /=. *)
+(* case n. *)
+(* rewrite //=. *)
+(* rewrite size_polyXn ltnS. *)
+(* rewrite (leq_trans _ leq_nm) // (leq_trans (leq_size_deriv _)) //. *)
+(* have [->//|sfN0] := eqVneq (size (val f)) 0%N. *)
+(* by rewrite -ltnS prednK ?size_tfps // lt0n. *)
+(* Qed. *)
 
 Lemma deriv_tfpsE (f : {tfps K n}) : deriv_tfps f = Tfpsp n.-1 (val f)^`().
 Proof. 
@@ -1330,8 +1380,15 @@ Lemma exp_coef0_is_0 f : f \in @coef0_is_0 K m ->
   exp f = Tfpsp m (\sum_(i < m.+1) ((i`! %:R) ^-1) *: ((val f) ^+i)).
 Proof. by rewrite /exp => ->. Qed.
 
+Lemma exp2_coef0_is_0 f : f \in @coef0_is_0 K m ->
+  exp2 f = \sum_(i < m.+1) ((i`! %:R) ^-1) *: (f ^+i).
+Proof. by rewrite /exp2 => -> /=. Qed.
+
 Lemma exp_coef0_isnt_0 f : f \notin @coef0_is_0 K m -> exp f = 0.
 Proof. by rewrite /exp => /negPf ->. Qed.
+
+Lemma exp2_coef0_isnt_0 f : f \notin @coef0_is_0 K m -> exp2 f = 0.
+Proof. by rewrite /exp2 => /negPf ->. Qed.
 
 Lemma exp0: exp (0 : {tfps K m}) = 1.
 Proof.
@@ -1343,6 +1400,17 @@ rewrite -(big_mkord predT (fun i => (i == _)%:R)) /=.
 rewrite big_ltn // eqxx big_nat /= big1 => [|i /andP [hi _]]; last first.
   by rewrite eqn0Ngt hi.
 by rewrite addr0 modCXn.
+Qed.
+
+Lemma exp20: exp2 (0 : {tfps K m}) = 1.
+Proof.
+rewrite exp2_coef0_is_0 ?rpred0 //=.
+rewrite (eq_bigr (fun i => ((nat_of_ord i) == O)%:R))=> [|i]; last first.
+  by case: (_ i) => [|k]; rewrite expr0n ?eqxx ?fact0 ?invr1 ?scale1r ? scaler0.
+rewrite -(big_mkord predT (fun i => (i == _)%:R)) /=.
+rewrite big_ltn // eqxx big_nat /= big1 => [|i /andP [hi _]]; last first.
+  by rewrite eqn0Ngt hi.
+by rewrite addr0. 
 Qed.
 
 Lemma expC (c : K) : exp (c %:S) = (c == 0)%:R %:S :> {tfps K m}.
@@ -1361,9 +1429,147 @@ have [p0eq0 | p0N0] := boolP (c %:S \in @coef0_is_0 K m).
   by move/negbTE: p0N0 => ->; rewrite rmorph0.
 Qed.
 
+Lemma exp2C (c : K) : exp2 (c %:S) = (c == 0)%:R %:S :> {tfps K m}.
+Proof.
+have [p0eq0 | p0N0] := boolP (c %:S \in @coef0_is_0 K m).
++ rewrite coef0_is_0E nth0_Tfpsp coefC /= in p0eq0.
+  move: p0eq0 => /eqP p0eq0.
+  rewrite p0eq0 eqxx exp2_coef0_is_0 //=; last by rewrite rmorph0 rpred0.
+  rewrite -(big_mkord predT (fun i => i`!%:R^-1 *: 0 %:S ^+ i)) /=.
+  rewrite big_ltn // fact0 expr0 invr1 big_nat_cond.
+  rewrite (eq_bigr (fun i => 0))=> [ | i /andP [/andP [Hi _] _] ] ; last first.
+    by rewrite rmorph0 expr0n eqn0Ngt Hi /= scaler0. 
+  by rewrite scale1r big1_eq addr0 rmorph1.
++ rewrite exp2_coef0_isnt_0 //.
+  rewrite coef0_is_0E nth0_Tfpsp coefC /= in p0N0.
+  by move/negbTE: p0N0 => ->; rewrite rmorph0.
+Qed.
+
 Hypothesis char_K_is_zero : [char K] =i pred0.
 
 Lemma exp_is_morphism :
+            {in (@coef0_is_0 K m) &, {morph (@exp _ _) : f g / f + g >-> f * g}}.
+Proof.
+move => f g f0_eq0 g0_eq0 /=.
+rewrite ?(exp_coef0_is_0, rpredD) //.
+apply/val_inj => /=; apply/val_inj => /=.
+rewrite modp_mul mulrC modp_mul -mulrC.
+rewrite coef0_is_0E -!horner_coef0 in f0_eq0 g0_eq0.
+move/eqP: g0_eq0 ; move/eqP : f0_eq0.
+move: f g => [f fr] [g gr] /=.
+rewrite !horner_coef0 => f0_eq0 g0_eq0.
+rewrite (eq_bigr (fun i => let i' := (nat_of_ord i) in i'`!%:R^-1 *:
+         (\sum_(j < i'.+1) f ^+ (i' - j) * g ^+ j *+ 'C(i', j)))); last first.
+  by move => i _ ; rewrite exprDn.
+rewrite (big_distrl _ _ _) /=.
+rewrite (eq_bigr (fun i => let i' := (nat_of_ord i) in (\sum_(j < i' .+1)
+        ((j`! * (i' -j)`!)%:R) ^-1 *: (f ^+ (i' - j) * g ^+ j)))); last first.
+  move => [i i_lt_Sn] _ /=.
+  rewrite scaler_sumr; apply: eq_bigr => [ /= [j j_lt_Si]] _ /=.
+  rewrite -mulrnAl scalerAl -scaler_nat scalerA -scalerAl; congr(_ *: _).
+  have factr_neq0 k : k`!%:R != 0 :> K.
+    by rewrite (proj1 (charf0P _)) // -lt0n fact_gt0.
+  apply: (mulfI (factr_neq0 i)); rewrite mulVKf //.
+  have den_neq0 :  (j`! * (i - j)`!)%:R != 0 :> K by rewrite natrM mulf_neq0.
+  by apply: (mulIf den_neq0) ; rewrite mulfVK // -natrM bin_fact.
+rewrite [in RHS](eq_bigr (fun i => let i' := (nat_of_ord i) in (\sum_(j < m.+1)
+                    ((i'`! * j`!)%:R^-1) *: (f ^+ i' * g ^+ j)))); last first.
+  move => i _.
+  rewrite (big_distrr _ _ _) /=.
+  apply: eq_bigr => j _ /=.
+  rewrite -scalerAl -scalerCA -scalerAl scalerA -invrM ?unitfE; last 2 first.
+  + move/(charf0P K)/(_ (j`!)%N) : char_K_is_zero ->.
+    by rewrite -lt0n fact_gt0.
+  + move/(charf0P K)/(_ (i`!)%N) : char_K_is_zero ->.
+    by rewrite -lt0n fact_gt0.
+  by rewrite -natrM mulnC.
+have -> : (\sum_(i < m.+1) \sum_(j < m.+1)
+  (i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j)) %% 'X^m.+1 =
+  (\sum_(i < m.+1) \sum_(j < m.+1 | i+j <= m)
+  (i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j)) %% 'X^m.+1.
+  rewrite !modp_sumn ; apply: eq_bigr => [[i i_lt_Sn]] _ /=.
+  rewrite !modp_sumn.
+  rewrite (bigID (fun j => i + (nat_of_ord j) <= m)) /=.
+  rewrite -[RHS]addr0 ; congr (_ + _).
+  rewrite -(big_mkord (fun j => ~~ (i + j <= m))
+                      (fun j => ((i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j)) %% 'X^m.+1)).
+  apply: big1_seq => /= n.
+  rewrite -ltnNge ; move/andP => [ n_lt_addim _].
+  apply/modp_eq0P.
+  rewrite dvdp_scaler ; last first.
+  rewrite invr_eq0.
+    move/(charf0P K)/(_ (i`! * n`!)%N) : char_K_is_zero ->.
+    by rewrite muln_eq0 negb_or -!lt0n !fact_gt0.
+    rewrite (dvdp_trans (dvdp_exp2l ('X : {poly K}) n_lt_addim)) // exprD.
+    by rewrite dvdp_mul // dvdp_exp2r // ; apply/polyXP.
+apply: (congr1 (fun x => polyseq x)).
+apply: (congr1 (fun x => modp x (GRing.exp (polyX K) (S m)))).
+rewrite [in RHS](eq_bigr (fun i => let i' := (nat_of_ord i) in \sum_(j < m.+1 |
+        i' + j < m.+1) (i'`! * j`!)%:R^-1 *: (f ^+ i' * g ^+ j))); last first.    
+  move => i _.
+  by apply: eq_bigr.
+rewrite (eq_bigr (fun i => let i' := (nat_of_ord i) in \sum_(j < i'.+1)
+           (j`! * (i' - j)`!)%:R^-1 *: (f ^+ j * g ^+ (i' - j)))); last first.
+  move => i _.
+  rewrite /=.
+  rewrite -(big_mkord predT (fun j => (j`! * (i - j)`!)%:R^-1 *: 
+                                                       (f ^+ (i - j) * g ^+ j))).
+  rewrite big_nat_rev big_mkord add0n.
+  apply: eq_bigr => j _.
+  by rewrite !subSS subnBA -1?ltnS // !addKn mulnC.
+by rewrite (triangular_index_bigop _
+                      (fun i j => (i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j))) /=;
+  last exact: ltnSn.
+Qed.
+
+(* Lemma exp_is_morphism2 : *)
+(*             {in (@coef0_is_0 K m) &, {morph (@exp2 _ _) : f g / f + g >-> f * g}}. *)
+(* Proof. *)
+(* move => f g f0_eq0 g0_eq0 /=. *)
+(* rewrite ?(exp2_coef0_is_0, rpredD) //. *)
+(* rewrite (eq_bigr (fun i => let i' := (nat_of_ord i) in i'`!%:R^-1 *: *)
+(*          (\sum_(j < i'.+1) f ^+ (i' - j) * g ^+ j *+ 'C(i', j)))); last first. *)
+(*   by move => i _ ; rewrite exprDn. *)
+(* rewrite (big_distrl _ _ _) /=. *)
+(* rewrite (eq_bigr (fun i => let i' := (nat_of_ord i) in (\sum_(j < i' .+1) *)
+(*         ((j`! * (i' -j)`!)%:R) ^-1 *: (f ^+ (i' - j) * g ^+ j)))); last first. *)
+(*   move => [i i_lt_Sn] _ /=. *)
+(*   rewrite scaler_sumr; apply: eq_bigr => [ /= [j j_lt_Si]] _ /=. *)
+(*   rewrite -mulrnAl scalerAl -scaler_nat scalerA -scalerAl; congr(_ *: _). *)
+(*   have factr_neq0 k : k`!%:R != 0 :> K. *)
+(*     by rewrite (proj1 (charf0P _)) // -lt0n fact_gt0. *)
+(*   apply: (mulfI (factr_neq0 i)); rewrite mulVKf //. *)
+(*   have den_neq0 :  (j`! * (i - j)`!)%:R != 0 :> K by rewrite natrM mulf_neq0. *)
+(*   by apply: (mulIf den_neq0) ; rewrite mulfVK // -natrM bin_fact. *)
+(* rewrite [in RHS](eq_bigr (fun i => let i' := (nat_of_ord i) in (\sum_(j < m.+1) *)
+(*                     ((i'`! * j`!)%:R^-1) *: (f ^+ i' * g ^+ j)))); last first. *)
+(*   move => i _. *)
+(*   rewrite (big_distrr _ _ _) /=. *)
+(*   apply: eq_bigr => j _ /=. *)
+(*   rewrite -scalerAl -scalerCA -scalerAl scalerA -invrM ?unitfE; last 2 first. *)
+(*   + move/(charf0P K)/(_ (j`!)%N) : char_K_is_zero ->. *)
+(*     by rewrite -lt0n fact_gt0. *)
+(*   + move/(charf0P K)/(_ (i`!)%N) : char_K_is_zero ->. *)
+(*     by rewrite -lt0n fact_gt0. *)
+(*   by rewrite -natrM mulnC. *)
+(* have -> : (\sum_(i < m.+1) \sum_(j < m.+1) *)
+(*   (i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j))  = *)
+(*   (\sum_(i < m.+1) \sum_(j < m.+1 | i+j <= m) *)
+(*   (i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j)). *)
+(*   apply: eq_bigr => [[i i_lt_Sn]] _ /=. *)
+(*   rewrite (bigID (fun j => i + (nat_of_ord j) <= m)) /=. *)
+(*   rewrite -[RHS]addr0 ; congr (_ + _). *)
+(*   rewrite -(big_mkord (fun j => ~~ (i + j <= m)) *)
+(*                       (fun j => ((i`! * j`!)%:R^-1 *: (f ^+ i * g ^+ j)))). *)
+(*   apply: big1_seq => /= n. *)
+(*   rewrite -ltnNge ; move/andP => [ n_lt_addim _]. *)
+(*   by rewrite mul_exp_tfps_eq0 // scaler0. *)
+(* apply: eq_bigr => i _. *)
+(* rewrite /=. *)
+(* Qed. *)
+
+
+Lemma exp_is_morphism3 :
             {in (@coef0_is_0 K m) &, {morph (@exp _ _) : f g / f + g >-> f * g}}.
 Proof.
 move => f g f0_eq0 g0_eq0 /=.
@@ -1451,6 +1657,7 @@ apply/val_inj/polyP=> j; rewrite log_coef0_is_1 ?rpred1 // coef0 coef_Tfpsp.
 case: ifP => // j_small; rewrite coefN big1 ?coef0 ?oppr0 //.
 by move=> [|i]; rewrite subrr expr0n ?eqxx ?invr0 ?scale0r ?scaler0.
 Qed.
+
 
 (* is there a better statement ? something like: *)
 (* Lemma coef0_exp f : (exp f)`_0 = (f \notin coef0_is_0)%:R. *)
@@ -1640,4 +1847,3 @@ by rewrite cancel_log_exp // coef0_is_0E coef0_log.
 Qed.
 
 End MoreExponential.
-

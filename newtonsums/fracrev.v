@@ -25,7 +25,7 @@ Section FracRev.
 
 Variable (K : fieldType).
 
-Lemma tofrac_revp (p : {poly K}) : 
+Lemma tofrac_revp (p : {poly K}) :
   (revp p) %:F = (p %:F \FPo 'X^-1) * ('X  %:F ^+(size p).-1).
 Proof.
 have [peq0 | pN0] := boolP (p == 0).
