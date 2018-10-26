@@ -1846,4 +1846,14 @@ apply: log_inj => //.
 by rewrite cancel_log_exp // coef0_is_0E coef0_log.
 Qed.
 
+Lemma log_is_morphism (n : nat) :
+  {in (@coef0_is_1 K n) &, {morph (@log _ _) : f g / f * g >-> f + g}}.
+Proof.
+move=> f g f0_eq1 g0_eq1.
+apply/exp_inj; rewrite ?(rpredD // coef0_is_0E, coef0_log);
+first by rewrite coef0_is_0E coef0_log.
+  by rewrite rpredD // coef0_is_0E coef0_log.
+by rewrite exp_is_morphism ?(coef0_is_0E, coef0_log) // !cancel_exp_log // rpredM. 
+Qed.
+
 End MoreExponential.
