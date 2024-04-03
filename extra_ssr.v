@@ -1,8 +1,8 @@
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp
-Require Import ssrfun ssrbool eqtype ssrnat seq div fintype tuple.
+Require Import ssrfun ssrbool eqtype ssrnat seq div fintype tuple binomial.
 From mathcomp
-Require Import finfun bigop fingroup perm ssralg zmodp matrix mxalgebra.
+Require Import finfun finset bigop fingroup perm ssralg zmodp matrix mxalgebra.
 From mathcomp
 Require Import poly polydiv mxpoly.
 From mathcomp
@@ -32,8 +32,6 @@ Proof. by rewrite leqNgt; case: ltngtP. Qed.
 End extra_nat.
 
 Section extra_perm.
-
-From mathcomp Require Import fintype finfun finset perm zmodp div binomial.
 
 (* Remark: generalize (D : {set aT}) to (D : pred_class_of aT) in finset.v *)
 (* Meanwhile, we reprove it in this more general case *)
@@ -67,12 +65,12 @@ Qed.
 
 Definition perm_circle n : 'S_n := perm (@perm_circle_proof n).
 
-Lemma pcycle_perm_circle n x : pcycle (perm_circle n) x = setT.
+Lemma porbit_perm_circle n x : porbit (perm_circle n) x = setT.
 Proof.
 apply/setP => y /=; rewrite in_setT.
 wlog le_xy : x y / x <= y => /= [hwlog|].
-  by have /orP[/hwlog//|/hwlog] := leq_total x y; rewrite pcycle_sym.
-suff -> : y = ((perm_circle n) ^+ (y - x))%g x by rewrite mem_pcycle.
+  by have /orP[/hwlog//|/hwlog] := leq_total x y; rewrite porbit_sym.
+suff -> : y = ((perm_circle n) ^+ (y - x))%g x by rewrite mem_porbit.
 rewrite permX; apply: val_inj => /=.
 move: (ltn_ord y); set d := (y - x)%N; rewrite -(subnK le_xy) -/d.
 elim: d => //= d ihd; rewrite addSn => hd.
@@ -87,9 +85,9 @@ by apply/imsetP/eqP => [[//]|->]; last exists a.
 Qed.
 Arguments imset_const {_ _ _} a [x] _.
 
-Lemma pcycles_perm_circle n : pcycles (perm_circle n.+1) = [set setT].
+Lemma porbits_perm_circle n : porbits (perm_circle n.+1) = [set setT].
 Proof.
-rewrite /pcycles /= (pred_class_eq_imset _ (@pcycle_perm_circle n.+1)) /=.
+rewrite /porbits /= (pred_class_eq_imset _ (@porbit_perm_circle n.+1)) /=.
 by apply/setP => /= x; rewrite (imset_const ord0).
 Qed.
 
@@ -98,7 +96,7 @@ Proof. by apply/permP => [[]]. Qed.
 
 Lemma odd_perm_circle n : perm_circle n.+1 = odd n :> bool.
 Proof.
-by rewrite /odd_perm pcycles_perm_circle card_ord cards1 addbT negbK.
+by rewrite /odd_perm porbits_perm_circle card_ord cards1 addbT negbK.
 Qed.
 
 Lemma odd_perm_rev n : @perm_rev n = odd 'C(n, 2) :> bool.
@@ -106,7 +104,7 @@ Proof.
 elim: n => [|/= n ihn]; first by rewrite perm_rev0 odd_perm1.
 suff -> : perm_rev = (perm_circle n.+1 * lift0_perm perm_rev)%g.
   rewrite odd_permM odd_lift_perm /= ihn => {ihn}.
-  by rewrite odd_perm_circle /= binS bin1 odd_add addbC.
+  by rewrite odd_perm_circle /= binS bin1 oddD addbC.
 apply/permP => i /=; apply/val_inj; do !rewrite !permE /=.
 rewrite /lift_perm_fun /= subSS ltnS.
 case: unliftP => /= [j|] /(congr1 val) /=; last first.
@@ -131,20 +129,21 @@ Import ssrint.IntDist.
 
 Lemma bin2D m n : 'C(m + n, 2) = 'C(m, 2) + 'C(n, 2) + m * n.
 Proof.
-case: m => [|m] //=; rewrite bin2 !addSn /= mulnDr -{1}addSn -addnS !mulnDl.
+case: m => [|m] /=; first by rewrite addn0.
+rewrite bin2 !addSn /= mulnDr -{1}addSn -addnS !mulnDl.
 rewrite [n * m]mulnC [X in X + _]addnC addnACA addnn.
-rewrite halfD !odd_double /= doubleK halfD !odd_mul !andNb !add0n addnC.
+rewrite halfD !odd_double /= doubleK halfD !oddM !andNb !add0n addnC.
 by rewrite -!bin2 ['C(n.+1, 2)]binS bin1 mulSn !addnA.
 Qed.
 
 Lemma odd_bin2M2 n : odd 'C(n.*2, 2) = odd n.
 Proof.
-rewrite bin2 -{1}mul2n -mulnA mul2n doubleK odd_mul.
+rewrite bin2 -{1}mul2n -mulnA mul2n doubleK oddM.
 by case: n => //= n; rewrite odd_double andbT.
 Qed.
 
 Lemma odd_bin2D2n k n : odd 'C(k.*2 + n, 2) = (odd k (+) odd 'C(n, 2)).
-Proof. by rewrite bin2D !odd_add odd_bin2M2 -doubleMl odd_double addbF. Qed.
+Proof. by rewrite bin2D !oddD odd_bin2M2 -doubleMl odd_double addbF. Qed.
 
 Lemma bin2DB m n : odd 'C(m + n, 2) = odd (minn m n) (+) odd 'C(`|m - n|, 2).
 Proof.
@@ -229,14 +228,14 @@ Lemma dvdp_lcml (p q : {poly R}) : p %| lcmp p q.
 Proof.
 have [->|p0] := eqVneq p 0; first by rewrite lcm0p.
 rewrite -(@dvdp_mul2l _ (gcdp p q)) ?gcdp_eq0 ?(negPf p0) // mulp_gcd_lcm.
-by rewrite dvdp_scaler ?lc_expn_scalp_neq0 // mulrC dvdp_mul ?dvdp_gcdr.
+by rewrite dvdpZr ?lc_expn_scalp_neq0 // mulrC dvdp_mul ?dvdp_gcdr.
 Qed.
 
 Lemma dvdp_lcmr (p q : {poly R}) : q %| lcmp p q.
 Proof.
 have [->|p0] := eqVneq p 0; first by rewrite lcm0p dvdp0.
 rewrite -(@dvdp_mul2l _ (gcdp p q)) ?gcdp_eq0 ?(negPf p0) // mulp_gcd_lcm.
-by rewrite dvdp_scaler ?lc_expn_scalp_neq0 ?dvdp_mul ?dvdp_gcdl.
+by rewrite dvdpZr ?lc_expn_scalp_neq0 ?dvdp_mul ?dvdp_gcdl.
 Qed.
 
 Lemma dvdp_lcm (p q r : {poly R}) : (lcmp p q %| r) = (p %| r) && (q %| r).
@@ -244,7 +243,7 @@ Proof.
 have [->|p0] := eqVneq p 0; first by rewrite lcm0p dvd0p andb_idr => // /eqP->.
 have [->|q0] := eqVneq q 0; first by rewrite lcmp0 dvd0p andb_idl => // /eqP->.
 rewrite -(@dvdp_mul2l _ (gcdp p q)) ?gcdp_eq0 ?(negPf p0) // mulp_gcd_lcm.
-rewrite dvdp_scalel ?lc_expn_scalp_neq0 // -(eqp_dvdr _ (gcdp_mul2r _ _ _)).
+rewrite dvdpZl ?lc_expn_scalp_neq0 // -(eqp_dvdr _ (gcdp_mul2r _ _ _)).
 by rewrite dvdp_gcd dvdp_mul2l // mulrC dvdp_mul2l // andbC.
 Qed.
 

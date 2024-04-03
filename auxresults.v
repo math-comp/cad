@@ -323,9 +323,7 @@ Local Notation "x =p y"  := (perm_eq x y) (at level 70, no associativity).
 
 Lemma perm_eq_nil (s : seq T) : (s =p [::]) = (s == [::]).
 Proof.
-apply/idP/idP ; last by move/eqP ->.
-move => H ; apply/eqP.
-by apply: perm_eq_small.
+by apply/idP/eqP => /perm_nilP.
 Qed.
 
 Lemma rem_cons (s : seq T) (a : T) : rem a (a :: s) = s.
@@ -417,16 +415,7 @@ Qed.
 Lemma rem_undup (x : T) (s : seq T) : 
   rem x (undup s) = undup (filter (predC1 x) s).
 Proof.
-elim: s => // y s /=.
-have [<- | neq_xy] := eqVneq x y.
-  rewrite eqxx fun_if /= eqxx => <-.  
-  have [x_in_s | x_notin_s] := boolP (x \in s) => //.
-  by rewrite rem_id // mem_undup.
-rewrite eq_sym neq_xy /=.
-have [y_in_s | /negbTE y_notin_s] := boolP (y \in s); rewrite mem_filter.
-  by rewrite y_in_s andbT /= eq_sym neq_xy.
-rewrite /= eq_sym ; move/negbTE : neq_xy => ->.
-by rewrite y_notin_s andbF => ->.
+by rewrite rem_filter ?undup_uniq// filter_undup.
 Qed.
 
 Local Open Scope ring_scope. 
@@ -450,7 +439,7 @@ End MoreSeqEqType.
 
 Section MoreFinmap.
 
-Open Local Scope fset_scope.
+Local Open Scope fset_scope.
 
 Lemma finSet_ind (T : choiceType) (P : {fset T} -> Prop) : 
   P fset0 -> (forall s x, P s -> P (x |` s)) -> forall s, P s.
@@ -729,14 +718,14 @@ Variable (K : fieldType).
 Fact modp_sumn (I : Type) (r : seq I) (P : pred I)
                (F : I -> {poly K}) (p : {poly K}) :
                (\sum_(i <- r | P i) F i) %% p = \sum_(i <- r | P i) (F i %% p).
-Proof. by rewrite (big_morph ((@modp _)^~ p) (modp_add _) (mod0p _) _). Qed.
+Proof. by rewrite (big_morph ((@modp _)^~ p) (modpD _) (mod0p _) _). Qed.
 
 Fact modp_mul2 (p q m : {poly K}): ((p %% m) * q) %% m = (p * q) %% m.
 Proof. by rewrite mulrC modp_mul mulrC. Qed.
 
 End AuxiliaryResults.
 
-Module InjMorphism.
+(* Module InjMorphism.
 
 Section ClassDef.
 
@@ -784,7 +773,7 @@ Canonical rmorphism.
 End Exports.
 
 End InjMorphism.
-Include InjMorphism.Exports.
+   Include InjMorphism.Exports. *)
 
 Section InjectiveTheory.
 
@@ -795,7 +784,7 @@ move=> f_inj x y /eqP; rewrite -subr_eq0 -raddfB => /eqP /f_inj /eqP.
 by rewrite subr_eq0 => /eqP.
 Qed.
 
-Variable (R S : ringType) (f : {injmorphism R -> S}).
+(*Variable (R S : ringType) (f : {injmorphism R -> S}).
 
 Lemma rmorph_inj : injective f. Proof. by case: f => [? []]. Qed.
 
@@ -812,9 +801,9 @@ by rewrite !coef_map => /rmorph_inj.
 Qed.
 
 Canonical map_poly_is_injective := InjMorphism map_poly_injective.
-
+ *)
 End InjectiveTheory.
-Hint Resolve rmorph_inj.
+(* Hint Resolve rmorph_inj. 
 
 Canonical polyC_is_injective (R : ringType) := InjMorphism (@polyC_inj R).
 
@@ -826,4 +815,4 @@ Canonical comp_is_injmorphism (R S T : ringType)
 Definition fmorph (F R : Type) (f : F -> R) := f.
 Canonical fmorph_is_injmorphism (F : fieldType) (R : ringType)
   (f : {rmorphism F -> R}) :=
-  InjMorphism (fmorph_inj f : injective (fmorph f)).
+   InjMorphism (fmorph_inj f : injective (fmorph f)). *)
