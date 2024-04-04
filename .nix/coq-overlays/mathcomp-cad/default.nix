@@ -1,5 +1,6 @@
 { coq, mkCoqDerivation, mathcomp, mathcomp-bigenough
-, mathcomp-finmap, mathcomp-real-closed
+, mathcomp-finmap, mathcomp-real-closed, multinomials
+, mathcomp-classical, mathcomp-analysis
 , lib, version ? null }:
 
 mkCoqDerivation {
@@ -20,6 +21,9 @@ mkCoqDerivation {
     mathcomp-bigenough
     mathcomp-finmap
     mathcomp-real-closed
+    multinomials
+    mathcomp-classical
+    mathcomp-analysis
   ];
 
   meta = {

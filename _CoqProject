@@ -1,1 +1,12 @@
--R . SemiAlgebraic
+extra_ssr.v
+subresultant.v
+auxresults.v
+formula.v
+continuity_roots.v
+semialgebraic.v
+topology.v
+cylinder.v
+
+-R "." SemiAlgebraic
+
+
