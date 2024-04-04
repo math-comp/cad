@@ -518,6 +518,44 @@ Qed.
 
 HB.instance Definition _ := Order.hasRelativeComplement.Build SAset_disp {SAset F^n} meet_sub join_meet_sub.
 
+Definition SAset_prod_formula m (s1 : {SAset F^n}) (s2 : {SAset F^m}) :=
+  (s1 /\ subst_formula (iota n m) s2)%oT.
+
+Lemma nvar_SAset_prod_formula m (s1 : {SAset F^n}) (s2 : {SAset F^m}) :
+  nvar (n + m) (SAset_prod_formula s1 s2).
+Proof.
+rewrite /nvar /SAset_prod_formula /=; apply/fsubUsetP; split.
+  apply/(fsubset_trans (fsubset_formulan_fv s1)).
+  by rewrite mnfset0_sub leq_addr.
+apply/(fsubset_trans (fv_subst_formula mnfset_key _ s2)).
+case: {s2} m => [|m]; first by rewrite m0fset.
+by rewrite mnfset_sub /=.
+Qed.
+
+Definition SAset_prod m (s1 : {SAset F^n}) (s2 : {SAset F^m}) :=
+  \pi_({SAset F^(n + m)}) (MkFormulan (nvar_SAset_prod_formula s1 s2)).
+
+Lemma SAset_prodP m (s1 : {SAset F^n}) (s2 : {SAset F^m}) (x : 'rV[F]_(n + m)) :
+  (x \in SAset_prod s1 s2) = (lsubmx x \in s1) && (rsubmx x \in s2).
+Proof.
+move: (lsubmx x) (rsubmx x) (hsubmxK x) => l r <- {x}.
+rewrite /SAset_prod /= pi_form /SAset_prod_formula /= !ngraph_cat.
+apply: (sameP (rcf_satP _ _)).
+apply: (iffP andP) => [[/rcf_satP h1 /rcf_satP h2]
+                       | /= [/holds_take + /holds_subst]]; last first.
+  rewrite subst_env_iota_catr ?size_ngraph// take_size_cat ?size_ngraph//.
+  by move=> h1 h2; split=> //; apply/rcf_satP.
+split; first by apply/holds_take; rewrite take_size_cat ?size_ngraph.
+by apply/holds_subst; rewrite subst_env_iota_catr ?size_ngraph.
+Qed.
+
+Definition SAset_pos_formula : formula F := (0 <% 'X_0)%oT.
+
+Lemma nvar_SAset_pos_formula : nvar 1 SAset_pos_formula.
+Proof. by rewrite /nvar /= fset0U fsub1set seq_fsetE. Qed.
+
+Definition SAset_pos := \pi_({SAset F^1}) (MkFormulan nvar_SAset_pos_formula).
+
 End POrder.
 
 Section SAFunction.
@@ -1123,5 +1161,143 @@ Proof.
 move=> x; apply/eqP; rewrite eq_sym -SAcomp_graphP.
 by move: (in_graph_SAfun (SAcomp f g) x).
 Qed.
+
+Definition join_formula (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) : formula F :=
+  (repr (val f)) /\
+  (subst_formula (iota 0 m ++ iota (m+n) p) (repr (val g))).
+
+Lemma nvar_join_formula (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) :
+  @nvar F (m + (n + p)) (join_formula f g).
+Proof.
+rewrite /nvar /join_formula /=; apply/fsubUsetP; split.
+  apply/(fsubset_trans (fsubset_formulan_fv f)).
+  by rewrite mnfset0_sub addnA leq_addr.
+apply/(fsubset_trans (fv_subst_formula mnfset_key _ g)).
+rewrite seq_fset_cat; apply/fsubUsetP; split.
+  by rewrite mnfset0_sub leq_addr.
+case: {f g} p => [|p]; first by rewrite m0fset fsub0set.
+by rewrite mnfset_sub //= !addnA.
+Qed.
+
+Definition SAjoin_graph (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) :=
+  \pi_{SAset F^(m + (n + p))} (MkFormulan (nvar_join_formula f g)).
+
+Lemma SAjoin_graphP (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) (u : 'rV[F]_m) (v : 'rV[F]_(n + p)) :
+  (row_mx u v \in SAjoin_graph f g) = (row_mx (f u) (g u) == v).
+Proof.
+move: (lsubmx v) (rsubmx v) (hsubmxK v) => l r <- {v}.
+rewrite /SAjoin_graph /= pi_form /join_formula /= !ngraph_cat.
+apply: (sameP (rcf_satP _ _)).
+apply: (iffP eqP) => [|/= [/holds_take + /holds_subst]];
+    last first.
+  rewrite subst_env_cat subst_env_iota_catl ?size_ngraph//.
+  rewrite catA -ngraph_cat subst_env_iota_catr ?size_ngraph//.
+  rewrite take_size_cat ?size_ngraph// -ngraph_cat.
+  move=> /holds_ngraph + /holds_ngraph.
+  by rewrite -!in_SAfun => /eqP -> /eqP ->.
+move=> /[dup] /(congr1 lsubmx) + /(congr1 rsubmx).
+rewrite !row_mxKl !row_mxKr => <- <-.
+split.
+  rewrite catA -ngraph_cat; apply/holds_take.
+  rewrite take_size_cat ?size_ngraph//.
+  exact/holds_ngraph/in_graph_SAfun.
+apply/holds_subst; rewrite subst_env_cat subst_env_iota_catl ?size_ngraph//.
+rewrite catA -ngraph_cat subst_env_iota_catr ?size_ngraph// -ngraph_cat.
+exact/holds_ngraph/in_graph_SAfun.
+Qed.
+
+Fact SAfun_SAjoin (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) :
+  (SAjoin_graph f g \in SAfunc) && (SAjoin_graph f g \in SAtot).
+Proof.
+apply/andP; split.
+  by apply/SAfuncE => x y1 y2; rewrite !SAjoin_graphP => /eqP <- /eqP.
+by apply/SAtotE => x; exists (row_mx (f x) (g x)); rewrite SAjoin_graphP.
+Qed.
+
+Definition SAjoin (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) :=
+  MkSAfun (SAfun_SAjoin f g).
+
+Lemma SAjoinP (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) (x : 'rV[F]_m) :
+  SAjoin f g x = row_mx (f x) (g x).
+Proof. by apply/eqP; rewrite eq_sym -SAjoin_graphP; apply/in_graph_SAfun. Qed.
+
+Definition add_formula : formula F := ('X_2 == 'X_0 + 'X_1)%oT.
+
+Lemma nvar_add_formula : nvar 3 add_formula.
+Proof.
+apply/fsubsetP => x xf; rewrite seq_fsetE mem_iota /= add0n.
+by move: xf => /fset1UP; case=> [-> //|] /fset2P; case=> ->.
+Qed.
+
+Definition SAadd_graph := \pi_{SAset F^3} (MkFormulan (nvar_add_formula)).
+
+Lemma SAadd_graphP (u : 'rV[F]_2) (v : 'rV[F]_1) :
+  (row_mx u v \in SAadd_graph) = (v 0 0 == u 0 0 + u 0 1)%R.
+Proof.
+apply/(sameP (rcf_satP _ _))/(equivP _ (iff_sym (holds_repr_pi _ _))) => /=.
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 2).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 1).
+rewrite !(@cat_ffunE _ 0 2 _ 1) /=.
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 1).
+exact/eqP.
+Qed.
+
+Fact SAfun_SAadd :
+  (SAadd_graph \in @SAfunc _ 2 1) && (SAadd_graph \in @SAtot _ 2 1).
+Proof.
+apply/andP; split.
+  apply/SAfuncE => x y1 y2; rewrite !SAadd_graphP => /eqP y1E /eqP y2E.
+  by apply/rowP => i; rewrite ord1 y2E.
+apply/SAtotE => x; exists (\row_i (x 0 0 + x 0 1))%R.
+by rewrite SAadd_graphP mxE.
+Qed.
+
+Definition SAadd := MkSAfun SAfun_SAadd.
+
+Definition SAfun_add (n : nat) (f g : {SAfun F^n -> F^1}) :=
+  SAcomp (SAjoin f g) SAadd.
+
+Definition opp_formula : formula F := ('X_1 == - 'X_0)%oT.
+
+Lemma nvar_opp_formula : nvar 2 opp_formula.
+Proof.
+apply/fsubsetP => x xf; rewrite seq_fsetE mem_iota /= add0n.
+by move: xf => /fset2P; case=> ->.
+Qed.
+
+Definition SAopp_graph := \pi_{SAset F^2} (MkFormulan (nvar_opp_formula)).
+
+Lemma SAopp_graphP (u v : 'rV[F]_1) :
+  (row_mx u v \in SAopp_graph) = (v 0 0 == - u 0 0)%R.
+Proof.
+apply/(sameP (rcf_satP _ _))/(equivP _ (iff_sym (holds_repr_pi _ _))) => /=.
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 1).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+rewrite !(@cat_ffunE _ 0 1 _ 1) /=.
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+rewrite (nth_map ord0) ?size_enum_ord// (nth_ord_enum _ 0).
+exact/eqP.
+Qed.
+
+Fact SAfun_SAopp :
+  (SAopp_graph \in @SAfunc _ 1 1) && (SAopp_graph \in @SAtot _ 1 1).
+Proof.
+apply/andP; split.
+  apply/SAfuncE => x y1 y2; rewrite !SAopp_graphP => /eqP y1E /eqP y2E.
+  by apply/rowP => i; rewrite ord1 y2E.
+apply/SAtotE => x; exists (\row_i (- x 0 0))%R.
+by rewrite SAopp_graphP mxE.
+Qed.
+
+Definition SAopp := MkSAfun SAfun_SAopp.
+
+Definition SAfun_sub (n : nat) (f g : {SAfun F^n -> F^1}) :=
+  SAcomp (SAjoin f (SAcomp g SAopp)) SAadd.
+
+Definition SAfun_lt (n : nat) (f g : {SAfun F^n -> F^1}) :=
+  SAsub (SAgraph (SAfun_sub f g)) (SAset_prod (SAset_top F n) (SAset_pos F)).
 
 End SASetTheory.

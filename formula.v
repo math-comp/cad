@@ -160,6 +160,13 @@ Qed.
 Lemma m0fset (m : nat) : mnfset m 0 = fset0.
 Proof. by apply/fsetP=> i; rewrite seq_fsetE in_fset0. Qed.
 
+Lemma mnfset0_sub (a b : nat) :
+  (mnfset 0 a `<=` mnfset 0 b) = (a <= b)%N.
+Proof.
+case: a => [|a]; first by rewrite m0fset fsub0set.
+by rewrite mnfset_sub.
+Qed.
+
 Lemma mnfset_eq (a b c d : nat) :
   b != O -> (mnfset a b == mnfset c d) = ((a == c) && (b == d)).
 Proof.
