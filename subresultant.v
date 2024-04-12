@@ -106,7 +106,7 @@ case: odd; rewrite /= (mulN1r, mul1r) ?sgrN.
 by rewrite variationrr mulr0n.
 Qed.
 
-(* Notation 4.31. from BPR *)
+(* Notation 4.30. from BPR *)
 (* Warning! must test if n is odd *)
 Fixpoint pmv_aux (R : numDomainType) (a : R) (n : nat) (s : seq R) :=
   if s is b :: s then
@@ -121,7 +121,7 @@ Notation nonzero := (forall x, x != 0).
 Fixpoint permanences (R : numDomainType) (s : seq R) : nat :=
   (if s is a :: q then (a * (head 0 q) > 0)%R + permanences q else 0)%N.
 
-(* First remark about Notation 4.31 in BPR *)
+(* First remark about Notation 4.30 in BPR *)
 Lemma nonzero_pmvE (R : rcfType) (s : seq R) :
   {in s, nonzero} -> pmv s = (permanences s)%:Z - (changes s)%:Z.
 Proof.
@@ -144,7 +144,7 @@ have [->|p_neq0]:= eqVneq p 0; first by rewrite lead_coef0 mul0r mulr0.
 by rewrite polySpred //= negbK addbN addbb mulN1r oppr_lt0.
 Qed.
 
-(* Second remark about Notation 4.31 in BPR *)
+(* Second remark about Notation 4.30 in BPR *)
 Lemma pmv_changes_poly (R : rcfType) (sp : seq {poly R}) :
   {in sp, nonzero} -> (forall i, (size sp`_i.+1) = (size sp`_i).-1) ->
   pmv (map lead_coef sp) = changes_poly sp.
@@ -536,5 +536,16 @@ have -> : ((size p).-1 - (size q).-1 = np - nq)%N.
 by rewrite addbC odd_bin2B ?leq_sub // addKb addnC.
 Qed.
 
+(* Definition 2.65 from BPR *)
+
+
+Definition jump_at (R : rcfType) (p q : {poly R}) (x : R) :=
+  if even (multiplicity x q - multiplicity x p) then 0 else
+
+Definition cauchy_index (R : rcfType) (p q : {poly R})
+
 (* Lemma 4.35 from BPR is cindexR_rec from qe_rcf_th, except it uses rmodp *)
 
+Theorem pmv_subresultant (R : idomainType) (p q : {poly R}) :
+  size q < size p ->
+  pmv [seq subresultant i p q | i : 'I_(size p)] = 

@@ -230,6 +230,13 @@ Proof. by rewrite size_set_nth size_tuple; apply/eqP/maxn_idPr. Qed.
 Canonical set_nth_tuple (T : Type) (d : T) (n : nat) (x : n.-tuple T) (i : 'I_n) (y : T) :=
     Tuple (set_nth_size d x i y).
 
+Lemma rowPE (R : eqType) (n : nat) (u v : 'rV[R]_n) :
+  (u == v) = [forall i, u 0 i == v 0 i].
+Proof.
+apply/eqP/forallP => [/rowP uv i| uv]; first by apply/eqP.
+by apply/rowP => i; apply/eqP.
+Qed.
+
 End SeqFset.
 
 Section EquivFormula.
@@ -476,6 +483,62 @@ HB.instance Definition formula_choiceMixin (T : choiceType) :=
 HB.instance Definition formulan_choiceType (T : choiceType) n :=
   [Choice of {formula_n T} by <:].
 
+Section TermSubst.
+Variable F : nmodType.
+
+Definition subst_term s :=
+ let fix sterm (t : GRing.term F) := match t with
+  | 'X_i => if (i < size s)%N then 'X_(nth O s i) else 0
+  | t1 + t2 => (sterm t1) + (sterm t2)
+  | - t => - (sterm t)
+  | t *+ i => (sterm t) *+ i
+  | t1 * t2 => (sterm t1) * (sterm t2)
+  | t ^-1 => (sterm t) ^-1
+  | t ^+ i => (sterm t) ^+ i
+  | _ => t
+end%T in sterm.
+
+Fact fv_tsubst_nil (t : GRing.term F) : term_fv (subst_term [::] t) = fset0.
+Proof. by elim: t => //= t1 -> t2 ->; rewrite fsetU0. Qed.
+
+Fact fv_tsubst (k : unit) (s : seq nat) (t : GRing.term F) :
+    term_fv (subst_term s t) `<=` seq_fset k s.
+Proof.
+elim: t => //.
+- move=> i /=.
+  have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
+  by rewrite fsub1set seq_fsetE; apply/(nthP _); exists i.
+- by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
+- by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
+Qed.
+
+Fact fv_tsubst_map (k : unit) (s : seq nat) (t : GRing.term F) :
+  term_fv (subst_term s t) `<=`
+  seq_fset k [seq nth O s i | i <- (iota O (size s)) & (i \in term_fv t)].
+Proof.
+elim: t => //.
+- move=> i /=.
+  have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
+  rewrite fsub1set seq_fsetE; apply: map_f.
+  by rewrite mem_filter in_fset1 eqxx mem_iota leq0n add0n.
+- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
+  + rewrite (fsubset_trans h1) //.
+    apply/seq_fset_sub; apply: sub_map_filter => x.
+    by rewrite in_fsetU => ->.
+  + rewrite (fsubset_trans h2) //.
+    apply/seq_fset_sub; apply: sub_map_filter => x.
+    by rewrite in_fsetU => ->; rewrite orbT.
+- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
+  + rewrite (fsubset_trans h1) //.
+    apply/seq_fset_sub; apply: sub_map_filter => x.
+    by rewrite in_fsetU => ->.
+  + rewrite (fsubset_trans h2) //.
+    apply/seq_fset_sub; apply: sub_map_filter => x.
+    by rewrite in_fsetU => ->; rewrite orbT.
+Qed.
+
+End TermSubst.
+
 Section FormulaSubst.
 
 Variable T : Type.
@@ -632,6 +695,39 @@ Lemma holds_cat_nseq (i : nat) (e : seq R) (f : formula R) :
 Proof.
 rewrite nseq_cat; move: e f; elim: i => // i ih e f.
 by apply: (iff_trans _ (ih e f)); apply: holds_rcons_zero.
+Qed.
+
+Lemma holdsAnd (I : eqType) (r : seq I) (P : pred I) (e : seq R) (f : I -> formula R) :
+  holds e (\big[And/True%oT]_(i <- r | P i) f i)
+  <-> forall i, i \in r -> P i -> holds e (f i).
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil.
+rewrite big_cons; case/boolP: (P i) => [|/negP] Pi; last first.
+  apply (iff_trans IHr); split=> hr j.
+    by rewrite in_cons => /orP; case=> [/eqP -> //|]; apply: hr.
+  by move=> jr; apply: hr; rewrite in_cons jr orbT.
+split=> /= [[hi /IHr hr j]|hr].
+  by rewrite in_cons => /orP; case=> [/eqP -> //|]; apply: hr.
+split; first by apply: hr => //; rewrite in_cons eq_refl.
+by apply/IHr => j jr; apply: hr; rewrite in_cons jr orbT.
+Qed.
+
+Lemma holdsOr (I : eqType) (r : seq I) (P : pred I) (e : seq R) (f : I -> formula R) :
+  holds e (\big[Or/False%oT]_(i <- r | P i) f i)
+  <-> exists i, i \in r /\ P i /\ holds e (f i).
+Proof.
+elim: r => [|i r IHr].
+  by rewrite big_nil; split=> // [[?]][].
+rewrite big_cons; case/boolP: (P i) => [|/negP] Pi; last first.
+  apply (iff_trans IHr); split=> -[j][+][hj].
+    by move=> jr; exists j; rewrite in_cons jr orbT; split=> //; split.
+  rewrite in_cons => /orP; case=> [/eqP ji|jr]; first by move: Pi; rewrite -ji.
+  by exists j; split=> //; split.
+split=> /= [[hi|/IHr [j][jr hj]]|[j][+][Pj]hj].
+- by exists i; rewrite in_cons eqxx; split=> //; split.
+- by exists j; rewrite in_cons jr orbT; split.
+rewrite in_cons => /orP[/eqP <-|jr]; first by left.
+by right; apply/IHr; exists j; split=> //; split.
 Qed.
 
 Lemma holds_Nfv_ex (e : seq R) (i : nat) (f : formula R) :
@@ -1137,57 +1233,6 @@ End Closure.
 Section QuantifierElimination.
 Variable (F : rcfType).
 
-Definition subst_term s :=
- let fix sterm (t : GRing.term F) := match t with
-  | 'X_i => if (i < size s)%N then 'X_(nth O s i) else 0
-  | t1 + t2 => (sterm t1) + (sterm t2)
-  | - t => - (sterm t)
-  | t *+ i => (sterm t) *+ i
-  | t1 * t2 => (sterm t1) * (sterm t2)
-  | t ^-1 => (sterm t) ^-1
-  | t ^+ i => (sterm t) ^+ i
-  | _ => t
-end%T in sterm.
-
-Fact fv_tsubst_nil (t : GRing.term F) : term_fv (subst_term [::] t) = fset0.
-Proof. by elim: t => //= t1 -> t2 ->; rewrite fsetU0. Qed.
-
-Fact fv_tsubst (k : unit) (s : seq nat) (t : GRing.term F) :
-    term_fv (subst_term s t) `<=` seq_fset k s.
-Proof.
-elim: t => //.
-- move=> i /=.
-  have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
-  by rewrite fsub1set seq_fsetE; apply/(nthP _); exists i.
-- by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
-- by move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
-Qed.
-
-Fact fv_tsubst_map (k : unit) (s : seq nat) (t : GRing.term F) :
-  term_fv (subst_term s t) `<=`
-  seq_fset k [seq nth O s i | i <- (iota O (size s)) & (i \in term_fv t)].
-Proof.
-elim: t => //.
-- move=> i /=.
-  have [lt_is|leq_si] := ltnP i (size s); rewrite ?fsub0set //.
-  rewrite fsub1set seq_fsetE; apply: map_f.
-  by rewrite mem_filter in_fset1 eqxx mem_iota leq0n add0n.
-- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
-  + rewrite (fsubset_trans h1) //.
-    apply/seq_fset_sub; apply: sub_map_filter => x.
-    by rewrite in_fsetU => ->.
-  + rewrite (fsubset_trans h2) //.
-    apply/seq_fset_sub; apply: sub_map_filter => x.
-    by rewrite in_fsetU => ->; rewrite orbT.
-- move=> t1 h1 t2 h2 /=; rewrite fsubUset; apply/andP; split.
-  + rewrite (fsubset_trans h1) //.
-    apply/seq_fset_sub; apply: sub_map_filter => x.
-    by rewrite in_fsetU => ->.
-  + rewrite (fsubset_trans h2) //.
-    apply/seq_fset_sub; apply: sub_map_filter => x.
-    by rewrite in_fsetU => ->; rewrite orbT.
-Qed.
-
 (* quantifier elim + evaluation of invariant variables to 0 *)
 Definition qf_elim (f : formula F) : formula F :=
   let g := (quantifier_elim (@wproj _) (to_rform f)) in
@@ -1387,6 +1432,18 @@ Fact fv_subst_nil f : formula_fv (subst_formula [::] f) = fset0.
 Proof.
 by apply/eqP; rewrite -fsubset0 -(seq_fset_nil _ tt) fv_subst_formula.
 Qed.
+
+Definition cut(n : nat) (f : formula F) :=
+  subst_formula (iota 0 n) f.
+
+Fact nvar_cut n f : nvar n (cut n f).
+Proof.
+apply/(fsubset_trans (fv_subst_formula_map mnfset_key _ _))/seq_fset_sub => x.
+move=> /mapP[i]; rewrite mem_filter !mem_iota /= !add0n.
+by rewrite size_iota => /andP[_] ilt ->; rewrite nth_iota.
+Qed.
+
+Canonical Structure cut_formulan n f := MkFormulan (nvar_cut n f).
 
 End QuantifierElimination.
 
