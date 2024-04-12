@@ -138,16 +138,6 @@ Lemma rev_ncons (n : nat) (x : T) (s : seq T) :
   rev (ncons n x s) = rev s ++ nseq n x.
 Proof. by rewrite -cat_nseq rev_cat rev_nseq. Qed.
 
-(* Lemma nth_nrcons (x0 : T) (n : nat) (s : seq T) (x : T) (i : nat) : *)
-(*  nth x0 (nrcons n x s) i = if (i < (size s) then nth x0 s i) else *)
-(*  if ( < i) *)
-
-(* nth_rcons *)
-(*    forall (T : Type) (x0 : T) (s : seq T) (x : T) (n : nat), *)
-(*    nth x0 (rcons s x) n = *)
-(*    (if (n < size s)%N then nth x0 s n else if n == size s then x *)
-(*    else x0) *)
-
 Lemma rcons_set_nth (x y : T) (s : seq T) : (set_nth y s (size s) x) = rcons s x.
 Proof. by elim: s => //= a s <-. Qed.
 
@@ -929,56 +919,6 @@ Fact modp_mul2 (p q m : {poly K}): ((p %% m) * q) %% m = (p * q) %% m.
 Proof. by rewrite mulrC modp_mul mulrC. Qed.
 
 End AuxiliaryResults.
-
-(* Module InjMorphism.
-
-Section ClassDef.
-
-Variables (R S : ringType).
-
-Record class_of (f : R -> S) : Type :=
-  Class {base : rmorphism f; mixin : injective f}.
-Local Coercion base : class_of >-> rmorphism.
-
-Structure map (phRS : phant (R -> S)) := Pack {apply; _ : class_of apply}.
-Local Coercion apply : map >-> Funclass.
-
-Variables (phRS : phant (R -> S)) (f g : R -> S) (cF : map phRS).
-
-Definition class := let: Pack _ c as cF' := cF return class_of cF' in c.
-
-Definition clone fM of phant_id g (apply cF) & phant_id fM class :=
-  @Pack phRS f fM.
-
-Definition pack (fM : injective f) :=
-  fun (bF : GRing.RMorphism.map phRS) fA & phant_id (GRing.RMorphism.class bF) fA =>
-  Pack phRS (Class fA fM).
-
-Canonical additive := GRing.Additive.Pack phRS class.
-Canonical rmorphism := GRing.RMorphism.Pack phRS class.
-
-End ClassDef.
-
-Module Exports.
-Notation injmorphism f := (class_of f).
-Coercion base : injmorphism >-> GRing.RMorphism.class_of.
-Coercion mixin : injmorphism >-> injective.
-Coercion apply : map >-> Funclass.
-Notation InjMorphism fM := (pack fM id).
-Notation "{ 'injmorphism' fRS }" := (map (Phant fRS))
-  (at level 0, format "{ 'injmorphism'  fRS }") : ring_scope.
-Notation "[ 'injmorphism' 'of' f 'as' g ]" := (@clone _ _ _ f g _ _ idfun id)
-  (at level 0, format "[ 'injmorphism'  'of'  f  'as'  g ]") : form_scope.
-Notation "[ 'injmorphism' 'of' f ]" := (@clone _ _ _ f f _ _ id id)
-  (at level 0, format "[ 'injmorphism'  'of'  f ]") : form_scope.
-Coercion additive : map >-> GRing.Additive.map.
-Canonical additive.
-Coercion rmorphism : map >-> GRing.RMorphism.map.
-Canonical rmorphism.
-End Exports.
-
-End InjMorphism.
-   Include InjMorphism.Exports. *)
 
 Section InjectiveTheory.
 
