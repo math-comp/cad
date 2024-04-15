@@ -31,9 +31,9 @@ From HB Require Import structures.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice fintype div.
 From mathcomp Require Import tuple finfun generic_quotient bigop finset perm.
-From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial finalg.
+From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial interval finalg.
 From mathcomp Require Import zmodp mxpoly mxtens qe_rcf ordered_qelim realalg.
-From mathcomp Require Import matrix finmap order finset.
+From mathcomp Require Import matrix finmap order finset classical_sets topology.
 
 From SemiAlgebraic Require Import auxresults formula.
 
@@ -51,6 +51,7 @@ Local Open Scope fset_scope.
 Local Open Scope fmap_scope.
 Local Open Scope quotient_scope.
 Local Open Scope type_scope.
+Local Open Scope classical_set_scope.
 
 Declare Scope sa_scope.
 Delimit Scope sa_scope with SA.
@@ -212,6 +213,9 @@ Definition interp := fun (f : {formula_n F}) =>
 Definition pred_of_SAset (s : {SAset F^n}) :
    pred ('rV[F]_n) := interp (repr s).
 Canonical SAsetPredType := PredType pred_of_SAset.
+
+Definition set_of_SAset (s : {SAset F^n}) := [set x | x \in s].
+Coercion set_of_SAset : SAtype_of >-> set.
 
 End Interpretation.
 
@@ -1461,18 +1465,25 @@ move=> x; apply/eqP; rewrite eq_sym -SAcomp_graphP.
 by move: (inSAgraph (SAcomp f g) x).
 Qed.
 
-Definition SAfun0_graph n m : {SAset F^(n + m)%N} :=
-  SAset_cast (n + m) (SAsetT F n).
+Definition SAfun_const_graph n m (x : 'rV[F]_m) : {SAset F^(n + m)%N} :=
+  [set | \big[And/True]_(i : 'I_m) ('X_(@unsplit n m (inr i)) == GRing.Const (x ord0 i))].
 
-Lemma SAfun_SAfun0 n m :
-  (SAfun0_graph n m \in SAfunc) && (SAfun0_graph n m \in SAtot).
+Lemma SAfun_SAfun_const n m (x : 'rV[F]_m) :
+  (SAfun_const_graph n x \in SAfunc) && (SAfun_const_graph n x \in SAtot).
 Proof.
 apply/andP; split.
-  by apply/inSAfunc => x y1 y2; rewrite /SAfun0_graph !inSAset_castnD !row_mxKl !row_mxKr => /andP[_] /eqP + /andP[_] /eqP ->.
-by apply/inSAtot => x; exists 0%R; rewrite /SAfun0_graph inSAset_castnD inSAsetT row_mxKr eqxx.
+  apply/inSAfunc => x0 y1 y2 /SAin_setP /holdsAnd /= h1 /SAin_setP /holdsAnd /= h2.
+  apply/rowP => i.
+  move/(_ i): h1; rewrite mem_index_enum => /(_ Logic.eq_refl Logic.eq_refl).
+  rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph => ->.
+  move/(_ i): h2; rewrite mem_index_enum => /(_ Logic.eq_refl Logic.eq_refl).
+  by rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph.
+apply/inSAtot => y; exists x.
+apply/SAin_setP/holdsAnd => i _ _ /=.
+by rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph.
 Qed.
 
-Definition SAfun0 n m := MkSAfun (SAfun_SAfun0 n m).
+Definition SAfun_const n m (x : 'rV[F]_m) := MkSAfun (SAfun_SAfun_const n x).
 
 Definition join_formula (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) : formula F :=
   (repr (val f)) /\
@@ -1625,17 +1636,15 @@ Definition SAfun_lt (n : nat) (f g : {SAfun F^n -> F^1}) :=
   SAgraph (SAfun_sub f g) :<=: (SAsetT F n) :*: (SAset_pos F).
 
 Definition partition_of_graphs (n m : nat) (xi : m.-tuple {SAfun F^n -> F^1}) : {fset {SAset F^(n + 1)%N}} :=
-  (\big[@SAsetI F (n + 1)/SAset0 F (n + 1)]_i SAepigraph (tnth xi i))
+  ((\big[@SAsetI F (n + 1)/SAset0 F (n + 1)]_i SAepigraph (tnth xi i))
   |` ((\big[@SAsetI F (n + 1)/SAset0 F (n + 1)]_i SAhypograph (tnth xi i))
     |` ([fset SAgraph f | f in tval xi]
-      `|` [fset SAepigraph (nth (SAfun0 n 1) xi (val i)) :&: SAhypograph (nth (SAfun0 n 1) xi (val i).+1) | i in 'I_m.-1])).
+      `|` [fset SAepigraph (nth (@SAfun_const n 1 0) xi (val i)) :&: SAhypograph (nth (@SAfun_const n 1 0) xi (val i).+1) | i in 'I_m.-1])))%fset.
 
 Definition partition_of_graphs_above n (s : {SAset F^n}) (m : nat) (xi : m.-tuple {SAfun F^n -> F^1}) : {fset {SAset F^(n + 1)%N}} :=
   [fset x :&: (s :*: SAsetT F 1) | x in partition_of_graphs xi].
 
 Definition SAset_path_connected n (s : {SAset F^n}) :=
-  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, xi 0 = x /\ xi 1 = y}.
+  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within set_of_SAset (SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)), continuous (xi : 'rV_1 -> 'rV_n)} /\ xi 0 = x /\ xi 1 = y}.
 
 End SAfunOps.
-
-Search root.

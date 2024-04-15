@@ -11,27 +11,15 @@ Local Open Scope sa_scope.
 
 Import GRing.
 
-Section SAfun0.
-Variables (R : rcfType) (n m : nat).
-
-
-End SAfun0.
-
-Section SApartition.
-Variables (R : rcfType) (n : nat).
-
-
-End SApartition.
-
 Section CylindricalDecomposition.
 Variables (R : rcfType).
 
 Definition isCylindricalDecomposition n (S : forall i : 'I_n.+1, {fset {SAset R^i}}) :=
-  (forall i : 'I_n.+1, SAset_partition R i (S i))
+  (forall i : 'I_n.+1, SAset_partition (S i))
   /\ forall (i : 'I_n) (s : S (lift ord_max i)),
     exists m, exists xi : m.-tuple {SAfun R^(lift ord_max i) -> R^1},
       sorted (@SAfun_lt _ _) xi
-      /\ [fset s' in S (lift ord0 i) | SAset_cast _ s' == val s] = [fset SAset_cast i.+1 x | x in partition_of_graphs_above R _ (val s) m xi].
+      /\ [fset s' in S (lift ord0 i) | SAset_cast _ s' == val s] = [fset SAset_cast i.+1 x | x in partition_of_graphs_above (val s) xi].
 
 Local Notation isCD := isCylindricalDecomposition.
 
@@ -87,15 +75,22 @@ Definition elim n (P : {fset {poly {mpoly R[n]}}}) :=
 (* Lemma poly_neigh_decomposition (p q : {poly R[i]}) :
   monic p -> monic q -> coprime p q ->
    exists rho : R, 0 < rho /\ forall P  *)
+From mathcomp Require Import polydiv polyrcf.
 
-From HB Require Import structures.
-From mathcomp Require Import fintype.
+Definition evalpmp {n} (x : 'rV[R]_n) (P : {poly {mpoly R[n]}}) := map_poly (fun p => p.@[tnth (ngraph x)]) P.
 
-Definition SAset_path_connected 
-
-Theorem roots2_on (P Q : {poly {mpoly R[n]}}) (s : {SAset R^n}) :
+Theorem roots2_on n (P : {fset {poly {mpoly R[n]}}}) (rP : P -> nat) (s : {SAset R^n}) :
   SAset_path_connected s
-  -> {in s, forall x, size
+  -> {in P, forall p, {in s, forall x, size (evalpmp x p) > 0}}
+  -> {in P &, forall p q, {in s &, forall x y, size (gcdp (evalpmp x p) (evalpmp x q)) = size (gcdp (evalpmp y p) (evalpmp y q))}}
+  -> (forall p, {in s, forall x, size (rootsR (evalpmp x (val p))) = rP p})
+  -> { xi : seq {SAfun R^n -> R^1} | sorted (@SAfun_lt R n) xi /\ {in s, forall x, perm_eq [seq (xi : {SAfun R^n -> R^1}) x ord0 ord0 | xi <- xi] (rootsR (\prod_(p : P) (evalpmp x (val p))))}}.
+Proof.
+case: (set0Vmem s) => [-> {s}|[x xs]] spc psize gsize proots.
+  by exists [::]; split=> // x; rewrite inSAset0.
+have: {in s, forall y, size (rootsR (evalpmp y (\prod_(p : P) (val p)))) = size (rootsR (evalpmp x (\prod_(p : P) (val p))))}.
+  move=> y ys; move/(_ x y xs ys): spc => [g][<- <-] {x xs y ys}.
+  apply/eqP/negP => /negP.
 
 
 Theorem cylindrical_decomposition n (P : {fset {mpoly R[n]}}) :
