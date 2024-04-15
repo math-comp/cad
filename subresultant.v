@@ -3,9 +3,10 @@ Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq div fintype tuple.
 From mathcomp
 Require Import finfun bigop fingroup perm ssralg zmodp matrix mxalgebra.
 From mathcomp
-Require Import binomial poly polydiv mxpoly.
+Require Import binomial poly polydiv mxpoly ssrnum.
 From mathcomp
-Require ssrint.
+Require Import ssrint.
+From mathcomp Require Import polyrcf qe_rcf_th.
 
 Require Import extra_ssr.
 
@@ -38,11 +39,13 @@ Section PMV.
 (* part of it should be backported to polyrcf/qe_rcf_th *)
 (* and generalized to numDomainType *)
 
-From mathcomp Require Import polyrcf ssrnum ssrint qe_rcf_th.
 Import Num.Theory. (* This stays in the module PMV *)
 
 Lemma variationrr (R : rcfType) (x : R) : variation x x = 0.
-Proof. by rewrite /variation ler_gtF ?mulr0 ?sqr_ge0. Qed.
+Proof.
+rewrite /variation real_ltNge// ?sqr_ge0 ?mulr0//.
+by apply/rpredM; apply/num_real.
+Qed.
 
 Lemma variationE (R : rcfType) (y x : R) :
   variation x y != 0 -> variation x y = sgz y.
@@ -105,13 +108,13 @@ Qed.
 
 (* Notation 4.31. from BPR *)
 (* Warning! must test if n is odd *)
+Fixpoint pmv_aux (R : numDomainType) (a : R) (n : nat) (s : seq R) :=
+  if s is b :: s then
+    if b == 0 then pmv_aux a n.+1 s
+    else pmv_aux b 0%N s + (-1) ^+ 'C(n, 2) * sgz (a * b)
+  else 0.
 Definition pmv (R : numDomainType) (s : seq R) : int :=
-  let fix aux a n s :=
-      if s is b :: s then
-        if b == 0 then aux a n.+1 s
-        else aux b 0%N s + (-1) ^+ 'C(n, 2) * sgz (a * b)
-      else 0 in
-  if s is a :: s then aux a 0%N s else 0.
+  if s is a :: s then pmv_aux a 0%N s else 0.
 
 Notation nonzero := (forall x, x != 0).
 
@@ -122,7 +125,7 @@ Fixpoint permanences (R : numDomainType) (s : seq R) : nat :=
 Lemma nonzero_pmvE (R : rcfType) (s : seq R) :
   {in s, nonzero} -> pmv s = (permanences s)%:Z - (changes s)%:Z.
 Proof.
-case: s => // a s /=; set aux := (X in X a 0%N s = _).
+case: s => // a s /=.
 elim: s a => [|b s ihs] a s_neq0; first by rewrite /= mulr0 subrr.
 rewrite /= (negPf (s_neq0 _ _)); last by rewrite in_cons mem_head orbT.
 rewrite mul1r ihs; last by move=> x Hx; rewrite /= s_neq0 // in_cons Hx orbT.
@@ -230,7 +233,7 @@ Qed.
 
 (* Remark 4.23. from BPR *)
 Lemma SylvesterHabicht_mxP (R : ringType) (np nq k : nat)
-  (p q u v : {poly R}) : size u <= np -> size v <= nq ->
+  (p q u v : {poly R}) : (size u <= np)%N -> (size v <= nq)%N ->
   row_mx (poly_rV u) (poly_rV v) *m SylvesterHabicht_mx np nq k p q
                                     = poly_rV (u * p + v * q).
 Proof.
@@ -248,10 +251,10 @@ Qed.
 (* Lemma 4.24. from BPR, not so trivial because            *)
 (* row_mx u v != 0 is not equivalent to u != 0 and v != 0) *)
 Lemma subresultantP (R : idomainType) j (p q : {poly R}) :
-  p != 0 -> q != 0 -> j <= (size p).-1 -> j <= (size q).-1 ->
+  p != 0 -> q != 0 -> (j <= (size p).-1)%N -> (j <= (size q).-1)%N ->
   reflect (exists2 u : {poly R} * {poly R},
-                      (0%N < size u.1 <= (size q).-1 - j)
-                   && (0%N < size u.2 <= (size p).-1 - j)
+                      (0 < size u.1 <= (size q).-1 - j)%N
+                   && (0 < size u.2 <= (size p).-1 - j)%N
                     & size (u.1 * p + u.2 * q)%R <= j)%N
           (subresultant j p q == 0).
 Proof.
@@ -270,8 +273,8 @@ set u := (rVpoly _); set v := (rVpoly _) => ruv_neq0.
 have {ruv_neq0} uVv_neq0 : (u != 0) || (v != 0).
   rewrite -negb_and; apply: contra ruv_neq0 => /andP [/eqP-> /eqP->].
   by rewrite !linear0 row_mx0.
-have su : size u <= (size q).-1 - j by rewrite size_poly.
-have sv : size v <= (size p).-1 - j by rewrite size_poly.
+have su : (size u <= (size q).-1 - j)%N by rewrite size_poly.
+have sv : (size v <= (size p).-1 - j)%N by rewrite size_poly.
 move: u v => u v {r} in uVv_neq0 su sv *.
 rewrite mulmx_rsub /= SylvesterHabicht_mxP ?size_poly //.
 rewrite rsubmx_poly_rV /= => /eqP; rewrite poly_rV_eq0; last first.
@@ -279,7 +282,7 @@ rewrite rsubmx_poly_rV /= => /eqP; rewrite poly_rV_eq0; last first.
   rewrite !addnA subnKC // (leq_trans (size_add _ _)) // geq_max.
   rewrite !(leq_trans (size_mul_leq _ _)) // -subn1 leq_subLR add1n addnC.
     by rewrite -addSn leq_add // ?size_poly // leqSpred.
-  rewrite addnBA // [in X in _ <= X]addnC -addnBA //.
+  rewrite addnBA // [in X in (_ <= X)%N]addnC -addnBA //.
   by rewrite -addSn leq_add // ?size_poly // leqSpred.
 rewrite divp_eq0 (negPf Xj_neq0) size_polyXn ltnS /=.
 rewrite orb_idl; last by move/eqP->; rewrite size_poly0.
@@ -296,8 +299,8 @@ Qed.
 
 Fact gt_size_gcd  (R : idomainType) (p q u v : {poly R}) j :
   p != 0 -> q != 0 -> u != 0 ->
-  j < size (gcdp p q) -> j <= (size q).-1 -> size u <= (size q).-1 - j ->
-  size (u * p + v * q) <= j -> j < (size (gcdp p q)).-1.
+  (j < size (gcdp p q))%N -> (j <= (size q).-1)%N -> (size u <= (size q).-1 - j)%N ->
+  (size (u * p + v * q)%R <= j)%N -> (j < (size (gcdp p q)).-1)%N.
 Proof.
 move=> p0 q0 u0 gt_sg_j ge_sq_j ge_sqmj_u.
 set l := _ * _ + _ * _ => sl; have /eqP : l = 0.
@@ -306,7 +309,7 @@ set l := _ * _ + _ * _ => sl; have /eqP : l = 0.
 rewrite addr_eq0 => /eqP eq_up_Nvq {sl}.
 rewrite size_gcd // subSKn ltn_subRL addnC -ltn_subRL.
 have /dvdp_leq : lcmp p q %| u * p.
-  by rewrite dvdp_lcm dvdp_mull //= eq_up_Nvq dvdp_opp dvdp_mull.
+  by rewrite dvdp_lcm dvdp_mull //= eq_up_Nvq dvdpNr dvdp_mull.
 rewrite mulf_neq0 // => /(_ isT); rewrite -ltnS => /leq_trans -> //.
 rewrite !size_mul // prednK ?ltn_addr ?size_poly_gt0 //.
 by rewrite addnC -subn1 -!addnBA ?size_poly_gt0 ?subn1 // leq_add2l.
@@ -314,8 +317,8 @@ Qed.
 
 (* Proposition 4.25. from BPR *)
 Lemma geq_gcdp_subresultant (R : idomainType) j (p q : {poly R}) :
-  j <= (size p).-1 -> j <= (size q).-1 ->
-  (size (gcdp p q)).-1 >= j = [forall i : 'I_j, subresultant i p q == 0].
+  (j <= (size p).-1)%N -> (j <= (size q).-1)%N ->
+  ((size (gcdp p q)).-1 >= j)%N = [forall i : 'I_j, subresultant i p q == 0].
 Proof.
 have [->|p_neq0] := eqVneq p 0.
   rewrite size_poly0 leqn0 => /eqP -> _; rewrite leq0n.
@@ -335,11 +338,11 @@ move=> s_jp s_jq; apply/idP/idP => [sg|/forallP /= rpq].
     by rewrite -!subn1 -!subnDA add1n subn1 !leq_sub2l // (leq_trans _ sg).
   rewrite mulNr !scalerCA -!divpK ?(dvdp_gcdr, dvdp_gcdl) //.
   by rewrite mulrCA subrr size_poly0.
-have {rpq} rpq : forall i, i < j -> subresultant i p q = 0.
+have {rpq} rpq : forall i, (i < j)%N -> subresultant i p q = 0.
   by move=> i Hi; apply/eqP; rewrite -[i]/(val (Ordinal Hi)); apply: rpq.
 elim: j => // j ihj in s_jp s_jq rpq *.
 have [s_jp' s_jq'] := (ltnW s_jp, ltnW s_jq).
-have gt_sg_j : j < size (gcdp p q).
+have gt_sg_j : (j < size (gcdp p q))%N.
   rewrite polySpred ?gcdp_eq0 ?(negPf p_neq0) // ltnS ihj //.
   by move=> i Hi; apply: rpq; apply: ltnW.
 have /eqP /subresultantP [] // := rpq _ (leqnn _).
@@ -351,7 +354,7 @@ Qed.
 (* Proposition 4.26. from BPR *)
 Lemma gcdp_subresultant (R : idomainType) j (p q : {poly R}) :
   p != 0 -> q != 0 ->
-  j <= (size p).-1 -> j <= (size q).-1 ->
+  (j <= (size p).-1)%N -> (j <= (size q).-1)%N ->
   (size (gcdp p q)).-1 == j =
   [forall i : 'I_j, subresultant i p q == 0] && (subresultant j p q != 0).
 Proof.
@@ -404,7 +407,7 @@ Qed.
 Lemma SylvesterHabicht_reduce (R : idomainType)
   (m' k' n m k : nat) (p q : {poly R})
   (pP : (n + m' + (k - k') = n + m)%N) (qP : ((k' + (k - k') = k)%N)) :
-  n <= k' -> m' <= k' ->
+  (n <= k')%N -> (m' <= k')%N ->
   ((size p).-1 <= k' - n)%N -> ((size q).-1 <= k' - m')%N ->
   SylvesterHabicht_mx n m k p q =
   castmx (pP, qP) (col_mx (row_mx (SylvesterHabicht_mx n m' k' p q) 0)
@@ -484,11 +487,11 @@ Qed.
 Lemma subresultant_mod (R : idomainType) j (p q : {poly R})
       (c := (-1) ^+ 'C((size p).-1 - (size q).-1, 2) *
              lead_coef q ^+ ((size p).-1 - (size (p %% q)).-1)) :
-  p != 0 -> q != 0 -> (size q).-1 <= (size p).-1 -> j <= (size (p %% q)).-1 ->
+  p != 0 -> q != 0 -> ((size q).-1 <= (size p).-1)%N -> (j <= (size (p %% q)%R).-1)%N ->
   subresultant j (lead_coef q ^+ (scalp p q) *: p) q =
   c * subresultant j q (- (p %% q)).
 Proof.
-move=> p_neq0 q_neq0 le_pq le_jr; have le_jq : j <= (size q).-1.
+move=> p_neq0 q_neq0 le_pq le_jr; have le_jq : (j <= (size q).-1)%N.
   by rewrite (leq_trans le_jr) -?subn1 ?leq_sub2r // ltnW ?ltn_modp.
 rewrite -[- _ as X in subresultant _ _ X]scaleN1r.
 rewrite subresultant_scalel ?oppr_eq0 ?oner_eq0 //.
@@ -524,10 +527,10 @@ rewrite mulrA mulrAC; congr (_ * _); rewrite det_rsub_band; last first.
   by rewrite /np addnA subnKC // -!subn1 -addnBA ?size_poly_gt0 // addnC.
 rewrite subnDl subnDl /nq /nr -subnDA subnKC // in z_def.
 rewrite lead_coef_monicM ?monicXn // mulrAC z_def; congr (_ * _).
-have le_rq : (size (p %% q)).-1 <= (size q).-1.
+have le_rq : ((size (p %% q)%R).-1 <= (size q).-1)%N.
   by rewrite -!subn1 leq_sub2r // ltnW // ltn_modp.
 rewrite -exprD -[LHS]signr_odd -[RHS]signr_odd; congr (_ ^+ _ _).
-rewrite !odd_add -/np -/nq -/nr !addbA addbK; congr (_ (+) _).
+rewrite !oddD -/np -/nq -/nr !addbA addbK; congr (_ (+) _).
 have -> : ((size p).-1 - (size q).-1 = np - nq)%N.
   by rewrite subnBA // subnK // (leq_trans le_jq).
 by rewrite addbC odd_bin2B ?leq_sub // addKb addnC.
