@@ -1,12 +1,12 @@
 From mathcomp
-Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq div fintype tuple.
+Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq order div fintype tuple.
 From mathcomp
-Require Import finfun bigop fingroup perm ssralg zmodp matrix mxalgebra.
+Require Import finfun bigop fingroup perm ssralg zmodp matrix mxalgebra interval.
 From mathcomp
 Require Import binomial poly polydiv mxpoly ssrnum.
 From mathcomp
 Require Import ssrint.
-From mathcomp Require Import polyrcf qe_rcf_th.
+From mathcomp Require Import polyorder polyrcf qe_rcf_th.
 
 Require Import extra_ssr.
 
@@ -106,12 +106,11 @@ case: odd; rewrite /= (mulN1r, mul1r) ?sgrN.
 by rewrite variationrr mulr0n.
 Qed.
 
-(* Notation 4.31. from BPR *)
-(* Warning! must test if n is odd *)
+(* Notation 4.30. from BPR *)
 Fixpoint pmv_aux (R : numDomainType) (a : R) (n : nat) (s : seq R) :=
   if s is b :: s then
     if b == 0 then pmv_aux a n.+1 s
-    else pmv_aux b 0%N s + (-1) ^+ 'C(n, 2) * sgz (a * b)
+    else pmv_aux b 0%N s + (-1) ^+ 'C(n, 2) * sgz (a * b) *+ ~~ (odd n)
   else 0.
 Definition pmv (R : numDomainType) (s : seq R) : int :=
   if s is a :: s then pmv_aux a 0%N s else 0.
@@ -121,7 +120,7 @@ Notation nonzero := (forall x, x != 0).
 Fixpoint permanences (R : numDomainType) (s : seq R) : nat :=
   (if s is a :: q then (a * (head 0 q) > 0)%R + permanences q else 0)%N.
 
-(* First remark about Notation 4.31 in BPR *)
+(* First remark about Notation 4.30 in BPR *)
 Lemma nonzero_pmvE (R : rcfType) (s : seq R) :
   {in s, nonzero} -> pmv s = (permanences s)%:Z - (changes s)%:Z.
 Proof.
@@ -144,7 +143,7 @@ have [->|p_neq0]:= eqVneq p 0; first by rewrite lead_coef0 mul0r mulr0.
 by rewrite polySpred //= negbK addbN addbb mulN1r oppr_lt0.
 Qed.
 
-(* Second remark about Notation 4.31 in BPR *)
+(* Second remark about Notation 4.30 in BPR *)
 Lemma pmv_changes_poly (R : rcfType) (sp : seq {poly R}) :
   {in sp, nonzero} -> (forall i, (size sp`_i.+1) = (size sp`_i).-1) ->
   pmv (map lead_coef sp) = changes_poly sp.
@@ -152,6 +151,59 @@ Proof.
 move=> sp_neq0 size_sp; rewrite nonzero_pmvE; last first.
   by move=> c /mapP [p /sp_neq0 p_neq0 ->]; rewrite lead_coef_eq0.
 by rewrite /changes_poly changes_minftyE.
+Qed.
+
+Lemma pmv_cat0s (R : numDomainType) (a b : R) (s0 s : seq R) :
+  b != 0 -> {in s0, forall x, x == 0} ->
+  pmv (a :: s0 ++ b :: s) = (-1) ^+ 'C(size s0, 2) * sgz (a * b) *+ ~~ (odd (size s0)) + pmv (b :: s).
+Proof.
+rewrite /= -[size s0]addn0; move: {1 2 4}0%N.
+elim: s0 => [|a0 s0 IHs0]/= n /negPf b0 as0; first by rewrite add0n b0 addrC.
+rewrite as0 ?mem_head// addSn IHs0// ?addnS//; first exact/negPf.
+by move=> i is0; apply/as0; rewrite in_cons is0 orbT.
+Qed.
+
+Lemma pmv_cat00 (R : numDomainType) (a : R) (s0 : seq R) :
+  {in s0, forall x, x == 0} -> pmv (a :: s0) = 0.
+Proof.
+rewrite /=; move: 0%N.
+elim: s0 => //= b s0 IHs0 n bs0.
+rewrite bs0 ?mem_head// IHs0// => i is0.
+by apply/bs0; rewrite in_cons is0 orbT.
+Qed.
+
+Lemma pmv_0s (R : numDomainType) (s : seq R) :
+  pmv (0 :: s) = pmv s.
+Proof.
+rewrite /=; move: 0%N.
+elim: s => // x s IHs n /=.
+have [->|_] := eqVneq x 0; first by rewrite !IHs.
+by rewrite mul0r sgz0 mulr0 mul0rn addr0.
+Qed.
+
+Lemma pmv_s0 (R : numDomainType) (s : seq R) :
+  pmv (rcons s 0) = pmv s.
+Proof.
+case: s => // x s /=.
+elim: s x 0%N => [|y s IHs] /= x n; first by rewrite eqxx.
+case: (y == 0); first exact: IHs.
+by congr (_ + _); apply: IHs.
+Qed.
+
+Lemma pmv_sgz (R : realDomainType) (s : seq R) :
+  pmv [seq sgz x | x <- s] = pmv s.
+Proof.
+case: s => // a s /=.
+elim: s a 0%N => // a s IHs b k/=.
+by rewrite sgz_eq0 !IHs !sgzM !sgz_id.
+Qed.
+
+Lemma pmv_opp (R : numDomainType) (s : seq R) :
+  pmv [seq - x | x <- s] = pmv s.
+Proof.
+case: s => // a s /=.
+elim: s a 0%N => // a s IHs b k/=.
+by rewrite oppr_eq0 !IHs mulrNN.
 Qed.
 
 End PMV.
@@ -536,5 +588,66 @@ have -> : ((size p).-1 - (size q).-1 = np - nq)%N.
 by rewrite addbC odd_bin2B ?leq_sub // addKb addnC.
 Qed.
 
+Lemma band0 (R : ringType) n m :
+  band 0  = 0 :> 'M[R]_(n, m).
+Proof. by apply/matrixP => i j; rewrite !mxE/= mulr0 polyseq0 nth_nil. Qed.
+
+
+Lemma subresultantp0 (R : idomainType) j (p : {poly R}) :
+  (j < (size p).-1)%N -> subresultant j p 0 = 0.
+Proof.
+rewrite ltnNge -subn_eq0 => /negPf sp; apply/eqP; rewrite subresultant_eq0 size_poly0/= sub0n.
+rewrite /SylvesterHabicht_mx band0.
+case: ((size p).-1 - j)%N sp => //= n _.
+apply/det0P; exists (row_mx 0 (\row_i (i == ord_max)%:R)).
+  apply/eqP => /rowP /(_ (unsplit (inr ord_max))).
+  rewrite mxE unsplitK !mxE eqxx => /eqP; apply/negP/oner_neq0.
+apply/rowP => i; rewrite !mxE big1_idem//= ?addr0// => k _.
+by rewrite !mxE; case: (split k) => a; rewrite !mxE (mul0r, mulr0).
+Qed.
+
+Lemma subresultant0p (R : idomainType) j (q : {poly R}) :
+  (j < (size q).-1)%N -> subresultant j 0 q = 0.
+Proof.
+move=> jq; apply/eqP; rewrite subresultantC mulf_eq0; apply/orP; right.
+exact/eqP/subresultantp0.
+Qed.
+
+Import Num.Theory Order.POrderTheory Pdiv.Field.
+
+Lemma map_ord_iota (T : Type) (f : nat -> T) (n : nat) :
+  [seq f i | i : 'I_n] = [seq f i | i <- iota 0 n].
+Proof.
+by rewrite [LHS](eq_map (g:=f \o (val : 'I_n -> nat)))// map_comp val_enum_ord.
+Qed.
+
 (* Lemma 4.35 from BPR is cindexR_rec from qe_rcf_th, except it uses rmodp *)
 
+Lemma iotaE0 (i n : nat) : iota i n = [seq i+j | j <- iota 0 n].
+Proof. by elim: n => // n IHn; rewrite -addn1 !iotaD/= map_cat IHn/= add0n. Qed.
+
+Theorem pmv_subresultant (R : rcfType) (p q : {poly R}) :
+  (size q < size p)%N ->
+  pmv ([seq (lead_coef p) *+ (i == (size p).-1) + (lead_coef q) *+ (i == (size p).-2) | i <- rev (iota (size q) (size p - size q))] ++ [seq subresultant i p q | i <- rev (iota 0 (size q))]) = cindexR q p.
+Proof.
+move sq: (size q) => n; move: p q sq.
+apply/(@Wf_nat.lt_wf_ind n (fun n => forall p q : {poly R}, size q = n -> (n < size p)%N -> _)) => {}n IHn p q sq sp.
+case/boolP: (q == 0) sq sp => [/eqP ->|q0 sq sp].
+  rewrite size_poly0 lead_coef0 => <- {n IHn} sp /=; rewrite cindexR0p cats0 subn0.
+  case: (size p) => // n.
+  rewrite -pred_Sn -addn1 iotaD/= cats1 rev_rcons map_cons pmv_cat00// => x /mapP[i].
+  rewrite mem_rev mem_iota/= add0n => /ltn_eqF -> -> /=.
+  by rewrite mulr0n mul0rn addr0.
+
+  Print sgp_minfty. crossR.
+Check cindexR_rec.
+move: (q0); rewrite -(ltn_modp p) sq => sr.
+rewrite -(subnKC (ltnW (ltn_trans sr sp))) iotaD add0n rev_cat map_cat.
+Search subresultant.
+rewrite cindexR_rec.
+elim: (n - size (p %% q)).
+  Search subresultant (_ %% _).
+  
+
+have q0: q != 0 by apply/negP => /eqP q0; move: sq; rewrite q0 size_poly0.
+Check cindexR_rec.
