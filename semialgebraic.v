@@ -2630,6 +2630,64 @@ apply/eqP/SAsetP => x; apply/rcf_satP/SAin_setP => [xs|/rcf_satP/qf_elim_holdsP/
 exact/rcf_satP/qf_elim_holdsP.
 Qed.
 
+Fixpoint mpoly_rterm (R : unitRingType) (n : nat) (t : term R) : {mpoly R[n]} :=
+  match t with
+  | Var i =>
+    match ltnP i n with
+    | LtnNotGeq ilt => 'X_(Ordinal ilt)
+    | _ => 0
+    end
+  | Const c => mpolyC n c
+  | NatConst i => mpolyC n i%:R
+  | Add t u => (mpoly_rterm n t) + (mpoly_rterm n u)
+  | Opp t => - (mpoly_rterm n t)
+  | NatMul t i => (mpoly_rterm n t) *+ i
+  | Mul t u => (mpoly_rterm n t) * (mpoly_rterm n u)
+  | Exp t i => (mpoly_rterm n t) ^+ i
+  end.
+
+Lemma mevalXn (n k : nat) (R : comRingType) (x : 'I_n -> R) (p : {mpoly R[n]}) :
+  (p ^+ k).@[x] = p.@[x] ^+ k.
+Proof.
+elim: k => [|k IHk]; first by rewrite !expr0 meval1.
+by rewrite !exprS mevalM IHk.
+Qed.
+
+Lemma meval_mpoly_rterm (R : realDomainType) (n : nat) (x : 'I_n -> R) (t : term R) :
+  (mpoly_rterm n t).@[x] = eval [seq x i | i <- enum 'I_n] t.
+Proof.
+elim: t => /=.
+- move=> i; case: (ltnP i n) => [ilt|ige].
+    rewrite mevalXU (nth_map (Ordinal ilt)) ?size_enum_ord//.
+    by rewrite -[X in nth _ _ X]/(nat_of_ord (Ordinal ilt)) nth_ord_enum.
+  by rewrite meval0 nth_default// size_map size_enum_ord.
+- exact/mevalC.
+- move=> i; exact/mevalC.
+- by move=> t IHt u IHu; rewrite mevalD IHt IHu.
+- by move=> t IHt; rewrite mevalN IHt.
+- by move=> t IHt i; rewrite mevalMn IHt.
+- by move=> t IHt u IHu; rewrite mevalM IHt IHu.
+- by move=> t IHt i; rewrite mevalXn IHt.
+Qed.
+
+Lemma forall_ord1 (p : pred 'I_1) :
+  [forall i : 'I_1, p i] = p ord0.
+Proof.
+apply/forallP/idP => [/(_ ord0) //|p0].
+by case; case=> // ilt; move: p0; congr p; apply/val_inj.
+Qed.
+
+Lemma eval_rterm (R : unitRingType) (e : seq R) (t : GRing.term R) :
+  GRing.rterm t -> GRing.eval e (to_rterm t) = GRing.eval e t.
+Proof.
+elim: t => //=.
+- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
+- by move=> t /[apply] ->.
+- by move=> t /[swap] n /[apply] ->.
+- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
+- by move=> t /[swap] n /[apply] ->.
+Qed.
+
 Lemma SAset_nf (F : rcfType) (n : nat) (s : {SAset F^n}) :
   {P : seq ({mpoly F[n]} * seq {mpoly F[n]}) |
       s = \big[@SAsetU F n/SAset0 F n]_(p <- P)
@@ -2758,6 +2816,38 @@ Qed.
 Section SAorder.
 Variables (F : rcfType) (n : nat).
 Implicit Types (s : {SAset F^n}).
+
+Definition SAset_itv (I : interval F) :=
+  let 'Interval l u := I in
+  (match l with
+   | BSide false lb => [set | lb%:T <% 'X_0]
+   | BSide true lb => [set | lb%:T <=% 'X_0]
+   | BInfty false => SAset0 F 1
+   | BInfty true => SAsetT F 1
+   end) :&: (
+   match u with
+   | BSide false ub => [set | 'X_0 <=% ub%:T]
+   | BSide true ub => [set | 'X_0 <% ub%:T]
+   | BInfty false => SAsetT F 1
+   | BInfty true => SAset0 F 1
+   end).
+
+Lemma inSAset_itv (I : interval F) (x : 'rV[F]_1) :
+  (x \in SAset_itv I) = (x 0 0 \in I).
+Proof.
+rewrite in_itv; case: I => l u.
+rewrite inSAsetI; congr andb.
+  case: l => [+ t|]; case=> /=; last first.
+  - exact/inSAset0.
+  - exact/inSAsetT.
+  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+case: u => [+ t|]; case=> /=; last first.
+- exact/inSAsetT.
+- exact/inSAset0.
+- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+Qed.
 
 Definition SAsetUB (s : {SAset F^1}) : {SAset F^1} :=
   [set | 'forall 'X_1, (subst_formula [:: 1%N] s ==> ('X_1 <=% 'X_0))%oT].
