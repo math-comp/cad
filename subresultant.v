@@ -8,7 +8,7 @@ From mathcomp
 Require Import ssrint.
 From mathcomp Require Import polyorder polyrcf qe_rcf_th.
 
-Require Import extra_ssr.
+Require Import extra_ssr auxresults.
 
 (***************************************************************************)
 (* The statements and proofs in this file are largely inpired by BPR       *)
@@ -114,8 +114,83 @@ Fixpoint pmv_aux (R : numDomainType) (a : R) (n : nat) (s : seq R) :=
   else 0.
 Definition pmv (R : numDomainType) (s : seq R) : int :=
   if s is a :: s then pmv_aux a 0%N s else 0.
+Arguments pmv : simpl never.
 
 Notation nonzero := (forall x, x != 0).
+
+Lemma pmv_cat0s (R : numDomainType) (a b : R) (s0 s : seq R) :
+  b != 0 -> {in s0, forall x, x == 0} ->
+  pmv (a :: s0 ++ b :: s) =
+    pmv (b :: s) + (-1) ^+ 'C(size s0, 2) * sgz (a * b) *+ ~~ odd (size s0).
+Proof.
+move=> /negPf b0 s00; rewrite /pmv -[size s0]/(0 + size s0)%N.
+move: {1 3 5}0%N => n; elim: s0 n s00 => [|x s0 IHs0] n s00.
+  by rewrite /= b0 addn0.
+rewrite /= s00 ?mem_head// addnS -addSn IHs0// => y ys0.
+by apply/s00; rewrite in_cons ys0 orbT.
+Qed.
+
+Lemma pmv_cat00 (R : numDomainType) (a : R) (s0 : seq R) :
+  {in s0, forall x, x == 0} -> pmv (a :: s0) = 0.
+Proof.
+rewrite /pmv /=; move: 0%N.
+elim: s0 => //= b s0 IHs0 n bs0.
+rewrite bs0 ?mem_head// IHs0// => i is0.
+by apply/bs0; rewrite in_cons is0 orbT.
+Qed.
+
+Lemma pmv_0s (R : numDomainType) (s : seq R) :
+  pmv (0 :: s) = pmv s.
+Proof.
+rewrite /pmv/=; move: {1}0%N.
+elim: s => // x s IHs n /=.
+have [->|_] := eqVneq x 0; first by rewrite !IHs.
+by rewrite mul0r sgz0 mulr0 mul0rn addr0.
+Qed.
+
+Lemma pmv_s0 (R : numDomainType) (s : seq R) :
+  pmv (rcons s 0) = pmv s.
+Proof.
+rewrite /pmv; case: s => // x s /=.
+elim: s x 0%N => [|y s IHs] /= x n; first by rewrite eqxx.
+case: (y == 0); first exact: IHs.
+by congr (_ + _); apply: IHs.
+Qed.
+
+Lemma pmv_sgz (R : realDomainType) (s : seq R) :
+  pmv [seq sgz x | x <- s] = pmv s.
+Proof.
+rewrite /pmv; case: s => // a s /=.
+elim: s a 0%N => // a s IHs b k/=.
+by rewrite sgz_eq0 !IHs !sgzM !sgz_id.
+Qed.
+
+Lemma eq_pmv (R : realDomainType) (s t : seq R) :
+  all2 (fun x y => sgz x == sgz y) s t -> pmv s = pmv t.
+Proof.
+move=> st; rewrite -pmv_sgz -(pmv_sgz t); congr pmv; apply/eqP.
+rewrite eqseq_all; elim: s t st => [|x s IHs]; case=> //= y t /andP[xy] st.
+by apply/andP; split=> //; apply/IHs.
+Qed.
+
+Lemma pmv_opp (R : numDomainType) (s : seq R) :
+  pmv [seq - x | x <- s] = pmv s.
+Proof.
+rewrite /pmv; case: s => // a s /=.
+elim: s a 0%N => // a s IHs b k/=.
+by rewrite oppr_eq0 !IHs mulrNN.
+Qed.
+
+Lemma pmvZ (R : realDomainType) (a : R) (s : seq R) :
+  a != 0 -> pmv [seq a * x | x <- s] = pmv s.
+Proof.
+rewrite /pmv; case: s => // x s /= /negPf a0.
+elim: s x 0%N => // x s IHs y k/=.
+rewrite mulf_eq0 a0/= !IHs mulrACA sgzM -expr2 sgzX.
+suff ->: sgz a ^+ 2 = 1 by rewrite mul1r.
+rewrite /sgz a0/=; case: (a < 0); last exact/expr1n.
+by rewrite -signr_odd/= expr0.
+Qed.
 
 Fixpoint permanences (R : numDomainType) (s : seq R) : nat :=
   (if s is a :: q then (a * (head 0 q) > 0)%R + permanences q else 0)%N.
@@ -124,7 +199,7 @@ Fixpoint permanences (R : numDomainType) (s : seq R) : nat :=
 Lemma nonzero_pmvE (R : rcfType) (s : seq R) :
   {in s, nonzero} -> pmv s = (permanences s)%:Z - (changes s)%:Z.
 Proof.
-case: s => // a s /=.
+rewrite /pmv; case: s => // a s /=.
 elim: s a => [|b s ihs] a s_neq0; first by rewrite /= mulr0 subrr.
 rewrite /= (negPf (s_neq0 _ _)); last by rewrite in_cons mem_head orbT.
 rewrite mul1r ihs; last by move=> x Hx; rewrite /= s_neq0 // in_cons Hx orbT.
@@ -151,59 +226,6 @@ Proof.
 move=> sp_neq0 size_sp; rewrite nonzero_pmvE; last first.
   by move=> c /mapP [p /sp_neq0 p_neq0 ->]; rewrite lead_coef_eq0.
 by rewrite /changes_poly changes_minftyE.
-Qed.
-
-Lemma pmv_cat0s (R : numDomainType) (a b : R) (s0 s : seq R) :
-  b != 0 -> {in s0, forall x, x == 0} ->
-  pmv (a :: s0 ++ b :: s) = (-1) ^+ 'C(size s0, 2) * sgz (a * b) *+ ~~ (odd (size s0)) + pmv (b :: s).
-Proof.
-rewrite /= -[size s0]addn0; move: {1 2 4}0%N.
-elim: s0 => [|a0 s0 IHs0]/= n /negPf b0 as0; first by rewrite add0n b0 addrC.
-rewrite as0 ?mem_head// addSn IHs0// ?addnS//; first exact/negPf.
-by move=> i is0; apply/as0; rewrite in_cons is0 orbT.
-Qed.
-
-Lemma pmv_cat00 (R : numDomainType) (a : R) (s0 : seq R) :
-  {in s0, forall x, x == 0} -> pmv (a :: s0) = 0.
-Proof.
-rewrite /=; move: 0%N.
-elim: s0 => //= b s0 IHs0 n bs0.
-rewrite bs0 ?mem_head// IHs0// => i is0.
-by apply/bs0; rewrite in_cons is0 orbT.
-Qed.
-
-Lemma pmv_0s (R : numDomainType) (s : seq R) :
-  pmv (0 :: s) = pmv s.
-Proof.
-rewrite /=; move: 0%N.
-elim: s => // x s IHs n /=.
-have [->|_] := eqVneq x 0; first by rewrite !IHs.
-by rewrite mul0r sgz0 mulr0 mul0rn addr0.
-Qed.
-
-Lemma pmv_s0 (R : numDomainType) (s : seq R) :
-  pmv (rcons s 0) = pmv s.
-Proof.
-case: s => // x s /=.
-elim: s x 0%N => [|y s IHs] /= x n; first by rewrite eqxx.
-case: (y == 0); first exact: IHs.
-by congr (_ + _); apply: IHs.
-Qed.
-
-Lemma pmv_sgz (R : realDomainType) (s : seq R) :
-  pmv [seq sgz x | x <- s] = pmv s.
-Proof.
-case: s => // a s /=.
-elim: s a 0%N => // a s IHs b k/=.
-by rewrite sgz_eq0 !IHs !sgzM !sgz_id.
-Qed.
-
-Lemma pmv_opp (R : numDomainType) (s : seq R) :
-  pmv [seq - x | x <- s] = pmv s.
-Proof.
-case: s => // a s /=.
-elim: s a 0%N => // a s IHs b k/=.
-by rewrite oppr_eq0 !IHs mulrNN.
 Qed.
 
 End PMV.
@@ -534,7 +556,7 @@ apply/matrixP => i j; rewrite !mxE /= !rVpoly_delta /= !add1n addnS.
 by rewrite !coefXnM ltnS subSS.
 Qed.
 
-(* Something like Proposition 4.37 from BPR *)
+(* Something like Proposition 4.36 from BPR *)
 (* Should we parametrize by a remainder of p rather than correcting p? *)
 Lemma subresultant_mod (R : idomainType) j (p q : {poly R})
       (c := (-1) ^+ 'C((size p).-1 - (size q).-1, 2) *
@@ -588,10 +610,24 @@ have -> : ((size p).-1 - (size q).-1 = np - nq)%N.
 by rewrite addbC odd_bin2B ?leq_sub // addKb addnC.
 Qed.
 
+Lemma subresultant_gt_mod (R : idomainType) j (p q : {poly R}) :
+  p != 0 -> q != 0 -> ((size q).-1 <= (size p).-1)%N -> (size (p %% q)%R <= j < (size q)%R.-1)%N ->
+  subresultant j p q = 0.
+Proof.
+move=> p_neq0 q_neq0 le_pq /andP[le_rj] le_jq.
+apply/eqP/subresultantP => //.
+- by apply/(leq_trans _ le_pq)/ltnW.
+- exact/ltnW.
+exists ((lead_coef q ^+ scalp p q)%:P, - (p %/ q)) => /=; last first.
+  by rewrite mul_polyC divp_eq addrAC mulNr subrr add0r.
+rewrite size_polyC expf_neq0 ?lead_coef_eq0//= subn_gt0 le_jq/= size_opp.
+rewrite size_poly_gt0 divpN0// -(leq_sub2rE (p:=1)) ?size_poly_gt0//.
+by rewrite !subn1 le_pq/= size_divp// -predn_sub -subnS leq_sub2l.
+Qed.
+
 Lemma band0 (R : ringType) n m :
   band 0  = 0 :> 'M[R]_(n, m).
 Proof. by apply/matrixP => i j; rewrite !mxE/= mulr0 polyseq0 nth_nil. Qed.
-
 
 Lemma subresultantp0 (R : idomainType) j (p : {poly R}) :
   (j < (size p).-1)%N -> subresultant j p 0 = 0.
@@ -621,33 +657,145 @@ Proof.
 by rewrite [LHS](eq_map (g:=f \o (val : 'I_n -> nat)))// map_comp val_enum_ord.
 Qed.
 
-(* Lemma 4.35 from BPR is cindexR_rec from qe_rcf_th, except it uses rmodp *)
+(* Lemma 4.34 from BPR is cindexR_rec from qe_rcf_th, except it uses rmodp *)
 
 Lemma iotaE0 (i n : nat) : iota i n = [seq i+j | j <- iota 0 n].
 Proof. by elim: n => // n IHn; rewrite -addn1 !iotaD/= map_cat IHn/= add0n. Qed.
 
+Lemma eq_map_seq [S : eqType] [T : Type] [f g : S -> T] (r : seq S) :
+  {in r, forall x, f x = g x} -> map f r = map g r.
+Proof.
+elim: r => //= x r IHr fg; congr cons; first exact/fg/mem_head.
+by apply/IHr => y yr; apply/fg; rewrite in_cons yr orbT.
+Qed.
+
+Lemma cindexR_mulCp (R : rcfType) (c : R) (p q : {poly R}) :
+  cindexR (c *: p) q = sgz c * cindexR p q.
+Proof.
+rewrite /cindexR mulr_sumr.
+by under eq_bigr do rewrite jump_mulCp.
+Qed.
+
+Lemma sgz_invr (F : numFieldType) (x : F) :
+  sgz x^-1 = sgz x.
+Proof. by rewrite /sgz invr_eq0 invr_lt0. Qed.
+
 Theorem pmv_subresultant (R : rcfType) (p q : {poly R}) :
   (size q < size p)%N ->
-  pmv ([seq (lead_coef p) *+ (i == (size p).-1) + (lead_coef q) *+ (i == (size p).-2) | i <- rev (iota (size q) (size p - size q))] ++ [seq subresultant i p q | i <- rev (iota 0 (size q))]) = cindexR q p.
+  pmv ([seq (lead_coef p) *+ (i.+1 == size p) | i <- rev (iota (size q) (size p - size q))] ++ [seq subresultant i p q | i <- rev (iota 0 (size q))]) = cindexR q p.
 Proof.
 move sq: (size q) => n; move: p q sq.
 apply/(@Wf_nat.lt_wf_ind n (fun n => forall p q : {poly R}, size q = n -> (n < size p)%N -> _)) => {}n IHn p q sq sp.
 case/boolP: (q == 0) sq sp => [/eqP ->|q0 sq sp].
-  rewrite size_poly0 lead_coef0 => <- {n IHn} sp /=; rewrite cindexR0p cats0 subn0.
+  rewrite size_poly0 => <- {n IHn} sp /=; rewrite cindexR0p cats0 subn0.
   case: (size p) => // n.
-  rewrite -pred_Sn -addn1 iotaD/= cats1 rev_rcons map_cons pmv_cat00// => x /mapP[i].
-  rewrite mem_rev mem_iota/= add0n => /ltn_eqF -> -> /=.
-  by rewrite mulr0n mul0rn addr0.
-
-  Print sgp_minfty. crossR.
-Check cindexR_rec.
-move: (q0); rewrite -(ltn_modp p) sq => sr.
-rewrite -(subnKC (ltnW (ltn_trans sr sp))) iotaD add0n rev_cat map_cat.
-Search subresultant.
-rewrite cindexR_rec.
-elim: (n - size (p %% q)).
-  Search subresultant (_ %% _).
-  
-
-have q0: q != 0 by apply/negP => /eqP q0; move: sq; rewrite q0 size_poly0.
-Check cindexR_rec.
+  rewrite -addn1 iotaD/= cats1 rev_rcons map_cons pmv_cat00// => x /mapP[i].
+  rewrite mem_rev mem_iota/= add0n addn1 eqSS => /ltn_eqF -> ->.
+  by rewrite mulr0n.
+have p0: p != 0.
+  by apply/eqP => p0; move: sp; rewrite p0 size_poly0.
+have sr : (size (p %% q)%R < n)%N by rewrite -sq; apply/ltn_modpN0.
+have subr: pmv [seq subresultant i p q | i <- rev (iota 0 (size (p %% q)))] = pmv [seq subresultant i q (- (p %% q)) | i <- rev (iota 0 (size (p %% q)))].
+  rewrite -[RHS](pmvZ (a:=(-1) ^+ 'C((size p).-1 - (size q).-1, 2) *
+    lead_coef q ^+ ((size p).-1 - (size (p %% q)).-1))); last first.
+    rewrite mulf_neq0//; first by apply/expf_neq0; rewrite oppr_eq0 oner_neq0.
+    by apply/expf_neq0; rewrite lead_coef_eq0.
+  rewrite -map_comp/= [in RHS](eq_map_seq (g:=fun i => subresultant i ((lead_coef q ^+ scalp p q) *: p) q)); last first.
+    move=> i /=; rewrite mem_rev mem_iota/= add0n => ilt.
+    apply/esym/subresultant_mod => //.
+    - by rewrite -!subn1 sq; apply/leq_sub2r/ltnW.
+    by rewrite -subn1 leq_leq_subRL ?add1n//; apply/(leq_trans _ ilt).
+  by rewrite scalpE expr0 scale1r.
+have subq:
+  pmv [seq subresultant i p q | i <- rev (iota 0 n)] =
+  pmv
+  ([seq lead_coef q *+ (i.+1 == n)
+       | i <- rev (iota (size (p %% q)) (n - size (p %% q)))] ++
+    [seq subresultant i q (- (p %% q)) | i <- rev (iota 0 (size (p %% q)))]).
+  rewrite {IHn} -[in LHS](subnK (ltnW sr)) addnC iotaD rev_cat map_cat.
+  move mE: (n - size (p %% q)%R)%N => m; case: m mE => // m mE.
+  rewrite iotanS rev_rcons add0n/=.
+  have pq0: {in [seq subresultant i p q | i <- rev (iota (size (p %% q)) m)],
+      forall x, x == 0}.
+    move=> x /mapP [i] + ->; rewrite mem_rev mem_iota => /andP[pqi ipq].
+    apply/eqP/subresultant_gt_mod => //; rewrite sq.
+      by rewrite -!subn1; apply/leq_sub2r/ltnW.
+    by rewrite pqi/=; move: ipq; rewrite -ltnS -addnS -mE subnKC ?ltn_predRL// ltnW.
+  rewrite -addnS -mE subnKC; last exact/ltnW.
+  have /ltn_eqF nSn: (n < n.+1)%N by [].
+  rewrite eqxx mulr1n.
+  move: mE pq0; have [->|r0 mE pq0] := eqVneq (p %% q) 0.
+    rewrite size_poly0 subn0 add0n !cats0 => mE pq0.
+    rewrite -[LHS]/(pmv (_ :: _)) pmv_cat00//.
+    rewrite -[RHS]/(pmv (_ :: _)) pmv_cat00// => x /mapP [i].
+    rewrite mem_rev mem_iota/= add0n mE eqSS => /ltn_eqF -> ->.
+    by rewrite mulr0n.
+  move sr: (size (p %% q)) sr subr mE pq0 => k; case: k sr => [|k] sr kn subr mE pq0.
+    by move/eqP: sr; rewrite size_poly_eq0 (negPf r0).
+  move: subr; rewrite iotanS add0n rev_rcons/= => subr.
+  have kqr : subresultant k q (- (p %% q)) = (-1) ^+ 'C(m.+1, 2) * lead_coef (- (p %% q)) ^+ m.+1.
+    rewrite subresultantE size_opp sr -pred_Sn subnn sq.
+    rewrite /SylvesterHabicht_mx col_flat_mx det_rsub_band; last first.
+      by rewrite size_opp sr -pred_Sn.
+    by rewrite add0n -predn_sub -subnS mE bin0n/= addn0.
+  have kpq: subresultant k p q = (-1) ^+ 'C((size p).-1 - n.-1, 2) * lead_coef q ^+ ((size p).-1 - k) * subresultant k q (- (p %% q)).
+    have {1}->: p = lead_coef q ^+ scalp p q *: p.
+      by rewrite scalpE expr0 scale1r.
+    rewrite subresultant_mod//.
+    - by rewrite sq sr -pred_Sn.
+    - by rewrite sq -!subn1; apply/leq_sub2r/ltnW.
+    - by rewrite sr -pred_Sn.
+  rewrite -[LHS]/(pmv (_ :: _)) pmv_cat0s//; last first.
+    by rewrite kpq kqr !mulf_eq0 !signr_eq0 !expf_eq0/= lead_coefN oppr_eq0 !lead_coef_eq0 (negPf q0) andbF.
+  rewrite size_map size_rev size_iota/= {}subr.
+  rewrite -[in RHS]/(pmv (_ :: _)) pmv_cat0s//; first last.
+  - move=> x /mapP[i]; rewrite mem_rev mem_iota => /andP[] ki + ->.
+    rewrite -ltnS -addnS -mE subnKC// ?(ltnW kn)// => ilt.
+    by rewrite (ltn_eqF ilt) !mulr0n.
+  - by rewrite kqr mulf_eq0 signr_eq0 expf_eq0 lead_coefN oppr_eq0 lead_coef_eq0.
+  rewrite size_map size_rev size_iota/=; congr (_ + _).
+  rewrite -!mulrnAr; congr (_ * _).
+  rewrite [(_ + _)%N]pred_Sn -addnS -mE subnKC ?(ltnW kn)//.
+  rewrite subresultantE sq subnn bin0n/= addn0 kpq.
+  rewrite /SylvesterHabicht_mx col_flat_mx det_rsub_band; last by rewrite sq.
+  rewrite add0n mulrACA mulrA sgzM mulrA -expr2 -exprM muln2 -mulrA -exprD.
+  rewrite sgzM !sgzX sgz_odd ?oppr_eq0 ?oner_neq0// odd_double expr0 mul1r.
+  rewrite -(subnKC (ltnW kn)) mE addSn -pred_Sn.
+  rewrite subnDA sgz_odd ?lead_coef_eq0// oddD [X in _ (+) X]oddB; last first.
+    by rewrite ltn_subRL ltn_predRL -addnS -mE -addSn subnKC ?(ltnW kn)// ltnW.
+  rewrite addbA addbb/=.
+  case: (odd m) => /=; first by rewrite !mulr0n.
+  by rewrite expr1 [in RHS]sgzM.
+move mE: (size p - n)%N => m; case: m mE => [/eqP|m mE].
+  by rewrite subn_eq0 => /(leq_trans sp); rewrite ltnn.
+rewrite iotanS rev_rcons/= -addnS -mE subnKC; last exact/ltnW.
+rewrite eqxx mulr1n.
+case: n => [|n] in IHn sq sp sr subr subq mE *.
+  by move/eqP: sq; rewrite size_poly_eq0 (negPf q0).
+have npq: subresultant (0 + n) p q = (-1) ^+ 'C(m.+1, 2) * lead_coef q ^+ m.+1.
+  rewrite add0n subresultantE sq -pred_Sn subnn.
+  rewrite /SylvesterHabicht_mx col_flat_mx det_rsub_band; last by rewrite sq.
+  by rewrite bin0n/= addn0 add0n -predn_sub -subnS mE.
+rewrite iotanS rev_rcons/= -[LHS]/(pmv (_ :: _)) pmv_cat0s; first last.
+- move=> x /mapP[i]; rewrite mem_rev mem_iota => /andP[ni].
+  rewrite -ltnS -addnS -mE subnKC ?(ltnW sp)// => /ltn_eqF -> ->.
+  by rewrite mulr0n.
+- by rewrite npq mulf_eq0 signr_eq0 expf_eq0 lead_coef_eq0.
+move: subq; rewrite iotanS rev_rcons/= => ->.
+rewrite -sq IHn ?size_opp// ?sq//; last exact/ltP.
+rewrite [RHS]cindexR_rec modpE /next_mod addrC size_map size_rev size_iota.
+rewrite scaleNr -!scalerN !cindexR_mulCp sgz_invr; congr (_ + _).
+rewrite crossRE npq lead_coefM size_mul// sq mulrCA sgzM mulrA sgzM !sgzX.
+rewrite -{1}(sgzN1 R) -exprD sgz_odd ?lead_coef_eq0//.
+rewrite [sgz (-1) ^+ _]sgz_odd; last by rewrite oppr_eq0 oner_neq0.
+rewrite !bin2 -pred_Sn; move: (halfD (m * m.-1) (m.+1 * m)).
+rewrite [X in _ && X]oddM/= andNb andbF/= add0n => <-.
+rewrite mulnC -mulnDl.
+have ->: ((m.-1 + m.+1) * m = 2 * m * m)%N.
+  by case: m {mE npq} => // m; rewrite -pred_Sn mul2n addSn addnS.
+rewrite -mulnA ssrnat.mul2n doubleK oddM andbb sgzN1.
+have ->: (size p = m.+1 + n.+1)%N by rewrite -mE subnK// ltnW.
+rewrite !addnS addSn -!pred_Sn -addnA addnn oddD odd_double addbF/=.
+case: (odd m); first by rewrite !mulr0n.
+by rewrite !mulr1n expr0 mul1r expr1 sgzM.
+Qed.

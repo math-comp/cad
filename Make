@@ -2,7 +2,9 @@ extra_ssr.v
 subresultant.v
 auxresults.v
 formula.v
+continuity_roots.v
 semialgebraic.v
+buf.v
 
 -R "." SemiAlgebraic
 

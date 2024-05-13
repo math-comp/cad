@@ -6,7 +6,7 @@ From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice fintype div
 From mathcomp Require Import tuple finfun generic_quotient bigop finset perm.
 From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial finalg.
 From mathcomp Require Import zmodp mxpoly mxtens qe_rcf ordered_qelim realalg.
-From mathcomp Require Import matrix finmap order finset.
+From mathcomp Require Import matrix finmap order finset mpoly.
 
 From SemiAlgebraic Require Import auxresults.
 
@@ -238,6 +238,74 @@ by apply/rowP => i; apply/eqP.
 Qed.
 
 End SeqFset.
+
+Section TermPoly.
+Variable (R S : unitRingType).
+
+Import GRing.
+
+Definition term_poly (P : {poly R}) (t : term R) : term R :=
+  \big[Add/Const 0]_(i < size P) Mul (Const P`_i) (Exp t i).
+
+Lemma eval_big (op : term R -> term R -> term R) (x : term R) (I : Type) (r : seq I)
+  (P : pred I) (F : I -> term R) (e : seq R) (eop : R -> R -> R) :
+  (forall t u, eval e (op t u) = eop (eval e t) (eval e u))
+  -> eval e (\big[op/x]_(i <- r | P i) F i) = \big[eop/eval e x]_(i <- r | P i) eval e (F i).
+Proof.
+move=> opE.
+elim: r => [|i r IHr]; first by rewrite !big_nil.
+rewrite !big_cons; case: (P i) => //.
+by rewrite opE IHr.
+Qed.
+
+Lemma eval_term_poly (e : seq R) (P : {poly R}) (t : term R) :
+  eval e (term_poly P t) = (P.[eval e t])%R.
+Proof. by rewrite -{2}[P]coefK horner_poly (eval_big _ _ _ _ (eop:=+%R)). Qed.
+
+Definition term_mpoly n (P : {mpoly R[n]}) (t : 'I_n -> term R) : term R :=
+  \big[Add/Const 0]_(m <- msupp P) Mul (Const P@_m) (\big[Mul/Const 1]_i Exp (t i) (m i)).
+
+Definition eval_term_mpoly n (P : {mpoly R[n]}) (t : 'I_n -> term R) (e : seq R) :
+  eval e (term_mpoly P t) = (P.@[fun i => eval e (t i)])%R.
+Proof.
+rewrite mevalE (eval_big _ _ _ _ (eop:=+%R))//.
+apply/eq_bigr => i _ /=.
+by rewrite (eval_big _ _ _ _ (eop:=*%R)).
+Qed.
+
+Fixpoint map_term (f : R -> S) (t : term R) : term S :=
+  match t with
+  | Var n => Var S n
+  | Const x => Const (f x)
+  | NatConst n => NatConst S n
+  | Add t u => Add (map_term f t) (map_term f u)
+  | Opp t => Opp (map_term f t)
+  | NatMul t n => NatMul (map_term f t) n
+  | Mul t u => Mul (map_term f t) (map_term f u)
+  | Inv t => Inv (map_term f t)
+  | Exp t n => Exp (map_term f t) n
+  end.
+
+(* N.B. This is a symptom that the terms and formulas over rings are ill-defined
+   because e.g. inversion should not be an admissible term.
+   For instance, we can not turn a term over Z into a term over Q. *)
+Lemma eval_map_term (f : {rmorphism R -> S}) (t : term R) (e : seq R) :
+  (forall x, (f x)^-1 = f x^-1)
+  -> eval [seq f x | x <- e] (map_term f t) = f (eval e t).
+Proof.
+move=> finv.
+elim: t => /= [n|x|n|t -> u ->|t ->|t -> n|t -> u ->|t ->|t -> n]//.
+- case: (ltnP n (size e)) => ne; first by rewrite (nth_map 0).
+  by rewrite nth_default ?size_map// nth_default// rmorph0.
+- by rewrite rmorph_nat.
+- by rewrite rmorphD.
+- by rewrite rmorphN.
+- by rewrite rmorphMn.
+- by rewrite rmorphM.
+- by rewrite rmorphXn.
+Qed.
+
+End TermPoly.
 
 Section EquivFormula.
 

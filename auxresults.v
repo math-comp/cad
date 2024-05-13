@@ -1,13 +1,15 @@
 (* (c) Copyright Microsoft Corporation and Inria. All rights reserved. *)
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice.
-From mathcomp Require Import fintype generic_quotient.
-From mathcomp Require Import div tuple bigop ssralg poly polydiv finmap.
+From mathcomp Require Import order fintype generic_quotient.
+From mathcomp Require Import div tuple bigop ssralg ssrnum poly polydiv finmap.
+From mathcomp Require Import mpoly polyorder polyrcf normedtype topology.
+Import numFieldTopology.Exports.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Import GRing.Theory.
+Import GRing.Theory Order.TotalTheory Order.POrderTheory Num.Theory.
 
 Section MoreLogic.
 
@@ -86,6 +88,10 @@ Proof.
 move=> leq_mn; rewrite addnC -leq_subLR => h.
 by rewrite (leq_trans _ h) // -addnBA // leq_addr.
 Qed.
+
+Lemma lift_inord (n : nat) (i : 'I_n) :
+  lift ord0 i = inord i.+1.
+Proof. by apply/val_inj; rewrite /= inordK ?ltnS. Qed.
 
 End MoreNatTheory.
 
@@ -290,6 +296,29 @@ move: i j; elim: e => // [i j leq_ij | a e ihe i].
   by rewrite ltnS => lt_iSj /=; rewrite ihe.
 Qed.
 
+Lemma iotanS (n m : nat) :
+  iota n m.+1 = rcons (iota n m) (n + m)%N.
+Proof.
+elim: m n => /= [|m IHm] n; first by rewrite addn0.
+by rewrite IHm addSn addnS.
+Qed.
+
+Lemma nth_enum_ord (n : nat) (i j : 'I_n) : nth i (enum 'I_n) j = j.
+Proof. by apply/val_inj => /=; rewrite nth_enum_ord. Qed.
+
+Lemma enum_ordD (n m : nat) :
+  enum 'I_(n+m) = map (@lshift n m) (enum 'I_n) ++ map (@rshift n m) (enum 'I_m).
+Proof.
+elim: n => [|n IHn].
+  rewrite enum_ord0/=.
+  elim: m => [|m IHm]; first by rewrite enum_ord0.
+  rewrite enum_ordSl IHm/=; congr (_ :: _); first exact/val_inj.
+  rewrite -[LHS]map_id.
+  by apply/eq_map => i; apply/val_inj.
+rewrite !enum_ordSl IHn/=; congr (_ :: _); first exact/val_inj.
+by rewrite map_cat -!map_comp; congr (_ ++ _); apply/eq_map => i; apply/val_inj.
+Qed.
+
 End GeneralBaseType.
 
 Section WithEqType.
@@ -413,7 +442,7 @@ by rewrite !mem_cat orbACA orbb !orbA.
 Qed.
 
 Lemma rem_undup (x : T) (s : seq T) : 
-  rem x (undup s) = undup (filter (predC1 x) s).
+  rem x (undup s) = undup (seq.filter (predC1 x) s).
 Proof.
 by rewrite rem_filter ?undup_uniq// filter_undup.
 Qed.
@@ -471,7 +500,7 @@ Definition sub_r (x y : sT) := r (val x) (val y).
 Lemma sub_r_refl : reflexive sub_r.
 Proof. by rewrite /sub_r. Qed.
 
-Lemma sub_r_sym : symmetric sub_r.
+Lemma sub_r_sym : ssrbool.symmetric sub_r.
 Proof. by move=> x y; rewrite /sub_r equiv_sym. Qed.
 
 Lemma sub_r_trans : transitive sub_r.
@@ -563,6 +592,68 @@ rewrite -(big_mkord (fun i => a <= i) F).
 by rewrite -(big_nat_widen_l _ _ predT) ?leq0n.
 Qed.
 
+Lemma sum1_ord (n : nat) :
+  (\sum_(i < n) 1)%N = n.
+Proof. by rewrite big_const_ord iter_addn_0 mul1n. Qed.
+
+Lemma big_ord_iota (op : Monoid.law idx) (n : nat) (P : pred nat) (F : nat -> R) :
+  \big[op/idx]_(i < n | P i) F i = \big[op/idx]_(i <- iota 0 n | P i) F i.
+Proof.
+elim: n P F => [|n IHn] P F; first by rewrite big_ord0 big_nil.
+rewrite [LHS]big_mkcond big_ord_recr iotanS.
+rewrite -cats1 big_cat big_cons big_nil add0n Monoid.mulm1/=; congr (op _ _).
+by rewrite -big_mkcond IHn.
+Qed.
+
+Lemma prodr_const_seq (F : semiRingType) (I : Type) (r : seq I) (x : F) :
+  (\prod_(i <- r) x = x ^+ (size r))%R.
+Proof.
+elim: r => [|y r IHr].
+  by rewrite big_nil expr0. 
+by rewrite big_cons IHr/= exprS.
+Qed.
+
+Lemma bigmin_le {disp : unit} {T : orderType disp} (I : Type) (r : seq I) (x : T) (P : pred I) (F : I -> T) (y : T) :
+  (\big[Order.min/x]_(i <- r | P i) F i <= y)%O = (x <= y)%O || has (fun i => P i && (F i <= y)%O) r.
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil orbF.
+rewrite big_cons/=; case: (P i) => //=.
+by rewrite ge_min IHr !orbA; congr (_ || _); apply/orbC.
+Qed.
+
+Lemma bigmin_lt {disp : unit} {T : orderType disp} (I : Type) (r : seq I) (x : T) (P : pred I) (F : I -> T) (y : T) :
+  (\big[Order.min/x]_(i <- r | P i) F i < y)%O = (x < y)%O || has (fun i => P i && (F i < y)%O) r.
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil orbF.
+rewrite big_cons/=; case: (P i) => //=.
+by rewrite gt_min IHr !orbA; congr (_ || _); apply/orbC.
+Qed.
+
+Lemma le_bigmin {disp : unit} {T : orderType disp} (I : Type) (r : seq I) (x : T) (P : pred I) (F : I -> T) (y : T) :
+  (y <= \big[Order.min/x]_(i <- r | P i) F i)%O = (y <= x)%O && all (fun i => P i ==> (y <= F i)%O) r.
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil andbT.
+rewrite big_cons/=; case: (P i) => //=.
+by rewrite le_min IHr !andbA; congr (_ && _); apply/andbC.
+Qed.
+
+Lemma lt_bigmin {disp : unit} {T : orderType disp} (I : Type) (r : seq I) (x : T) (P : pred I) (F : I -> T) (y : T) :
+  (y < \big[Order.min/x]_(i <- r | P i) F i)%O = (y < x)%O && all (fun i => P i ==> (y < F i)%O) r.
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil andbT.
+rewrite big_cons/=; case: (P i) => //=.
+by rewrite lt_min IHr !andbA; congr (_ && _); apply/andbC.
+Qed.
+
+Lemma le_bigmax {disp : unit} {T : orderType disp} (I : Type) (r : seq I) (x : T) (P : pred I) (F : I -> T) (y : T) :
+  (y <= \big[Order.max/x]_(i <- r | P i) F i)%O = (y <= x)%O || has (fun i => P i && (y <= F i)%O) r.
+Proof.
+elim: r => [|i r IHr]; first by rewrite big_nil orbF.
+rewrite big_cons/=; case: (P i) => //=.
+rewrite le_max IHr !orbA; congr (_ || _); exact/orbC.
+Qed.
+
+
 End MoreBigop.
 
 Section MoreCoef.
@@ -570,7 +661,7 @@ Section MoreCoef.
 Open Scope ring_scope.
 
 Lemma coefMD_wid (R : ringType) (p q : {poly R}) (m n i : nat) :
-  i < m -> i < n ->
+  (i < m)%N -> (i < n)%N ->
   (p * q)`_i = \sum_(j1 < m) \sum_(j2 < n | (j1 + j2)%N == i) p`_j1 * q`_j2.
 Proof.
 move=> m_big n_big; rewrite pair_big_dep.
@@ -590,7 +681,7 @@ Lemma coefMD (R : ringType) (p q : {poly R}) (i : nat) :
               \sum_(j2 < size q | (j1 + j2)%N == i) p`_j1 * q`_j2.
 Proof.
 rewrite (@coefMD_wid _ _ _ i.+1 i.+1) //=.
-rewrite (bigID (fun j1 :'I__ => j1 < size p)) /=.
+rewrite (bigID (fun j1 :'I__ => j1 < size p)%N) /=.
 rewrite [X in _ + X]big1 ?addr0; last first.
   move=> j1; rewrite -ltnNge => j1_big.
   by rewrite big1 // => j2 _; rewrite nth_default ?mul0r.
@@ -600,7 +691,7 @@ rewrite big_mkcond /=; apply: eq_bigr => j1 _; rewrite ltnS.
 have [j1_small|j1_big] := leqP; last first.
   rewrite big1 // => j2; rewrite eq_sym => /eqP i_def.
   by rewrite i_def -ltn_subRL subnn ltn0 in j1_big.
-rewrite (bigID (fun j2 :'I__ => j2 < size q)) /=.
+rewrite (bigID (fun j2 :'I__ => j2 < size q)%N) /=.
 rewrite [X in _ + X]big1 ?addr0; last first.
   move=> j2; rewrite -ltnNge => /andP[_ j2_big].
   by rewrite [q`__]nth_default ?mulr0.
@@ -611,7 +702,121 @@ have [//|j2_big] := leqP; rewrite eq_sym=> /eqP i_def.
 by rewrite i_def addnC -ltn_subRL subnn ltn0 in j2_big.
 Qed.
 
+Lemma lead_coef_prod (R : idomainType) (I : Type) (r : seq I) (P : pred I) (F : I -> {poly R}) :
+  lead_coef (\prod_(i <- r | P i) F i) = \prod_(i <- r | P i) lead_coef (F i).
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil lead_coef1.
+rewrite !big_cons; case: (P i) => //.
+by rewrite lead_coefM IHr.
+Qed.
+
+Lemma gt_size (R : semiRingType) (p : {poly R}) (n : nat) :
+  p`_n != 0 -> (n < size p)%N.
+Proof.
+by rewrite ltnNge => /eqP pn; apply/negP => /leq_sizeP/(_ n (leqnn _)).
+Qed.
+
 End MoreCoef.
+
+Section MoreRoot.
+
+Lemma mu_XsubC (R : idomainType) (x y : R) :
+  (\mu_x ('X - y%:P))%R = (x == y).
+Proof.
+have [->|xy] := eqVneq x y; first exact: mu_XsubC.
+by rewrite muNroot// root_XsubC.
+Qed.
+
+Lemma mu_prod [R : idomainType] (I : Type) (s : seq I) (P : pred I) (F : I -> {poly R}) (x : R) :
+  (\prod_(i <- s | P i) F i != 0 -> \mu_x (\prod_(i <- s | P i) F i) = \sum_(i <- s | P i) \mu_x (F i))%R.
+Proof.
+elim: s => [|p s IHs].
+  rewrite !big_nil => _; apply/muNroot/root1.
+rewrite !big_cons; case: (P p) => // ps0.
+by rewrite mu_mul//; move: ps0; rewrite mulf_eq0 negb_or => /andP[] p0 s0; rewrite IHs.
+Qed.
+
+(* What is the root_bigmul in mathcomp??? *)
+Lemma root_bigmul [R : idomainType] [I : Type] (x : R) (s : seq I) (P : pred I) (F : I -> {poly R}) :
+  root (\prod_(i <- s | P i) F i) x = has (fun i : I => P i && root (F i) x) s.
+Proof.
+elim: s => [|y s IHs]; first by rewrite big_nil (negPf (root1 _)).
+by rewrite big_cons/=; case: (P y) => //; rewrite rootM IHs.
+Qed.
+
+Lemma in_rootsR (R : rcfType)
+  (P : {poly R}) (x : R) :
+  x \in rootsR P = (P != 0%R) && (root P x).
+Proof.
+rewrite andbC /rootsR in_roots; case/boolP: (root P x) => [|//] /= /rootP Px.
+rewrite andbC; have [//|/= P0] := eqVneq P 0%R.
+by rewrite interval.itv_boundlr/= !interval.leBSide/= -ltr_norml cauchy_boundP.
+Qed.
+
+Definition dec_roots (F : decFieldType) (p : {poly F}) : seq F :=
+  if p == 0%R then [::] else
+  [seq x <- undup (projT1 (dec_factor_theorem p)) | root p x].
+
+Lemma uniq_dec_roots (F : decFieldType) (p : {poly F}) :
+  uniq (dec_roots p).
+Proof. by rewrite /dec_roots; case: (p == 0%R) => //; apply/filter_uniq/undup_uniq. Qed.
+
+Lemma mem_dec_roots (F : decFieldType) (p : {poly F}) x :
+  x \in dec_roots p = (p != 0%R) && (root p x).
+Proof.
+rewrite /dec_roots.
+have [->|p0]/= := eqVneq p 0%R => //.
+rewrite /dec_roots mem_filter; apply/andP/idP => [[]//|px].
+split=> //; rewrite mem_undup.
+case: (dec_factor_theorem p) => s [q]/= [pE] qroot.
+move: p0 px; rewrite pE rootM root_bigmul.
+have [->|/qroot {}qroot _] := eqVneq q 0%R; first by rewrite mul0r eqxx.
+rewrite (negPf (qroot _)) => /= /hasP [y] ys.
+by rewrite root_XsubC => /eqP ->.
+Qed.
+
+Lemma dec_rootsP (F : decFieldType) (p : {poly F}) :
+  exists q : {poly F}, p = (q * \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p))%R /\ (q != 0%R -> forall x : F, ~~ root q x).
+Proof.
+rewrite /dec_roots.
+have [->|p0] := eqVneq p 0%R.
+  by exists 0%R; rewrite mul0r eqxx.
+case: (dec_factor_theorem p) => s [q]/= [pE] qroot.
+exists q; move: pE p0; have [->|/[dup] q0 /qroot {}qroot pE p0] := eqVneq q 0%R.
+  by rewrite !mul0r => ->.
+split=> //.
+rewrite big_filter big_mkcond/= {1}pE -prodr_undup_exp_count; congr (_ * _)%R.
+apply/eq_big_seq => x; rewrite mem_undup => xs.
+have ->: root p x.
+  rewrite pE rootM (negPf (qroot x)) root_bigmul; apply/hasP; exists x => //=.
+  by rewrite root_XsubC.
+congr (_ ^+ _)%R.
+rewrite pE mu_mul; last first.
+  rewrite mulf_eq0 negb_or (negPf q0)/= prodf_seq_neq0; apply/allP => y _ /=.
+  by rewrite polyXsubC_eq0.
+rewrite muNroot// add0n mu_prod; last first.
+  rewrite prodf_seq_neq0; apply/allP => y _ /=.
+  by rewrite polyXsubC_eq0.
+rewrite -sum1_count big_mkcond/=; apply/eq_bigr => y _.
+by rewrite mu_XsubC eq_sym; case: (x == y).
+Qed.
+
+Lemma dec_roots_closedP (F : closedFieldType) (p : {poly F}) :
+  (p = p`_(size p).-1 *: \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p))%R.
+Proof.
+have [->|p0] := eqVneq p 0%R; first by rewrite coef0 scale0r.
+move: (dec_rootsP p) => [q].
+have [->|q0 [pE]/(_ isT) qr] := eqVneq q 0%R; first by rewrite mul0r => [][p0']; move/eqP: p0.
+have [sq|/closed_rootP [x]] := eqVneq (size q) 1; last by move/negP: (qr x).
+have /size1_polyC qE : (size q <= 1)%N by rewrite sq.
+rewrite {1}pE qE mul_polyC; congr (_ *: _)%R.
+move/(congr1 lead_coef): pE.
+rewrite lead_coefM lead_coef_prod.
+under eq_bigr do rewrite lead_coef_exp lead_coefXsubC expr1n.
+by rewrite big_const_idem/= ?mulr1// qE lead_coefC lead_coefE coefC/=.
+Qed.
+  
+End MoreRoot.
 
 Local Open Scope ring_scope.
 
@@ -681,8 +886,8 @@ Proof. by rewrite lead_coef_Mmonic ?monicXn //. Qed.
 Lemma size_polyMXn p (n : nat) : p != 0 -> size (p * 'X^n) = (size p + n)%N.
 Proof. by move=> ?; rewrite size_Mmonic ?monicXn // size_polyXn addnS. Qed.
 
-Lemma widen_poly (E : nat -> R) (a b : nat) : a <= b ->
-  (forall j, a <= j < b -> E j = 0) ->
+Lemma widen_poly (E : nat -> R) (a b : nat) : (a <= b)%N ->
+  (forall j, (a <= j < b)%N -> E j = 0) ->
   \poly_(i < a) E i = \poly_(i < b) E i.
 Proof.
 move=> leq_a_b E_eq0; apply/polyP => k; rewrite !coef_poly.
@@ -816,3 +1021,182 @@ Definition fmorph (F R : Type) (f : F -> R) := f.
 Canonical fmorph_is_injmorphism (F : fieldType) (R : ringType)
   (f : {rmorphism F -> R}) :=
    InjMorphism (fmorph_inj f : injective (fmorph f)). *)
+
+Section MoreNumDomainTheory.
+
+Lemma ler_p1X (R : numDomainType) (x y : R) (n m : nat) :
+  1 <= x -> x <= y -> (n <= m)%N -> x ^+ n <= y ^+ m.
+Proof.
+move=> x1 xy nm; apply/(le_trans (y:=x ^+ m)).
+  by rewrite -(subnK nm) exprD ler_peMl// ?exprn_ege1// exprn_ge0// (le_trans ler01 x1).
+elim: m {n nm} => [|n IHn]; first by rewrite !expr0.
+by rewrite !exprS ler_pM// (le_trans ler01)// exprn_ege1.
+Qed.
+
+Lemma sumr_gt0 (R : numDomainType) (I : Type) (r : seq I) 
+         (P : pred I) (F : I -> R):
+  (forall i : I, P i -> 0 <= F i)
+  -> has (fun i => P i && (0 < F i)) r
+  -> 0 < \sum_(i <- r | P i) F i.
+Proof.
+move=> F0; elim: r => [//|] i r IHr /= /orP; case=> [/andP[Pi Fi]|/IHr {}IHr].
+  by rewrite big_cons Pi; apply/(lt_le_trans Fi); rewrite lerDl sumr_ge0.
+by rewrite big_cons; case/boolP: (P i) => // Pi; apply/(lt_le_trans IHr); rewrite lerDr F0.
+Qed.
+
+Lemma psumr_gt0 (R : numDomainType) (I : Type) (r : seq I) 
+         (P : pred I) (F : I -> R):
+  (forall i : I, P i -> 0 < F i)
+  -> has P r
+  -> 0 < \sum_(i <- r | P i) F i.
+Proof.
+move=> F0 Pr; apply/sumr_gt0 => [i /F0 /ltW //|].
+elim: r Pr => [//|] i r IHr /= /orP; case=> [Pi|/IHr -> //]; last by rewrite orbT.
+by rewrite Pi F0.
+Qed.
+
+End MoreNumDomainTheory.
+
+Section MoreContinuity.
+
+Lemma eq_continuous_at {T S : topologicalType} (f g : T -> S) (x : T) :
+  f =1 g -> continuous_at x f -> continuous_at x g.
+Proof. by move=> fg; rewrite /continuous_at fg (eq_cvg _ _ fg). Qed.
+
+Lemma eq_continuous {T S : topologicalType} (f g : T -> S) :
+  f =1 g -> continuous f -> continuous g.
+Proof. by move=> fg f_cont x; exact/(eq_continuous_at fg). Qed.
+
+Lemma expn_continuous {K : numFieldType} (n : nat) :
+  continuous (fun x : K => x ^+ n).
+Proof.
+elim: n => [|n IHn]; first exact/cst_continuous.
+apply/(eq_continuous (f:=fun x : K => x * x ^+ n)) => x.
+  by rewrite exprS.
+by apply/(@continuousM _ _ _ _ x) => //; apply/IHn.
+Qed.
+
+Lemma cvgX {K : numFieldType} {T : Type} [F : set_system T] :
+  Filter F ->
+  forall (f : T -> K) (n : nat) (a : K),
+  cvg_to (nbhs (fmap f (nbhs F))) (nbhs a) ->
+  cvg_to (nbhs (fmap ((fun x => x ^+ n) \o f) (nbhs F))) (nbhs (a ^+ n)).
+Proof.
+move=> FF f n a fa.
+by apply: continuous_cvg => //; apply/expn_continuous.
+Qed.
+
+Lemma continuousX [K : numFieldType] [T : topologicalType] (s : T -> K) (n : nat) (x : T) :
+  {for x, continuous s} -> {for x, continuous (fun x => s x ^+ n)}.
+Proof. by move=> f_cont; apply: cvgX. Qed.
+
+(* N.B. I do not need a numFieldType. *)
+Lemma cvg_big {K : topologicalType} {T : Type} [F : set_system T] [I : Type] (r : seq I) (P : pred I) (Ff : I -> T -> K) (Fa : I -> K) (op : K -> K -> K) (x0 : K):
+  Filter F ->
+  (forall (f g : T -> K) (a b : K),
+    cvg_to (nbhs (fmap f (nbhs F))) (nbhs a) ->
+    cvg_to (nbhs (fmap g (nbhs F))) (nbhs b) ->
+    cvg_to (nbhs (fmap (fun x => op (f x) (g x)) (nbhs F))) (nbhs (op a b))) ->
+  (forall i, P i -> cvg_to (nbhs (fmap (Ff i) (nbhs F))) (nbhs (Fa i))) ->
+  cvg_to (nbhs (fmap ((fun x => \big[op/x0]_(i <- r | P i) (Ff i x))) (nbhs F))) (nbhs (\big[op/x0]_(i <- r | P i) Fa i)).
+Proof.
+move=> FF cvg_op cvg_f.
+elim: r => [|x r IHr].
+  rewrite big_nil (eq_cvg _ _ (fun x => big_nil _ _ _ _)).
+  exact: cvg_cst.
+rewrite big_cons (eq_cvg _ _ (fun x => big_cons _ _ _ _ _ _)).
+case/boolP: (P x) => // Px.
+apply/cvg_op => //.
+exact/cvg_f.
+Qed.
+
+Lemma continuous_big [K T : topologicalType] [I : Type] (r : seq I) (P : pred I) (F : I -> T -> K) (op : K -> K -> K) (x0 : K) (x : T) :
+  continuous (fun x : K * K => op x.1 x.2) ->
+  (forall i, P i -> {for x, continuous (F i)}) ->
+  {for x, continuous (fun x => \big[op/x0]_(i <- r | P i) F i x)}.
+Proof.
+move=> op_cont f_cont.
+apply: cvg_big => // f g a b fa gb.
+rewrite (eq_cvg _ (g:=(fun x => op x.1 x.2) \o (fun x => (f x, g x))))//.
+apply: (cvg_comp (G:=nbhs (a, b))); first exact: cvg_pair.
+exact: (op_cont (a, b)).
+Qed.
+
+Lemma cvg_sum {K : numFieldType} {V : pseudoMetricNormedZmodType K} {T : Type} [F : set_system T] [I : Type] (r : seq I) (P : pred I) (Ff : I -> T -> V) (Fa : I -> V):
+  Filter F ->
+  (forall i, P i -> cvg_to (nbhs (fmap (Ff i) (nbhs F))) (nbhs (Fa i))) ->
+  cvg_to (nbhs (fmap ((fun x => \sum_(i <- r | P i) (Ff i x))) (nbhs F))) (nbhs (\sum_(i <- r | P i) Fa i)).
+Proof.
+move=> FF fa.
+apply/(cvg_big FF) => // f g a b {}fa gb.
+exact: cvgD.
+Qed.
+
+Lemma continuous_sum {K : numFieldType} {V : pseudoMetricNormedZmodType K} [T : topologicalType] [I : Type] (r : seq I) (P : pred I) (F : I -> T -> V) (x : T) :
+  (forall i, P i -> {for x, continuous (F i)}) ->
+  {for x, continuous (fun x => \sum_(i <- r | P i) F i x)}.
+Proof.
+move=> f_cont.
+apply: continuous_big => //=.
+exact: add_continuous.
+Qed.
+
+Lemma cvg_prod {K : numFieldType} {T : Type} [F : set_system T] [I : Type] (r : seq I) (P : pred I) (Ff : I -> T -> K) (Fa : I -> K):
+  Filter F ->
+  (forall i, P i -> cvg_to (nbhs (fmap (Ff i) (nbhs F))) (nbhs (Fa i))) ->
+  cvg_to (nbhs (fmap ((fun x => \prod_(i <- r | P i) (Ff i x))) (nbhs F))) (nbhs (\prod_(i <- r | P i) Fa i)).
+Proof.
+move=> FF fa.
+apply/(cvg_big FF) => // f g a b {}fa gb.
+exact: cvgM.
+Qed.
+
+Lemma continuous_prod {K : numFieldType} [T : topologicalType] [I : Type] (r : seq I) (P : pred I) (F : I -> T -> K) (x : T) :
+  (forall i, P i -> {for x, continuous (F i)}) ->
+  {for x, continuous (fun x => \prod_(i <- r | P i) F i x)}.
+Proof.
+move=> f_cont.
+apply: continuous_big => //=.
+exact: mul_continuous.
+Qed.
+
+End MoreContinuity.
+
+Section MoreMultinomials.
+Variable (n : nat) (R : comRingType).
+
+Lemma meval_mwiden (v : 'I_n.+1 -> R) (P : {mpoly R[n]}) :
+  (mwiden P).@[v] = P.@[fun i => v (widen_ord (leqnSn n) i)].
+Proof.
+rewrite (mpolyE P) !rmorph_sum/= -mpolyE.
+apply/eq_bigr => i _; rewrite rmorphM/= mevalZ mevalC mevalX; congr (_ * _)%R.
+rewrite /mmap1 rmorph_prod/=; apply/eq_bigr => j _.
+by rewrite rmorphXn/= mevalXU.
+Qed.
+
+Lemma meval_mmulti (v : 'I_n.+1 -> R) (P : {poly {mpoly R[n]}}) :
+  (mmulti P).@[v] = P.[(v ord_max)%:MP_[n]].@[fun i => v (widen_ord (leqnSn n) i)].
+Proof.
+rewrite -[in RHS](coefK P) horner_poly !rmorph_sum/=.
+apply/eq_bigr => i _.
+by rewrite !rmorphM/= !rmorphXn/= mevalXU mevalC meval_mwiden.
+Qed.
+
+Lemma horner_mmulti (x : {mpoly R[n]}) (v : 'I_n -> R)
+  (P : {poly {mpoly R[n]}}) :
+  P.[x].@[v] = (mmulti P).@[fun i =>
+    match ltnP i n with
+    | LtnNotGeq ilt => v (Ordinal ilt)
+    | _ => x.@[v]
+    end].
+Proof.
+rewrite /mmulti -{1}[P]coefK horner_poly !rmorph_sum/=.
+apply eq_bigr => i _.
+rewrite !rmorphM/= !rmorphXn/= mevalXU/=.
+case: (ltnP n n) => [/[dup]|_]; first by rewrite {1}ltnn.
+congr (_ * _)%R; rewrite meval_mwiden; apply/meval_eq => j.
+case: (ltnP _ _) => /= [jn|]; first by congr (v _); apply/val_inj.
+by rewrite leqNgt (ltn_ord j).
+Qed.
+
+End MoreMultinomials.

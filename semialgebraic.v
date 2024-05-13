@@ -32,7 +32,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice fintype div.
 From mathcomp Require Import tuple finfun generic_quotient bigop finset perm.
 From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial interval finalg.
-From mathcomp Require Import zmodp mxpoly mxtens qe_rcf ordered_qelim realalg.
+From mathcomp Require Import zmodp mxpoly mpoly mxtens qe_rcf ordered_qelim realalg.
 From mathcomp Require Import matrix finmap order finset classical_sets topology.
 
 From SemiAlgebraic Require Import auxresults formula.
@@ -44,6 +44,7 @@ Unset Printing Implicit Defensive.
 Import GRing.Theory Num.Theory Num.Def.
 Import ord.
 Import Order.Theory Order.Syntax.
+Import numFieldTopology.Exports.
 
 Local Open Scope nat_scope.
 Local Open Scope ring_scope.
@@ -144,7 +145,7 @@ rcf_sat [::] (nquantify O n Forall ((f ==> g) /\ (g ==> f))).
 Lemma equivf_refl : reflexive equivf.
 Proof. by move=> f; apply/rcf_satP; apply: nforall_is_true => e /=. Qed.
 
-Lemma equivf_sym : symmetric equivf.
+Lemma equivf_sym : ssrbool.symmetric equivf.
 Proof.
 move=> f g; rewrite /equivf; move: [::] => e.
 move: O => i; move: (f ==> g)%oT (g ==> f)%oT => f' g' {f} {g}.
@@ -568,6 +569,14 @@ Proof. by apply/eqP/SAsetP => x; rewrite !inSAsetU orbC. Qed.
 Lemma SAsetUA A B C : A :|: (B :|: C) = A :|: B :|: C.
 Proof. by apply/eqP/SAsetP => x; rewrite !inSAsetU orbA. Qed.
 
+Lemma SAsetU_comprehension (f g : formula F) :
+  [set| f] :|: [set| g] = [set| f \/ g] :> {SAset F^n}.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetU; apply/orP/SAin_setP => /=.
+  by case=> /SAin_setP xfg; [left|right].
+by case=> xfg; [left|right]; apply/SAin_setP.
+Qed.
+
 HB.instance Definition _ := Monoid.isComLaw.Build {SAset F^n} (SAset0 F n) (@SAsetU F n) SAsetUA SAsetUC SAset0U.
 
 Lemma SAsetIC A B : A :&: B = B :&: A.
@@ -575,6 +584,30 @@ Proof. by apply/eqP/SAsetP => x; rewrite !inSAsetI andbC. Qed.
 
 Lemma SAsetIA A B C : A :&: (B :&: C) = A :&: B :&: C.
 Proof. by apply/eqP/SAsetP => x; rewrite !inSAsetI andbA. Qed.
+
+Lemma SAsetI0 A :
+  A :&: SAset0 F n = SAset0 F n.
+Proof. by apply/eqP/SAsetP => x; rewrite inSAsetI inSAset0 andbF. Qed.
+
+Lemma SAsetTI A : SAsetT F n :&: A = A.
+Proof. by apply/eqP/SAsetP => x; rewrite inSAsetI inSAsetT. Qed.
+
+Lemma SAsetIT A : A :&: SAsetT F n = A.
+Proof. by rewrite SAsetIC SAsetTI. Qed.
+
+Lemma SAsetI_comprehension (f g : formula F) :
+  [set| f] :&: [set| g] = [set| f /\ g] :> {SAset F^n}.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetI; apply/andP/SAin_setP.
+  by move=> [] /SAin_setP xf /SAin_setP yf /=; split.
+by move=> /= [] xf yf; split; apply/SAin_setP.
+Qed.
+
+HB.instance Definition _ := Monoid.isComLaw.Build {SAset F^n} (SAsetT F n) (@SAsetI F n) SAsetIA SAsetIC SAsetTI.
+
+Lemma SAsetCK A :
+  ~: ~: A = A.
+Proof. by apply/eqP/SAsetP => x; rewrite !inSAsetC negbK. Qed.
 
 Lemma SAsetCU A B : ~: (A :|: B) = ~: A :&: ~: B.
 Proof.
@@ -584,6 +617,14 @@ Qed.
 Lemma SAsetCI A B : ~: (A :&: B) = ~: A :|: ~: B.
 Proof.
 by apply/eqP/SAsetP => x; rewrite inSAsetU !inSAsetC inSAsetI negb_and.
+Qed.
+
+Lemma SAsetC_comprehension (f : formula F) :
+  ~: [set | f] = [set | Not f] :> {SAset F^n}.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetC !inE.
+apply/negP/SAin_setP => [fP|/nn_formula + /SAin_setP fP //].
+by apply/nn_formula => fP'; apply/fP/SAin_setP.
 Qed.
 
 Lemma SAsubset_refl : reflexive (@SAset_sub F n).
@@ -610,18 +651,38 @@ Proof.
 by apply/eqP/SAsetP => x; rewrite inSAsetU !inSAsetI !inSAsetU orb_andr.
 Qed.
 
+Lemma SAsetDIr A B :
+  A :\: (A :&: B) = A :\: B.
+Proof.
+apply/eqP/SAsetP => x.
+by rewrite !inSAsetI !inSAsetC inSAsetI negb_and andb_orr andbN.
+Qed.
+
+Lemma SAsubsetI A B C : A :<=: B :&: C = (A :<=: B) && (A :<=: C).
+Proof.
+apply/SAset_subP/andP => [ABC|[/SAset_subP AB]/SAset_subP AC x xA]; last first.
+  by rewrite inSAsetI (AB _ xA) (AC _ xA).
+by split; apply/SAset_subP => x /ABC; rewrite inSAsetI => /andP[].
+Qed.
+
 Lemma SAsubsetIl A B : A :&: B :<=: A.
 Proof. by apply/SAset_subP => x; rewrite inSAsetI => /andP[]. Qed.
 
 Lemma SAsubsetIidl A B : (A :<=: A :&: B) = (A :<=: B).
-Proof.
-apply/SAset_subP/SAset_subP => AB x /[dup] xA /AB; rewrite inSAsetI.
-  by move=> /andP[].
-by rewrite xA.
-Qed.
+Proof. by rewrite SAsubsetI SAsubset_refl. Qed.
 
 Lemma SAsubsetEI A B : A :<=: B = (A :&: B == A).
 Proof. by rewrite eqEsubset SAsubsetIl SAsubsetIidl. Qed.
+
+Lemma SAsubsetED A B :
+  A :<=: B = (A :\: B == SAset0 F n).
+Proof.
+rewrite -subset0; apply/SAset_subP/SAset_subP => AB x.
+  by rewrite inSAsetD => /andP[] /AB + /negP.
+move=> xA; apply/negP => /negP xB.
+have /AB: x \in A :\: B by rewrite inSAsetD xA.
+by rewrite inSAset0.
+Qed.
 
 Lemma SAsetI_idem : idempotent (@SAsetI F n).
 Proof.
@@ -652,11 +713,77 @@ Proof. by rewrite /SAsetD [A :&: _]SAsetIC SAsetIA SAsetICr SAset0I. Qed.
 Lemma SAsetUCr A : A :|: ~: A = SAsetT F n.
 Proof. by apply/eqP/SAsetP => x; rewrite inSAsetU inSAsetC orbN inSAsetT. Qed.
 
-Lemma SAsetIT A : A :&: SAsetT F n = A.
-Proof. by apply/eqP/SAsetP => x; rewrite inSAsetI inSAsetT andbT. Qed.
-
 Lemma SAsetUID A B : A :&: B :|: A :\: B = A.
 Proof. by rewrite -SAsetIUr SAsetUCr SAsetIT. Qed.
+
+Notation "\bigcap_( i <- r | P ) f" :=
+    (\big[@SAsetI _ _/SAsetT _ _]_(i <- r | P) f)
+  (at level 41, f at level 41, r, P at level 50).
+
+Lemma inSAset_bigcap (I : Type) (r : seq I) (P : pred I)
+  (f : I -> {SAset F^n}) (x : 'rV[F]_n) :
+  (x \in \bigcap_(i <- r | P i) f i) = all (fun i => P i ==> (x \in f i)) r.
+Proof.
+elim: r => /= [|i r IHr]; first by rewrite big_nil inSAsetT.
+by rewrite big_cons; case: (P i) => //; rewrite inSAsetI IHr.
+Qed.
+
+Notation "\bigcup_( i <- r | P ) f" :=
+    (\big[@SAsetU _ _/SAset0 _ _]_(i <- r | P) f)
+  (at level 41, f at level 41, r, P at level 50).
+
+Lemma inSAset_bigcup (I : Type) (r : seq I) (P : pred I)
+  (f : I -> {SAset F^n}) (x : 'rV[F]_n) :
+  (x \in \bigcup_(i <- r | P i) f i) = has (fun i => P i && (x \in f i)) r.
+Proof.
+elim: r => /= [|i r IHr]; first by rewrite big_nil inSAset0.
+by rewrite big_cons; case: (P i) => //; rewrite inSAsetU IHr.
+Qed.
+
+Lemma SAsetIbigcupr A (I : Type) (r : seq I) (P : pred I)
+  (f : I -> {SAset F^n}) :
+  A :&: \bigcup_(i <- r | P i) f i = \bigcup_(i <- r | P i) (A :&: f i).
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil SAsetI0.
+by rewrite !big_cons; case: (P i) => //; rewrite SAsetIUr IHr.
+Qed.
+
+Lemma SAsetIbigcup (I J : Type) (r : seq I) (P : pred I) (f : I -> {SAset F^n})
+  (s : seq J) (Q : pred J) (g : J -> {SAset F^n}) :
+  (\bigcup_(i <- r | P i) f i) :&: (\bigcup_(j <- s | Q j) g j)
+      = \bigcup_(ij <- allpairs pair r s | P (fst ij) && Q (snd ij))
+          (f (fst ij) :&: g (snd ij)).
+Proof.
+elim: r => /= [|i r IHr]; first by rewrite !big_nil SAset0I.
+rewrite big_cons big_cat/= big_map/=; case: (P i) => /=; last first.
+  by rewrite big_pred0_eq SAset0U.
+by rewrite SAsetIUl -IHr SAsetIbigcupr.
+Qed.
+
+Lemma SAsetCbigcap (I : Type) (r : seq I) (P : pred I) (f : I -> {SAset F^n}) :
+  (~: \bigcap_(i <- r | P i) f i) = \bigcup_(i <- r | P i) ~: f i.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetC inSAset_bigcap inSAset_bigcup -has_predC.
+elim: r => [//|] i r IHr /=.
+by rewrite negb_imply IHr inSAsetC.
+Qed.
+
+Lemma SAsetCbigcup (I : Type) (r : seq I) (P : pred I) (f : I -> {SAset F^n}) :
+  (~: \bigcup_(i <- r | P i) f i) = \bigcap_(i <- r | P i) ~: f i.
+Proof.
+rewrite -[RHS]SAsetCK SAsetCbigcap; congr (~: _).
+by apply/eq_bigr => i _; rewrite SAsetCK.
+Qed.
+
+Lemma rcf_sat_subst (e : seq F) (s : seq nat) (f : formula F) :
+  rcf_sat e (subst_formula s f) = rcf_sat (subst_env s e) f.
+Proof. by apply/rcf_satP/rcf_satP => /holds_subst. Qed.
+
+Lemma inSAset_pos (x : 'rV[F]_1) : x \in SAset_pos F = (0 < x ord0 ord0).
+Proof.
+rewrite inE rcf_sat_repr_pi/= /cut rcf_sat_subst/=.
+by rewrite /rcf_sat/= /proj_sat/= enum_ordSl/= add0r oppr_lt0.
+Qed.
 
 Lemma SAset_cast_id m (A : {SAset F^m}) : SAset_cast m A = A.
 Proof.
@@ -1062,6 +1189,22 @@ Proof.
 by rewrite /SAfun_to_fun; case: ((sigW (SAfun_tot f x))) => y h.
 Qed.
 
+Lemma inSAfun (f : {SAfun F^n -> F^m})
+   (x : 'rV[F]_n) (y : 'rV[F]_m):
+   (f x == y) = (row_mx x y \in SAgraph f).
+Proof.
+apply/eqP/idP => [<- | h]; first by rewrite inSAgraph.
+exact: (SAfun_func (inSAgraph _ _)).
+Qed.
+
+Lemma SAfunE (f1 f2 : {SAfun F^n -> F^m}) :
+  reflect (f1 =1 f2) (f1 == f2).
+Proof.
+apply: (iffP idP); first by move/eqP ->.
+move=> h; apply/SAsetP => x.
+by rewrite -(cat_ffun_id x) -!inSAfun h.
+Qed.
+
 Definition SAimset (f : {SAset F ^ (n + m)}) (s : {SAset F^n}) : {SAset F^m} :=
   [set | nquantify m n Exists ((subst_formula ((iota m n)
           ++ (iota O m)) f) /\ (subst_formula (iota m n) s)) ].
@@ -1106,20 +1249,24 @@ exists (\row_(i < n) t`_i).
   by rewrite inE ngraph_cat ngraph_nth; apply/rcf_satP.
 Qed.
 
-Lemma inSAfun (f : {SAfun F^n -> F^m})
-   (x : 'rV[F]_n) (y : 'rV[F]_m):
-   (f x == y) = (row_mx x y \in SAgraph f).
-Proof.
-apply/eqP/idP => [<- | h]; first by rewrite inSAgraph.
-exact: (SAfun_func (inSAgraph _ _)).
-Qed.
+Definition SApreimset (f : {SAfun F^n -> F^m}) (s : {SAset F^m}) : {SAset F^n} :=
+  [set | nquantify n m Exists (f /\ (subst_formula (iota n m) s)) ].
 
-Lemma SAfunE (f1 f2 : {SAfun F^n -> F^m}) :
-  reflect (f1 =1 f2) (f1 == f2).
+Lemma inSApreimset (x : 'rV[F]_n)
+ (s : {SAset F^m}) (f : {SAfun F^n -> F^m}) :
+  x \in SApreimset f s = (f x \in s).
 Proof.
-apply: (iffP idP); first by move/eqP ->.
-move=> h; apply/SAsetP => x.
-by rewrite -(cat_ffun_id x) -!inSAfun h.
+apply/SAin_setP/rcf_satP => [|fxs];
+  rewrite -[X in nquantify X](size_ngraph x).
+  move=> /nexistsP [y] /= [].
+  rewrite -{1}[y]ngraph_tnth -ngraph_cat => xyf /holds_subst.
+  have ->: (f x = \row_i tnth y i).
+    by apply/eqP; rewrite inSAfun inE; apply/rcf_satP.
+  rewrite subst_env_iota_catr ?size_ngraph// ?size_tuple//.
+  by rewrite -{1}[y]ngraph_tnth.
+apply/nexistsP; exists (ngraph (f x)); rewrite -ngraph_cat => /=; split.
+  by move: (inSAgraph f x); rewrite inE => /rcf_satP.
+apply/holds_subst; rewrite ngraph_cat subst_env_iota_catr// ?size_ngraph//.
 Qed.
 
 Definition SAepigraph (f : {SAfun F^n -> F^1}) : {SAset F^(n + 1)} := 
@@ -1407,6 +1554,7 @@ Lemma holds_ngraph (m n : nat) (f : {SAfun F^m -> F^n}) (t : 'rV[F]_(m + n)) :
 reflect (holds (ngraph t) f) (t \in SAgraph f).
 Proof. by rewrite inE; apply: rcf_satP. Qed.
 
+(* Who put composition in this direction? *)
 Lemma SAcomp_graphP (m n p : nat)
   (f : {SAfun F^m -> F^n}) (g : {SAfun F^n -> F^p})
   (u : 'rV[F]_m) (v : 'rV[F]_p) :
@@ -1455,11 +1603,11 @@ apply/andP; split.
 by apply/inSAtot => x; exists (g (f x)); rewrite SAcomp_graphP.
 Qed.
 
-Definition SAcomp (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :=
-    MkSAfun (SAfun_SAcomp f g).
+Definition SAcomp (m n p : nat) (f : SAfun F n p) (g : SAfun F m n) :=
+    MkSAfun (SAfun_SAcomp g f).
 
-Lemma SAcompP (m n p : nat) (f : SAfun F m n) (g : SAfun F n p) :
-    SAcomp f g =1 g \o f.
+Lemma SAcompE (m n p : nat) (f : SAfun F n p) (g : SAfun F m n) :
+    SAcomp f g =1 f \o g.
 Proof.
 move=> x; apply/eqP; rewrite eq_sym -SAcomp_graphP.
 by move: (inSAgraph (SAcomp f g) x).
@@ -1468,22 +1616,31 @@ Qed.
 Definition SAfun_const_graph n m (x : 'rV[F]_m) : {SAset F^(n + m)%N} :=
   [set | \big[And/True]_(i : 'I_m) ('X_(@unsplit n m (inr i)) == GRing.Const (x ord0 i))].
 
+Lemma SAfun_constP n m (x : 'rV[F]_m) (y : 'rV[F]_n) (z : 'rV[F]_m) :
+  row_mx y z \in SAfun_const_graph n x = (z == x).
+Proof.
+apply/SAin_setP/eqP => [/holdsAnd zx|->].
+  apply/rowP => i.
+  move/(_ i): zx; rewrite mem_index_enum => /(_ isT isT).
+  rewrite ngraph_cat/= nth_cat size_ngraph ltnNge leq_addr/=.
+  by rewrite subDnCA// subnn addn0 nth_ngraph.
+apply/holdsAnd => i _ _ /=.
+rewrite ngraph_cat/= nth_cat size_ngraph ltnNge leq_addr/=.
+by rewrite subDnCA// subnn addn0 nth_ngraph.
+Qed.
+
 Lemma SAfun_SAfun_const n m (x : 'rV[F]_m) :
   (SAfun_const_graph n x \in SAfunc) && (SAfun_const_graph n x \in SAtot).
 Proof.
-apply/andP; split.
-  apply/inSAfunc => x0 y1 y2 /SAin_setP /holdsAnd /= h1 /SAin_setP /holdsAnd /= h2.
-  apply/rowP => i.
-  move/(_ i): h1; rewrite mem_index_enum => /(_ Logic.eq_refl Logic.eq_refl).
-  rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph => ->.
-  move/(_ i): h2; rewrite mem_index_enum => /(_ Logic.eq_refl Logic.eq_refl).
-  by rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph.
-apply/inSAtot => y; exists x.
-apply/SAin_setP/holdsAnd => i _ _ /=.
-by rewrite ngraph_cat nth_cat size_ngraph ltnNge leq_addr/= subDnCA// subnn addn0 nth_ngraph.
+apply/andP; split; last by apply/inSAtot => y; exists x; rewrite SAfun_constP.
+by apply/inSAfunc => x0 y1 y2; rewrite !SAfun_constP => /eqP -> /eqP.
 Qed.
 
 Definition SAfun_const n m (x : 'rV[F]_m) := MkSAfun (SAfun_SAfun_const n x).
+
+Lemma SAfun_constE n m (x : 'rV[F]_m) (y : 'rV[F]_n) :
+  SAfun_const n x y = x.
+Proof. by apply/eqP; rewrite inSAfun /SAfun_const SAfun_constP. Qed.
 
 Definition join_formula (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) : formula F :=
   (repr (val f)) /\
@@ -1540,7 +1697,7 @@ Qed.
 Definition SAjoin (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) :=
   MkSAfun (SAfun_SAjoin f g).
 
-Lemma SAjoinP (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) (x : 'rV[F]_m) :
+Lemma SAjoinE (m n p : nat) (f : {SAfun F^m -> F^n}) (g : {SAfun F^m -> F^p}) (x : 'rV[F]_m) :
   SAjoin f g x = row_mx (f x) (g x).
 Proof. by apply/eqP; rewrite eq_sym -SAjoin_graphP; apply/inSAgraph. Qed.
 
@@ -1589,8 +1746,15 @@ Qed.
 
 Definition SAadd p := MkSAfun (SAfun_SAadd p).
 
+Lemma SAaddE p (x y : 'rV[F]_p) : SAadd p (row_mx x y) = (x + y)%R.
+Proof. by apply/eqP; rewrite inSAfun SAadd_graphP row_mxKl row_mxKr. Qed.
+
 Definition SAfun_add (n p : nat) (f g : {SAfun F^n -> F^p}) :=
-  SAcomp (SAjoin f g) (SAadd p).
+  SAcomp (SAadd p) (SAjoin f g).
+
+Lemma SAfun_addE (n p : nat) (f g : {SAfun F^n -> F^p}) (x : 'rV[F]_n) :
+  SAfun_add f g x = (f x + g x)%R.
+Proof. by rewrite SAcompE/= SAjoinE SAaddE. Qed.
 
 Definition opp_formula (p : nat) : formula F :=
   (\big[And/True]_(i : 'I_p) ('X_(p + i) == - 'X_i))%oT.
@@ -1629,11 +1793,65 @@ Qed.
 
 Definition SAopp p := MkSAfun (SAfun_SAopp p).
 
+Lemma SAoppE p (x : 'rV[F]_p) : SAopp p x = - x.
+Proof. by apply/eqP; rewrite inSAfun SAopp_graphP. Qed.
+
+Definition SAfun_opp p (f : {SAfun F^p -> F^p}) :=
+  SAcomp (SAopp p) f.
+
+Lemma SAfun_oppE p (f : {SAfun F^p -> F^p}) (x : 'rV[F]_p) :
+  SAfun_opp f x = - f x.
+Proof. by rewrite SAcompE/= SAoppE. Qed.
+
 Definition SAfun_sub (n p : nat) (f g : {SAfun F^n -> F^p}) :=
-  SAcomp (SAjoin f (SAcomp g (SAopp p))) (SAadd p).
+  SAcomp (SAadd p) (SAjoin f (SAcomp (SAopp p) g)).
+
+Lemma SAfun_subE (n p : nat) (f g : {SAfun F^n -> F^p}) (x : 'rV[F]_n) :
+  SAfun_sub f g x = f x - g x.
+Proof. by rewrite SAcompE/= SAjoinE SAcompE/= SAoppE SAaddE. Qed.
 
 Definition SAfun_lt (n : nat) (f g : {SAfun F^n -> F^1}) :=
-  SAgraph (SAfun_sub f g) :<=: (SAsetT F n) :*: (SAset_pos F).
+  SAgraph (SAfun_sub g f) :<=: (SAsetT F n) :*: (SAset_pos F).
+
+Lemma SAfun_ltP (n : nat) (f g : {SAfun F^n -> F^1}) :
+  reflect (forall x, f x ord0 ord0 < g x ord0 ord0) (SAfun_lt f g).
+Proof.
+apply/(iffP (SAset_subP _ _)) => fg x.
+  move/(_ (row_mx x (g x - f x))) : fg.
+  rewrite -inSAfun SAfun_subE => /(_ (eqxx _)).
+  by rewrite inSAsetX row_mxKl row_mxKr inSAset_pos !mxE subr_gt0 => /andP[_].
+rewrite -[x]hsubmxK -inSAfun SAfun_subE inSAsetX row_mxKl row_mxKr => /eqP <-.
+by move/(_ (lsubmx x)): fg; rewrite inSAsetT inSAset_pos !mxE  subr_gt0.
+Qed.
+
+Definition SAmpoly_graph (n : nat) (p : {mpoly F[n]}) : {SAset F^(n + 1)} :=
+  [set | 'X_n == term_mpoly p (fun i => 'X_i)].
+
+Lemma SAmpoly_graphP (n : nat) (p : {mpoly F[n]}) (x : 'rV[F]_n) (y : 'rV[F]_1) :
+  (row_mx x y \in SAmpoly_graph p) = (y ord0 ord0 == p.@[x ord0]).
+Proof.
+by apply/SAin_setP/eqP; rewrite /= eval_term_mpoly enum_ordD/= map_cat;
+  rewrite nth_cat/= -map_comp size_map size_enum_ord ltnn subnn enum_ordSl;
+  rewrite enum_ord0/= row_mxEr => ->; apply/meval_eq => i /=;
+  rewrite nth_cat size_map size_enum_ord (ltn_ord i);
+  rewrite (nth_map i) ?size_enum_ord// nth_ord_enum/= row_mxEl.
+Qed.
+
+Lemma SAfun_SAmpoly (n : nat) (p : {mpoly F[n]}) :
+  (SAmpoly_graph p \in @SAfunc _ n 1) && (SAmpoly_graph p \in @SAtot _ n 1).
+Proof.
+apply/andP; split.
+  apply/inSAfunc => x y1 y2; rewrite !SAmpoly_graphP => /eqP <- /eqP y12.
+  apply/rowP; case; case=> //= lt01.
+  by move/esym: y12; congr (_ = _); congr (_ _ _); apply/val_inj.
+by apply/inSAtot => x; exists (\row__ p.@[x ord0]); rewrite SAmpoly_graphP mxE.
+Qed.
+
+Definition SAmpoly (n : nat) (p : {mpoly F[n]}) := MkSAfun (SAfun_SAmpoly p).
+
+Lemma SAmpolyE n (p : {mpoly F[n]}) (x : 'rV[F]_n) :
+  SAmpoly p x = \row__ p.@[x ord0].
+Proof. by apply/eqP; rewrite inSAfun SAmpoly_graphP !mxE. Qed.
 
 Definition partition_of_graphs (n m : nat) (xi : m.-tuple {SAfun F^n -> F^1}) : {fset {SAset F^(n + 1)%N}} :=
   ((\big[@SAsetI F (n + 1)/SAset0 F (n + 1)]_i SAepigraph (tnth xi i))
@@ -1645,6 +1863,467 @@ Definition partition_of_graphs_above n (s : {SAset F^n}) (m : nat) (xi : m.-tupl
   [fset x :&: (s :*: SAsetT F 1) | x in partition_of_graphs xi].
 
 Definition SAset_path_connected n (s : {SAset F^n}) :=
-  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within set_of_SAset (SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)), continuous (xi : 'rV_1 -> 'rV_n)} /\ xi 0 = x /\ xi 1 = y}.
+  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within set_of_SAset (SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)), continuous xi} /\ xi 0 = x /\ xi 1 = y}.
 
 End SAfunOps.
+
+Section SAconvex.
+Variables (F : rcfType).
+
+Definition SAset_segment (n : nat) (x y : 'rV[F]_n) : {SAset F^n} :=
+  [set | ('exists 'X_n, 0 <=% 'X_n /\ 'X_n <=% 1 /\
+      \big[And/True]_(i < n)
+        ('X_i == (1-'X_n) * Const (x ord0 i) + 'X_n * Const (y ord0 i)))%oT].
+
+Lemma inSAset_segment (n : nat) (x y z : 'rV[F]_n) :
+  reflect (exists t, 0 <= t <= 1 /\ z = (1-t) *: x + t *: y)%R (z \in SAset_segment x y).
+Proof.
+apply/(iffP (SAin_setP _ _)) => /= [[t]|[t][] /andP[] t0 t1 ->].
+  rewrite nth_set_nth/= eqxx => -[t0][t1] /holdsAnd/=.
+  rewrite nth_set_nth/= eqxx => zE.
+  exists t; split; first by rewrite t0.
+  apply/rowP => i; move/(_ i (mem_index_enum _) isT): zE.
+  rewrite nth_set_nth/= (ltn_eqF (ltn_ord i)) (nth_map i) ?size_enum_ord//.
+  by rewrite nth_ord_enum !mxE.
+exists t; rewrite nth_set_nth/= eqxx; split=> //; split=> //.
+apply/holdsAnd => /= i _ _.
+rewrite !nth_set_nth/= eqxx (ltn_eqF (ltn_ord i)) (nth_map i) ?size_enum_ord//.
+by rewrite nth_ord_enum !mxE.
+Qed.
+
+Definition SAset_convex (n : nat) (s : {SAset F^n}) :=
+  {in s &, forall x y : 'rV[F]_n, SAset_segment x y :<=: s}.
+
+Lemma SAsetT_convex (n : nat) : SAset_convex (SAsetT F n).
+Proof. by move=> x y _ _; exact/subsetT. Qed.
+
+Lemma SAset0_convex (n : nat) : SAset_convex (SAset0 F n).
+Proof. by move=> x y; rewrite inSAset0. Qed.
+
+Lemma SAsetI_convex (n : nat) (s t : {SAset F^n}) :
+  SAset_convex s -> SAset_convex t -> SAset_convex (s :&: t).
+Proof.
+move=> sc tc x y; rewrite !inSAsetI SAsubsetI => /andP[xs xt] /andP[ys yt].
+by apply/andP; split; [apply/sc|apply/tc].
+Qed.
+
+End SAconvex.
+
+Lemma rterm_tsubst (R : unitRingType) (t : GRing.term R) (s : nat * GRing.term R) :
+  GRing.rterm t -> GRing.rterm (snd s) -> GRing.rterm (GRing.tsubst t s).
+Proof.
+move=> + sr; elim: t => //=.
+- by move=> n _; case: (n == fst s).
+- by move=> t IHt u IHu /andP[] /IHt {}IHt /IHu {}IHu; apply/andP; split.
+- by move=> t IHt u IHu /andP[] /IHt {}IHt /IHu {}IHu; apply/andP; split.
+Qed.
+
+Lemma rform_fsubst (R : realDomainType) (f : formula R) (s : nat * GRing.term R) :
+  rformula f -> GRing.rterm (snd s) -> rformula (fsubst f s).
+Proof.
+move=> + sr; elim: f => //=.
+- by move=> t u /andP[] tr ur; apply/andP; split; apply/rterm_tsubst.
+- by move=> t u /andP[] tr ur; apply/andP; split; apply/rterm_tsubst.
+- by move=> t u /andP[] tr ur; apply/andP; split; apply/rterm_tsubst.
+- by move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg; apply/andP; split.
+- by move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg; apply/andP; split.
+- by move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg; apply/andP; split.
+- by move=> n f IHf fr; case: (n == fst s); last apply/IHf.
+- by move=> n f IHf fr; case: (n == fst s); last apply/IHf.
+Qed.
+
+Lemma rform_qf_elim (R : rcfType) (f : formula R) :
+  rformula (qf_elim f).
+Proof.
+rewrite /qf_elim.
+elim: (enum_fset _) => /= [|x r IHr]; last exact/rform_fsubst.
+exact/rform_elim/to_rform_rformula.
+Qed.
+
+Lemma SAset_formula (F : rcfType) (n : nat) (s : {SAset F^n}) :
+  {f : formula F | rformula f /\ qf_form f /\ s = [set | f]}.
+Proof.
+exists (qf_elim s); split; first exact/rform_qf_elim.
+split; first exact/qf_elim_qf.
+apply/eqP/SAsetP => x; apply/rcf_satP/SAin_setP => [xs|/rcf_satP/qf_elim_holdsP//].
+exact/rcf_satP/qf_elim_holdsP.
+Qed.
+
+Fixpoint mpoly_rterm (R : unitRingType) (n : nat) (t : term R) : {mpoly R[n]} :=
+  match t with
+  | Var i =>
+    match ltnP i n with
+    | LtnNotGeq ilt => 'X_(Ordinal ilt)
+    | _ => 0
+    end
+  | Const c => mpolyC n c
+  | NatConst i => mpolyC n i%:R
+  | Add t u => (mpoly_rterm n t) + (mpoly_rterm n u)
+  | Opp t => - (mpoly_rterm n t)
+  | NatMul t i => (mpoly_rterm n t) *+ i
+  | Mul t u => (mpoly_rterm n t) * (mpoly_rterm n u)
+  | Exp t i => (mpoly_rterm n t) ^+ i
+  end.
+
+Lemma mevalXn (n k : nat) (R : comRingType) (x : 'I_n -> R) (p : {mpoly R[n]}) :
+  (p ^+ k).@[x] = p.@[x] ^+ k.
+Proof.
+elim: k => [|k IHk]; first by rewrite !expr0 meval1.
+by rewrite !exprS mevalM IHk.
+Qed.
+
+Lemma meval_mpoly_rterm (R : realDomainType) (n : nat) (x : 'I_n -> R) (t : term R) :
+  (mpoly_rterm n t).@[x] = eval [seq x i | i <- enum 'I_n] t.
+Proof.
+elim: t => /=.
+- move=> i; case: (ltnP i n) => [ilt|ige].
+    rewrite mevalXU (nth_map (Ordinal ilt)) ?size_enum_ord//.
+    by rewrite -[X in nth _ _ X]/(nat_of_ord (Ordinal ilt)) nth_ord_enum.
+  by rewrite meval0 nth_default// size_map size_enum_ord.
+- exact/mevalC.
+- move=> i; exact/mevalC.
+- by move=> t IHt u IHu; rewrite mevalD IHt IHu.
+- by move=> t IHt; rewrite mevalN IHt.
+- by move=> t IHt i; rewrite mevalMn IHt.
+- by move=> t IHt u IHu; rewrite mevalM IHt IHu.
+- by move=> t IHt i; rewrite mevalXn IHt.
+Qed.
+
+Lemma forall_ord1 (p : pred 'I_1) :
+  [forall i : 'I_1, p i] = p ord0.
+Proof.
+apply/forallP/idP => [/(_ ord0) //|p0].
+by case; case=> // ilt; move: p0; congr p; apply/val_inj.
+Qed.
+
+Lemma eval_rterm (R : unitRingType) (e : seq R) (t : GRing.term R) :
+  GRing.rterm t -> GRing.eval e (to_rterm t) = GRing.eval e t.
+Proof.
+elim: t => //=.
+- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
+- by move=> t /[apply] ->.
+- by move=> t /[swap] n /[apply] ->.
+- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
+- by move=> t /[swap] n /[apply] ->.
+Qed.
+
+Lemma SAset_nf (F : rcfType) (n : nat) (s : {SAset F^n}) :
+  {P : seq ({mpoly F[n]} * seq {mpoly F[n]}) |
+      s = \big[@SAsetU F n/SAset0 F n]_(p <- P)
+        (SApreimset (SAmpoly (fst p)) (SAset_seq [:: 0])
+        :&: \big[@SAsetI F n/SAsetT F n]_(q <- (snd p)) SApreimset (SAmpoly q) (SAset_pos F))}.
+Proof.
+pose has_nf (f : {SAset F^n}) :=
+  {P : seq ({mpoly F[n]} * seq {mpoly F[n]})
+    | f =
+    \big[SAsetU (n:=n)/SAset0 F n]_(p <- P)
+      (SApreimset (SAmpoly (p.1)%PAIR) [ set 0]
+        :&: \big[SAsetI (n:=n)/SAsetT F n]_(q <- (p.2)%PAIR)
+              SApreimset (SAmpoly q) (SAset_pos F))}.
+have IHI (f g : {SAset F^n}) :
+  has_nf f -> has_nf g -> has_nf (f :&: g).
+  move=> [Pf] fE [Pg] gE.
+  exists ([seq ((fst pf) ^+ 2 + (fst pg) ^+ 2, (snd pf) ++ (snd pg))
+    | pf <- Pf, pg <- Pg])%R.
+  rewrite fE gE SAsetIbigcup/=.
+  apply/eqP/SAsetP => x; rewrite !inSAset_bigcup/=.
+  apply/hasP/hasP => /= -[[i j]] /allpairsP /= [[pf pg]] /= [] pfP pgP
+    /pair_equal_spec [-> ->].
+    rewrite !inSAsetI 2!inSApreimset !inSAset1 !SAmpolyE !inSAset_bigcap/=.
+    rewrite !rowPE !forall_ord1 !mxE.
+    move=> /andP[]/andP[] /eqP pf10 /allP pf20 /andP[] /eqP pg10 /allP pg20.
+    exists ((fst pf) ^+ 2 + (fst pg) ^+ 2, (snd pf) ++ (snd pg))%R.
+      by apply/allpairsP => /=; exists (pf, pg).
+    rewrite inSAsetI inSApreimset inSAset1 SAmpolyE inSAset_bigcap/=.
+    rewrite rowPE forall_ord1 !mxE mevalD !mevalXn pf10 pg10 expr0n/= addr0
+      eqxx/=.
+    by apply/allP => p; rewrite mem_cat => /orP [/pf20|/pg20].
+  rewrite inSAsetI inSApreimset inSAset1 SAmpolyE inSAset_bigcap/= rowPE
+    forall_ord1 !mxE mevalD !mevalXn paddr_eq0 ?sqr_ge0// !sqrf_eq0.
+  move=> /andP[]/andP[] pf10 pg10 /allP pfg20.
+  exists (pf, pg); first by apply/allpairsP => /=; exists (pf, pg).
+  rewrite !inSAsetI 2!inSApreimset !SAmpolyE !inSAset1 !rowPE !forall_ord1 !mxE
+    pf10 pg10/= !inSAset_bigcap.
+  by apply/andP; split; apply/allP => p pP /=; apply/pfg20; rewrite mem_cat pP// orbT.
+have IHIs (I : Type) (r : seq I) (f : I -> {SAset F^n}) :
+  (forall i, has_nf (f i))
+  -> has_nf (\big[@SAsetI F n/SAsetT F n]_(i <- r) f i).
+  move=> P; elim: r => [|i r IHr]; last by rewrite big_cons; apply/IHI.
+  exists [:: (0, [::])]; rewrite big_seq1 !big_nil SAsetIT; apply/esym/eqP.
+  rewrite -subTset; apply/SAset_subP => x _.
+  by rewrite inSApreimset inSAset1 SAmpolyE/= meval0 rowPE forall_ord1 !mxE.
+have IHC (f : {SAset F^n}) : has_nf f -> has_nf (~: f).
+  move=> [P] ->; rewrite SAsetCbigcup; apply/IHIs => pf.
+  rewrite SAsetCI SAsetCbigcap.
+  exists ((0, [:: fst pf]) :: (0, [:: - (fst pf)]) ::
+    [seq (p, [::]) | p <- snd pf] ++ [seq (0, [:: - p]) | p <- snd pf]).
+  rewrite big_cons big_seq1 big_cons big_seq1/=; apply/eqP/SAsetP => x.
+  rewrite !inSAsetU !inSAsetI inSAsetC 4!inSApreimset !SAmpolyE 2!inSAset1
+    !rowPE !forall_ord1 !inSAset_pos !mxE meval0 eqxx/= mevalN oppr_gt0
+    !inSAset_bigcup/=.
+  apply/orP/orP => [[/lt_total pf10|/hasP [p pP]]|[pf10|/orP [pf10|/hasP [p]]]].
+  - by apply/orP; rewrite orbCA orbA pf10.
+  - rewrite inSAsetC inSApreimset inSAset_pos SAmpolyE mxE -leNgt
+      le_eqVlt => /orP p0.
+    right; apply/orP; right; apply/hasP; case: p0 => p0.
+      exists (p, [::]).
+        by rewrite mem_cat; apply/orP; left; apply/mapP; exists p.
+      by rewrite big_nil SAsetIT inSApreimset SAmpolyE inSAset1 rowPE
+        forall_ord1 !mxE/=.
+    exists (0, [:: -p]).
+      by rewrite mem_cat; apply/orP; right; apply/mapP; exists p.
+    by rewrite inSAsetI/= big_seq1 2!inSApreimset inSAset1 inSAset_pos !SAmpolyE
+      rowPE forall_ord1 !mxE meval0 eqxx mevalN oppr_gt0.
+  - by left; rewrite eq_sym (lt_eqF pf10).
+  - by left; rewrite (lt_eqF pf10).
+  rewrite mem_cat => /= /orP [|] /mapP [q]/= qf ->.
+    rewrite big_nil SAsetIT inSApreimset inSAset1 SAmpolyE rowPE forall_ord1
+      !mxE/= => /eqP q0.
+    right; apply/hasP; exists q => //.
+    by rewrite inSAsetC inSApreimset inSAset_pos SAmpolyE !mxE q0 ltxx.
+  rewrite big_seq1 inSAsetI 2!inSApreimset inSAset1 inSAset_pos !SAmpolyE
+    rowPE forall_ord1 !mxE/= meval0 eqxx mevalN oppr_gt0/= => q0.
+  right; apply/hasP; exists q => //.
+  by rewrite inSAsetC inSApreimset inSAset_pos SAmpolyE !mxE -leNgt le_eqVlt
+    q0 orbT.
+case: (SAset_formula s) => + [+][+] -> {s}; elim=> //=.
+- move=> + _ _; case; last first.
+    exists [::]; rewrite big_nil; apply/eqP/SAsetP => x.
+    by rewrite inSAset0; apply/negP => /SAin_setP.
+  exists [:: (0, [::])]; apply/esym/eqP.
+  rewrite -subTset big_seq1 big_nil SAsetIT; apply/SAset_subP => x _.
+  rewrite inSApreimset inSAset1 SAmpolyE/= meval0.
+  by apply/eqP/rowP => i; rewrite !mxE.
+- move=> t u /andP[] rt ru _.
+  exists [:: (mpoly_rterm n (to_rterm (GRing.Add t (GRing.Opp u))), [::])].
+  rewrite big_seq1/= big_nil SAsetIT; apply/eqP/SAsetP => x.
+  rewrite inSApreimset SAmpolyE inSAset1 rowPE forall_ord1 !mxE mevalB subr_eq0.
+  by rewrite !meval_mpoly_rterm !evalE !eval_rterm//; apply/SAin_setP/eqP.
+- move=> t u /andP[] rt ru _.
+  exists [:: (0, [:: mpoly_rterm n (to_rterm (GRing.Add u (GRing.Opp t)))])].
+  rewrite big_seq1/= big_seq1; apply/eqP/SAsetP => x.
+  rewrite inSAsetI 2!inSApreimset !SAmpolyE inSAset1 rowPE forall_ord1.
+  rewrite inSAset_pos !mxE meval0 eqxx/= mevalB subr_gt0 !meval_mpoly_rterm.
+  by rewrite !evalE !eval_rterm//; apply/SAin_setP/idP.
+- move=> t u /andP[] rt ru _.
+  pose v := GRing.Add u (GRing.Opp t).
+  exists [:: (mpoly_rterm n (to_rterm v), [::]);
+    (0, [:: mpoly_rterm n (to_rterm v)])].
+  rewrite big_cons big_nil big_seq1/= big_seq1 SAsetIT; apply/eqP/SAsetP => x.
+  rewrite inSAsetU inSAsetI 3!inSApreimset !SAmpolyE 2!inSAset1 !rowPE.
+  rewrite !forall_ord1 inSAset_pos !mxE meval0 eqxx/= mevalB subr_gt0.
+  rewrite subr_eq0 eq_sym -le_eqVlt !meval_mpoly_rterm !evalE !eval_rterm//.
+  exact/SAin_setP/idP.
+- move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg.
+  move=> /andP[] {}/IHf fnf {}/IHg gnf.
+  by rewrite -SAsetI_comprehension; apply/IHI.
+- move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg.
+  move=> /andP[] {}/IHf [Pf]fE {}/IHg [Pg]gE.
+  by exists (Pf ++ Pg); rewrite big_cat/= -fE -gE SAsetU_comprehension.
+- move=> f IHf g IHg /andP[] /IHf {}IHf /IHg {}IHg.
+  move=> /andP[] {}/IHf fnf {}/IHg gnf.
+  suff ->: [set| f ==> g] = ~: ([set| f] :&: ~: [set| g]) :> {SAset F^n}.
+    by apply/IHC/IHI => //; apply/IHC.
+  apply/eqP/SAsetP => x.
+  rewrite inSAsetC inSAsetI inSAsetC negb_and negbK.
+  apply/SAin_setP/orP => /= [fg|[/negP xf /SAin_setP|/SAin_setP xg _]//].
+  case /boolP: (x \in [set| f]) => /SAin_setP xf; last by left.
+  by right; apply/SAin_setP/fg.
+- by move=> f /[apply]/[apply] /IHC; rewrite SAsetC_comprehension.
+Qed.
+
+Section SAorder.
+Variables (F : rcfType) (n : nat).
+Implicit Types (s : {SAset F^n}).
+
+Definition SAset_itv (I : interval F) :=
+  let 'Interval l u := I in
+  (match l with
+   | BSide false lb => [set | lb%:T <% 'X_0]
+   | BSide true lb => [set | lb%:T <=% 'X_0]
+   | BInfty false => SAset0 F 1
+   | BInfty true => SAsetT F 1
+   end) :&: (
+   match u with
+   | BSide false ub => [set | 'X_0 <=% ub%:T]
+   | BSide true ub => [set | 'X_0 <% ub%:T]
+   | BInfty false => SAsetT F 1
+   | BInfty true => SAset0 F 1
+   end).
+
+Lemma inSAset_itv (I : interval F) (x : 'rV[F]_1) :
+  (x \in SAset_itv I) = (x 0 0 \in I).
+Proof.
+rewrite in_itv; case: I => l u.
+rewrite inSAsetI; congr andb.
+  case: l => [+ t|]; case=> /=; last first.
+  - exact/inSAset0.
+  - exact/inSAsetT.
+  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+case: u => [+ t|]; case=> /=; last first.
+- exact/inSAsetT.
+- exact/inSAset0.
+- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
+Qed.
+
+Definition SAsetUB (s : {SAset F^1}) : {SAset F^1} :=
+  [set | 'forall 'X_1, (subst_formula [:: 1%N] s ==> ('X_1 <=% 'X_0))%oT].
+
+Lemma inSAsetUB (s : {SAset F^1}) (x : 'rV[F]_1) :
+  reflect (forall y, y \in s -> y ord0 ord0 <= x ord0 ord0) (x \in SAsetUB s).
+Proof.
+apply/(iffP (SAin_setP _ _)) => /= [+ y ys|yx y].
+  move=> /(_ (y ord0 ord0)); rewrite holds_subst/= !nth_set_nth/= enum_ordSl/=.
+  apply; move: ys => /rcf_satP; congr holds => /=.
+  by rewrite enum_ordSl enum_ord0.
+rewrite holds_subst/= !nth_set_nth/= enum_ordSl/= => ys.
+move: yx => /(_ (\row__ y)); rewrite inE/= mxE; apply.
+by rewrite enum_ordSl enum_ord0/= mxE; apply/rcf_satP.
+Qed.
+
+Lemma inSAsetUBC (s : {SAset F^1}) (x : 'rV[F]_1) :
+  reflect (exists y, y \in s /\ x ord0 ord0 < y ord0 ord0) (x \in ~: SAsetUB s).
+Proof.
+rewrite SAsetC_comprehension.
+apply/(iffP (SAin_setP _ _)) => [/n_forall_formula /= [y]|[y][ys] xy].
+  rewrite holds_subst/= !nth_set_nth/= enum_ordSl/= => yP.
+  exists (\row__ y); case/boolP: (\row__ y \in s) => [|/negP ys].
+    by move=> /rcf_satP => ys; split=> //; rewrite mxE ltNge; apply/negP => xy.
+  exfalso; apply/yP => /rcf_satP => ys'; exfalso; apply/ys; move: ys'.
+  by congr rcf_sat; rewrite /= enum_ordSl enum_ord0/= mxE.
+apply/n_forall_formula; exists (y ord0 ord0).
+rewrite /= holds_subst/= !nth_set_nth/= enum_ordSl/= => yP.
+move: xy; rewrite ltNge => /negP; apply; apply/yP.
+move: ys => /rcf_satP; congr holds.
+by rewrite /= enum_ordSl enum_ord0/=.
+Qed.
+
+Lemma SAsetUB0 : SAsetUB (SAset0 F 1) = SAsetT F 1.
+Proof.
+apply/eqP; rewrite -subTset; apply/SAset_subP => x _.
+by apply/inSAsetUB => y; rewrite inSAset0.
+Qed.
+
+Lemma SAsetUBT : SAsetUB (SAsetT F 1) = SAset0 F 1.
+Proof.
+apply/eqP; rewrite -subset0; apply/SAset_subP.
+move=> x /inSAsetUB/(_ (x+\row__ 1)%R); rewrite inSAsetT => /(_ isT).
+by rewrite !mxE -subr_ge0 opprD addrA subrr add0r leNgt oppr_lt0 ltr01.
+Qed.
+
+Lemma SAsetUBU (s t : {SAset F^1}) :
+  SAsetUB (s :|: t) = SAsetUB s :&: SAsetUB t.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetI.
+apply/inSAsetUB/andP => [xst|[] /inSAsetUB xs/inSAsetUB xt y]; last first.
+  by rewrite inSAsetU => /orP [/xs|/xt].
+by split; apply/inSAsetUB => y yst; apply/xst; rewrite inSAsetU yst// orbT.
+Qed.
+
+Lemma SAsetUBbigcup (I : Type) (r : seq I) (P : pred I) (f : I -> {SAset F^1}) :
+  SAsetUB (\big[@SAsetU F 1/SAset0 F 1]_(i <- r | P i) f i)
+      = \big[@SAsetI F 1/SAsetT F 1]_(i <- r | P i) (SAsetUB (f i)).
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil SAsetUB0.
+by rewrite !big_cons; case: (P i) => //; rewrite SAsetUBU IHr.
+Qed.
+
+Definition SAsetLB (s : {SAset F^1}) : {SAset F^1} :=
+  [set | 'forall 'X_1, (subst_formula [:: 1%N] s ==> ('X_0 <=% 'X_1))%oT].
+
+Lemma inSAsetLB (s : {SAset F^1}) (x : 'rV[F]_1) :
+  reflect (forall y, y \in s -> x ord0 ord0 <= y ord0 ord0) (x \in SAsetLB s).
+Proof.
+apply/(iffP (SAin_setP _ _)) => /= [+ y ys|yx y].
+  move=> /(_ (y ord0 ord0)); rewrite holds_subst/= !nth_set_nth/= enum_ordSl/=.
+  apply; move: ys => /rcf_satP; congr holds => /=.
+  by rewrite enum_ordSl enum_ord0.
+rewrite holds_subst/= !nth_set_nth/= enum_ordSl/= => ys.
+move: yx => /(_ (\row__ y)); rewrite inE/= mxE; apply.
+by rewrite enum_ordSl enum_ord0/= mxE; apply/rcf_satP.
+Qed.
+
+Lemma inSAsetLBC (s : {SAset F^1}) (x : 'rV[F]_1) :
+  reflect (exists y, y \in s /\ y ord0 ord0 < x ord0 ord0) (x \in ~: SAsetLB s).
+Proof.
+rewrite SAsetC_comprehension.
+apply/(iffP (SAin_setP _ _)) => [/n_forall_formula /= [y]|[y][ys] xy].
+  rewrite holds_subst/= !nth_set_nth/= enum_ordSl/= => yP.
+  exists (\row__ y); case/boolP: (\row__ y \in s) => [|/negP ys].
+    by move=> /rcf_satP => ys; split=> //; rewrite mxE ltNge; apply/negP => xy.
+  exfalso; apply/yP => /rcf_satP => ys'; exfalso; apply/ys; move: ys'.
+  by congr rcf_sat; rewrite /= enum_ordSl enum_ord0/= mxE.
+apply/n_forall_formula; exists (y ord0 ord0).
+rewrite /= holds_subst/= !nth_set_nth/= enum_ordSl/= => yP.
+move: xy; rewrite ltNge => /negP; apply; apply/yP.
+move: ys => /rcf_satP; congr holds.
+by rewrite /= enum_ordSl enum_ord0/=.
+Qed.
+
+Lemma SAsetLB0 : SAsetLB (SAset0 F 1) = SAsetT F 1.
+Proof.
+apply/eqP; rewrite -subTset; apply/SAset_subP => x _.
+by apply/inSAsetLB => y; rewrite inSAset0.
+Qed.
+
+Lemma SAsetLBT : SAsetLB (SAsetT F 1) = SAset0 F 1.
+Proof.
+apply/eqP; rewrite -subset0; apply/SAset_subP.
+move=> x /inSAsetLB/(_ (x-\row__ 1)%R); rewrite inSAsetT => /(_ isT).
+by rewrite !mxE -subr_ge0 addrAC subrr add0r leNgt oppr_lt0 ltr01.
+Qed.
+
+Lemma SAsetLBU (s t : {SAset F^1}) :
+  SAsetLB (s :|: t) = SAsetLB s :&: SAsetLB t.
+Proof.
+apply/eqP/SAsetP => x; rewrite inSAsetI.
+apply/inSAsetLB/andP => [xst|[] /inSAsetLB xs/inSAsetLB xt y]; last first.
+  by rewrite inSAsetU => /orP [/xs|/xt].
+by split; apply/inSAsetLB => y yst; apply/xst; rewrite inSAsetU yst// orbT.
+Qed.
+
+Lemma SAsetLBbigcup (I : Type) (r : seq I) (P : pred I) (f : I -> {SAset F^1}) :
+  SAsetLB (\big[@SAsetU F 1/SAset0 F 1]_(i <- r | P i) f i)
+      = \big[@SAsetI F 1/SAsetT F 1]_(i <- r | P i) (SAsetLB (f i)).
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil SAsetLB0.
+by rewrite !big_cons; case: (P i) => //; rewrite SAsetLBU IHr.
+Qed.
+
+(* WIP 
+Lemma SAset_supP (s : {SAset F^1}) :
+  s != SAset0 F 1 -> SAsetUB s != SAset0 F 1
+  -> {x : 'rV[F]_1 | SAsetUB s = SAset_itv `[(x 0 0), +oo[%R}.
+Proof.
+pose Goal (t : {SAset F^1}) := t != SAset0 F 1 ->
+  SAsetUB t != SAset0 F 1 ->
+  {x : 'cV_1 | SAsetUB t = SAset_itv `[(x 0 0), +oo[%R}.
+have supU : forall s t : {SAset F^1}, Goal s -> Goal t -> Goal (s :|: t).
+  move=> {}s t sP tP; rewrite /Goal.
+  Search SAsetU SAset0.
+  {1}SAsetUBU inSAsetI.
+  move=> /andP[] {}/sP [x +] {}/tP [y].
+  wlog: x y s t / x 0 0 <= y 0 0 => xy.
+    move: (le_total (x 0 0) (y 0 0)); case/boolP: (x 0 0 <= y 0 0) => /= xy' yx.
+      exact/xy.
+    by rewrite SAsetUC => /[swap]; apply/xy.
+  rewrite !inSAsetI => /andP[] /inSAsetUB xub /inSAsetLB xlb
+    /andP[] /inSAsetUB yub /inSAsetLB ylb.
+  exists y; rewrite inSAsetI; apply/andP; split; last first.
+    by apply/inSAsetLB => z; rewrite SAsetUBU inSAsetI => /andP[] _ /ylb.
+  apply/inSAsetUB => z; rewrite inSAsetU => /orP; case => zst; last exact/yub.
+  exact/(le_trans _ xy)/xub.
+have {}supU (I : Type) (r : seq I) (f : I -> {SAset F^1}) :
+  (forall i, Goal (f i)) -> Goal (\big[@SAsetU F 1/SAset0 F 1]_(i <- r) f i).
+  move=> iub; elim: r => [|i r IHr].
+    rewrite big_nil => /inSAsetUB/(_ 0).
+
+
+right; case: (SAset_nf s) => P ->.
+Check SAset_nf.
+ *)
+  
+
+End SAorder.
