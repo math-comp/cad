@@ -424,6 +424,73 @@ rewrite -sum1_size /cindexR rmorph_sum big_seq [RHS]big_seq.
 by apply/eq_bigr => i; rewrite in_rootsR jump_derivp => /andP[] -> ->.
 Qed.
 
+Lemma SAset_castXl n m (s : {SAset R^n}) (t : {SAset R^m}) :
+  t != SAset0 R m -> SAset_cast n (s :*: t) = s.
+Proof.
+have [->|[] x0 xt _] := set0Vmem t; first by rewrite eqxx.
+apply/eqP/SAsetP => x.
+  apply/inSAset_castDn/idP => [[y [+ ->]]|xs].
+  by rewrite inSAsetX => /andP[+ _].
+by exists (row_mx x x0); rewrite inSAsetX row_mxKl row_mxKr xs.
+Qed.
+
+Lemma imfset0 [T U : choiceType] (f : T -> U) :
+  [fset f x | x in fset0] = fset0.
+Proof.
+have [-> //|[x]] := fset_0Vmem [fset f x | x in fset0].
+by move=> /imfsetP[y] /=; rewrite inE.
+Qed.
+
+Lemma imfsetU [T U : choiceType] (f : T -> U) (s t : {fset T}) :
+  [fset f x | x in s `|` t] = [fset f x | x in s] `|` [fset f x | x in t].
+Proof.
+apply/fsetP => x; rewrite in_fsetU; apply/imfsetP/orP => [[y] /= + ->|].
+  by rewrite in_fsetU => /orP [ys|yt]; [left|right]; apply/imfsetP; exists y.
+by case=> /imfsetP [y] /= ys ->; exists y => //; rewrite in_fsetU ys// orbT.
+Qed.
+
+Lemma imfset_bigfcup [I T U : choiceType] (r : seq I) (P : pred I)
+  (F : I -> {fset T}) (f : T -> U) :
+  [fset f x | x in \bigcup_(i <- r | P i) F i] =
+    \bigcup_(i <- r | P i) [fset f x | x in F i].
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil imfset0.
+by rewrite !big_cons; case: (P i) => //; rewrite imfsetU IHr.
+Qed.
+
+Lemma SAset_cast_partition_of_graphs_above n (s : {SAset R^n})
+  (xi : seq (SAfunltType R n)) t :
+  sorted <%O xi ->
+  t \in partition_of_graphs_above s xi -> SAset_cast n t = s.
+Proof.
+move=> xisort /imfsetP[] /= u uxi ->.
+apply/eqP/SAsetP => x; apply/inSAset_castDn/idP => [|xs].
+  by move=> [y] [+] ->; rewrite inSAsetI inSAsetX => /andP[_] /andP[].
+move: uxi => /(nthP (SAset0 R _)) [] i.
+rewrite size_map size_iota => ilt <-.
+set xi' := [seq (f : {SAfun R^n -> R^1}) x ord0 ord0 | f <- xi].
+have: sorted <%O xi' by apply/(homo_sorted _ _ xisort) => f g /SAfun_ltP /(_ x).
+move=> /SAset_partition_of_pts.
+set S := [fset x0 | x0 in _] => /andP[] /andP[] + _ _.
+have [<-|[y] yi _] := set0Vmem (nth (SAset0 R _) (partition_of_pts xi') i).
+  move=> /negP; elim; apply/imfsetP.
+  exists (nth (SAset0 R 1) (partition_of_pts xi') i) => //=.
+  by apply/mem_nth; rewrite 2!size_map size_iota.
+exists (row_mx x y); split; last by rewrite row_mxKl.
+move: yi; rewrite -SAset_fiber_partition_of_graphs.
+rewrite (nth_map (SAset0 R _)) ?size_map ?size_iota// inSAset_fiber inSAsetI => ->.
+by rewrite inSAsetX row_mxKl row_mxKr xs inSAsetT.
+Qed.
+
+Lemma SAset_partition_cast n m (S : {fset {SAset R^n}}) :
+  n = m -> SAset_partition [fset SAset_cast m x | x in S] = SAset_partition S.
+Proof.
+move=> nm; move: S; rewrite nm => S; congr SAset_partition.
+apply/fsetP => /= x; apply/imfsetP/idP => [|xS].
+  by move=> /= [y] yS ->; rewrite SAset_cast_id.
+by exists x => //; rewrite SAset_cast_id.
+Qed.
+
 Theorem cylindrical_decomposition n (P : {fset {mpoly R[n]}}) :
   { S | isCD S /\ forall p : P, poly_adapted (val p) S}.
 Proof.
@@ -518,15 +585,60 @@ have S'const (s' : S') :
     by rewrite prednK ?size_poly_gt0// leqnn mulr1n.
   rewrite add0n => ilt.
   admit.
-exists ([fset SAset_cast n.+1 s' | s' in \big[fsetU/fset0]_(s' : S') partition_of_graphs_above (val s') (proj1_sig (roots2_on (S'const s')))]).
+pose S := [fset SAset_cast n.+1 s' | s' in \big[fsetU/fset0]_(s' : S') partition_of_graphs_above (val s') (proj1_sig (roots2_on (S'const s')))].
+have {}Scast : [fset SAset_cast n s | s in S] = S'.
+  rewrite /S 2!imfset_bigfcup.
+  apply/fsetP => x; apply/bigfcupP/idP => [[] /= s _| xS].
+    case: (roots2_on (S'const s)) => /= r [] rsort _.
+    move=> /imfsetP[] /= y /imfsetP[] /= z zs -> ->.
+    rewrite SAset_cast_trans; last by rewrite geq_min addn1 leqnn.
+    by rewrite (SAset_cast_partition_of_graphs_above rsort zs).
+  exists [` xS]; first by rewrite mem_index_enum.
+  apply/imfsetP => /=.
+  case: (roots2_on (S'const [` xS])) => /= r [] rsort _.
+  
+  exists (SAset_cast n.+1 ((nth (SAset0 R _) (partition_of_graphs r) 0) :&: (x :*: SAsetT R 1))).
+    apply/imfsetP; exists ((nth (SAset0 R _) (partition_of_graphs r) 0) :&: (x :*: SAsetT R 1)) => //=.
+    apply/imfsetP => /=; exists (nth (SAset0 R _) (partition_of_graphs r) 0) => //.
+    exact/mem_nth.
+  rewrite SAset_cast_trans; last by rewrite geq_min addn1 leqnn.
+  apply/esym/(SAset_cast_partition_of_graphs_above rsort).
+  apply/imfsetP => /=; exists (nth (SAset0 R _) (partition_of_graphs r) 0) => //.
+  exact/mem_nth.
+exists S.
 split.
   split.
-    apply/andP; split; last first.
-      rewrite -subTset; apply/SAset_subP => x _.
-      Search "inSAset".
-      rewrite inSAset_bigcup.
-    Locate subTset.*
-    Check subTset.
+    rewrite SAset_partition_cast; last exact/addn1.
+    apply/SAset_partition_of_graphs_above => // s.
+    by case: (roots2_on (S'const s)) => /= r [].
+  rewrite Scast/=; split=> // s.
+  move rE: (roots2_on (S'const s)) => rR.
+  case: rR rE => /= r [] rsort rroot rE.
+  exists (size r), (in_tuple r); split.
+    admit. (* continuity *)
+  split=> //.
+  apply/fsetP => /= x; rewrite 2!inE/=.
+  apply/andP/imfsetP.
+    move=> [] /imfsetP /= [y] /bigfcupP/= [t] _ yt ->.
+    rewrite SAset_cast_trans; last by rewrite geq_min addn1 leqnn.
+    move rE': (roots2_on (S'const t)) yt => rR' yt.
+    case: rR' rE' yt => /= r' [] r'sort r'root rE' yt.
+    rewrite (SAset_cast_partition_of_graphs_above r'sort yt).
+    rewrite (inj_eq val_inj) => /eqP tE.
+    rewrite {t}tE in r' r'sort r'root rE' yt *.
+    exists y => //.
+    move: yt; congr (_ \in partition_of_graphs_above (val s) _).
+    rewrite {}rE' in rE.
+    by apply/eqP; rewrite (inj_eq val_inj); apply/eqP/ (EqdepFacts.eq_sig_fst rE).
+  move=> [] /= y yr ->; split.
+   STOP. 
+      
+
+
+    rewrite 
+   [/imfsetP|]. xS] /=.
+    move=> [] y; rewrite inE => /andP[] yS ys ->.
+    apply/imfsetP.
 
     
   apply/andP; split; apply/allP
