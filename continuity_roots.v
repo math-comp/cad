@@ -119,7 +119,7 @@ rewrite eqSS => /eqP sr.
 pose m := (\big[Order.min/Re `|x - head 0 r|]_(z <- r) Re `|x - z|)%:C.
 have m0: 0 <= m.
   rewrite /m lecE/= eqxx/=.
-  rewrite le_bigmin -lecR (normr_ge0 (x - head 0 r)); apply/allP => y _ /=.
+  rewrite le_bigmin -lecR (normr_ge0 (x - _)); apply/allP => y _ /=.
   by rewrite -lecR (normr_ge0 (x - y)).
 have: `|p`_n| / 2 * m ^+ n <= `|q.[x]|.
   rewrite qE hornerE horner_prod normrM normr_prod; apply/ler_pM.

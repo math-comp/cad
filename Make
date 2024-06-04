@@ -4,7 +4,8 @@ auxresults.v
 formula.v
 continuity_roots.v
 semialgebraic.v
-buf.v
+topology.v
+cylinder.v
 
 -R "." SemiAlgebraic
 

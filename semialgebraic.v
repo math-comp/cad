@@ -273,9 +273,6 @@ Definition pred_of_SAset (s : {SAset F^n}) :
    pred ('rV[F]_n) := interp (repr s).
 Canonical SAsetPredType := PredType pred_of_SAset.
 
-Definition set_of_SAset (s : {SAset F^n}) := [set x | x \in s].
-Coercion set_of_SAset : SAtype_of >-> set.
-
 End Interpretation.
 
 Section SemiAlgebraicSet.
@@ -2544,10 +2541,10 @@ by rewrite !inSAset_fiber hsubmxK xii.
 Qed.
 
 Definition SAset_path_connected n (s : {SAset F^n}) :=
-  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within set_of_SAset (SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)), continuous xi} /\ xi 0 = x /\ xi 1 = y}.
+  {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within [set` SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)], continuous xi} /\ xi 0 = x /\ xi 1 = y}.
 
 End SAfunOps.
-
+(*
 Section SAconvex.
 Variables (F : rcfType).
 
@@ -2973,7 +2970,41 @@ elim: r => [|i r IHr]; first by rewrite !big_nil SAsetLB0.
 by rewrite !big_cons; case: (P i) => //; rewrite SAsetLBU IHr.
 Qed.
 
-(* WIP 
+From mathcomp Require Import polyrcf mpoly.
+
+Lemma mmulti_is_additive [R : ringType] :
+  additive (@mmulti n R).
+Proof.
+move=> /= p q.
+rewrite /mmulti.
+rewrite (big_ord_widen
+    (maxn (size p) (size q))
+    (fun i => mwiden (p - q)`_i * 'X_ord_max ^+ i)%R); last first.
+  by apply/(leq_trans (size_add _ _)); rewrite size_opp.
+rewrite (big_ord_widen
+    (maxn (size p) (size q))
+    (fun i => mwiden p`_i * 'X_ord_max ^+ i)%R); last first.
+  exact/leq_maxl.
+rewrite (big_ord_widen
+    (maxn (size p) (size q))
+    (fun i => mwiden q`_i * 'X_ord_max ^+ i)%R); last first.
+  exact/leq_maxr.
+rewrite big_mkcond/= [in RHS]big_mkcond/= [X in _ = _ - X]big_mkcond/=.
+rewrite -sumrB; apply/eq_bigr => i _.
+have <-: (mwiden 0 * 'X_ord_max ^+ i)%R = 0 :> {mpoly R[n.+1]}.
+  by rewrite mwiden0 mul0r.
+rewrite -3!(fun_if (fun x => mwiden x * 'X_ord_max ^+ i)%R).
+have ifE (x : {poly {mpoly R[n]}}): (if (i < size x)%N then x`_i else 0) = x`_i.
+  by case: (ltnP i (size x)) => // ix; rewrite nth_default.
+by rewrite 3!ifE coefB mwidenB mulrBl.
+Qed.
+
+(* Lemma muniK [R : comRingType] : cancel (@muni n R) (@mmulti n R).
+Proof.
+move=> p.
+rewrite muniE.
+Search muni .
+
 Lemma SAset_supP (s : {SAset F^1}) :
   s != SAset0 F 1 -> SAsetUB s != SAset0 F 1
   -> {x : 'rV[F]_1 | SAsetUB s = SAset_itv `[(x 0 0), +oo[%R}.
@@ -2982,29 +3013,55 @@ pose Goal (t : {SAset F^1}) := t != SAset0 F 1 ->
   SAsetUB t != SAset0 F 1 ->
   {x : 'cV_1 | SAsetUB t = SAset_itv `[(x 0 0), +oo[%R}.
 have supU : forall s t : {SAset F^1}, Goal s -> Goal t -> Goal (s :|: t).
-  move=> {}s t sP tP; rewrite /Goal.
-  Search SAsetU SAset0.
-  {1}SAsetUBU inSAsetI.
-  move=> /andP[] {}/sP [x +] {}/tP [y].
-  wlog: x y s t / x 0 0 <= y 0 0 => xy.
-    move: (le_total (x 0 0) (y 0 0)); case/boolP: (x 0 0 <= y 0 0) => /= xy' yx.
-      exact/xy.
-    by rewrite SAsetUC => /[swap]; apply/xy.
-  rewrite !inSAsetI => /andP[] /inSAsetUB xub /inSAsetLB xlb
-    /andP[] /inSAsetUB yub /inSAsetLB ylb.
-  exists y; rewrite inSAsetI; apply/andP; split; last first.
-    by apply/inSAsetLB => z; rewrite SAsetUBU inSAsetI => /andP[] _ /ylb.
-  apply/inSAsetUB => z; rewrite inSAsetU => /orP; case => zst; last exact/yub.
-  exact/(le_trans _ xy)/xub.
+  move=> {}s t; rewrite /Goal.
+  have [-> _|s0 /(_ isT)] := eqVneq s (SAset0 F 1); first by rewrite SAset0U.
+  have [-> + _|t0 + /(_ isT)] := eqVneq t (SAset0 F 1).
+    by rewrite SAsetUC SAset0U.
+  rewrite SAsetUBU.
+  have [-> _ _ _|_ /(_ isT) []sm ->] := eqVneq (SAsetUB s) (SAset0 F 1).
+    by rewrite SAset0I eqxx.
+  have [-> _ _|_ /(_ isT) []tm -> _ _] := eqVneq (SAsetUB t) (SAset0 F 1).
+    by rewrite SAsetI0 eqxx.
+  exists (\row__ maxr (sm 0 0) (tm 0 0)).
+  apply/eqP/SAsetP => x.
+  by rewrite inSAsetI !inSAset_itv !in_itv/= mxE ge_max !andbT.
 have {}supU (I : Type) (r : seq I) (f : I -> {SAset F^1}) :
   (forall i, Goal (f i)) -> Goal (\big[@SAsetU F 1/SAset0 F 1]_(i <- r) f i).
-  move=> iub; elim: r => [|i r IHr].
-    rewrite big_nil => /inSAsetUB/(_ 0).
+  move=> iub; elim: r => [|i r IHr]; first by rewrite big_nil /Goal eqxx.
+  by rewrite big_cons; apply/supU.
+rewrite -/(Goal s); case: (SAset_nf s) => P ->.
+apply/supU => -[] /= p q.
+case/boolP: (has (eq_op^~ 0) q) => [/hasP q0 /negP q0'|].
+  elim: q0'; case: q0 => /= x xq /eqP x0; rewrite -subset0.
+  apply/SAset_subP => y; rewrite inSAset0 inSAsetI inSAset_bigcap => /andP[_].
+  move=> /allP /= /(_ x xq); rewrite inSApreimset inSAset_pos x0 SAmpolyE mxE.
+  by rewrite mevalC ltxx.
+rewrite -all_predC => q0.
+have [->|p0] := eqVneq p 0.
+  have /eqP ->: SApreimset (SAmpoly 0) [set 0] == SAsetT F 1.
+    apply/SAsetP => x; rewrite inSApreimset SAmpolyE inSAset_seq inSAsetT.
+    by rewrite inE rowPE forall_ord1 !mxE mevalC eqxx.
+  rewrite SAsetTI.
+  pose r := flatten [seq rootsR (map_poly (mcoeff 0) (muni q)) | q <- q].
+  have memr x : x \in r = has (fun q => q.@[fun=> x] == 0) q.
+    apply/flattenP/hasP => [[]t /mapP[] u uq ->|[]a aq a0].
+      rewrite in_rootsR => /andP[] u0 /rootP.
+      rewrite -[x](mpolyCK 0) (horner_map (mcoeff 0)).
+      Search horner meval.
+    Search mcoeff "C".
+    Search horner map_poly.
+    exists u => //.
+    Search mem rootsR.
 
 
-right; case: (SAset_nf s) => P ->.
+    
+pose r := [seq x <- rootsR (map_poly (fun x => x@_0) (muni p)) | all (fun q => 0 < q.@[fun=> x]) q].
+have: SApreimset (SAmpoly p) [ set 0]
+   :&: \big[SAsetI (n:=1)/SAsetT F 1]_(q0 <- q)
+          SApreimset (SAmpoly q0) (SAset_pos F) =
+      SAset_seq r.
 Check SAset_nf.
  *)
   
 
-End SAorder.
+End SAorder. *)
