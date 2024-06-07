@@ -1102,11 +1102,241 @@ rewrite !big_cons; case: (P i) => [|//].
 by rewrite evalpmpM IHr.
 Qed.
 
+(* mu_eq0 is stated with rcfType in real_closed.qe_rcf_th *)
+Lemma mu_eq0 (F : idomainType) (p : {poly F}) (x : F) :
+  p != 0 -> (\mu_x p == 0%N) = ~~ root p x.
+Proof. by move=> /mu_gt0 <-; rewrite lt0n negbK. Qed.
+
+Lemma big_hasE (T I J : Type) (idx : T) (op : Monoid.com_law idx)
+  (r : seq I) (P : pred I) (F : I -> T) (s : seq J) (a : I -> pred J) :
+  (forall i, P i -> (count (a i) s <= 1)%N) ->
+  \big[op/idx]_(i <- r | P i && has (a i) s) F i = \big[op/idx]_(j <- s) \big[op/idx]_(i <- r | P i && a i j) F i.
+Proof.
+move=> s1.
+elim: r => [|i r IHr].
+  under [in RHS]eq_bigr do rewrite big_nil.
+  rewrite big_nil big_const_idem//.
+  exact/Monoid.mulm1.
+under [in RHS]eq_bigr do rewrite big_cons.
+rewrite big_cons; case /boolP: (P i) => //= Pi.
+case/boolP: (has (a i) s) => [si|]; last first. 
+  rewrite -all_predC.
+  rewrite {}IHr; elim: s s1 => /= [|j s IHs] s1 si; first by rewrite !big_nil.
+  rewrite !big_cons.
+  move/andP: si => [] /negPf -> /IHs -> // k /s1.
+  by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
+rewrite {}IHr; elim: s s1 si => /= [//|] j s IHs s1.
+rewrite !big_cons Monoid.mulmA.
+case: (a i j) (s1 i Pi) => /= [|_].
+  rewrite add1n ltnS leqNgt -has_count => ais _; congr (op _ _).
+  elim: s ais {IHs s1} => [_|k s IHs] /=.
+    by rewrite !big_nil.
+  by rewrite negb_or !big_cons => /andP[] /negPf -> /IHs ->.
+move=> /IHs <-.
+  by rewrite Monoid.mulmCA Monoid.mulmA.
+move=> k /s1.
+by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
+Qed.
+
+Lemma big_pred1_seq [T : Type] [idx : T] (op : Monoid.law idx) 
+    [I : eqType] (r : seq I) (i : I) (F : I -> T) :
+  uniq r ->
+  \big[op/idx]_(j <- r | j == i) F j = if i \in r then F i else idx.
+Proof.
+elim: r => [_|j r IHr /= /andP[] jr runiq]; first by rewrite big_nil.
+rewrite big_cons in_cons eq_sym.
+move: jr; have [<- /= /negP jr|ij _ /=] := eqVneq i j; last exact/IHr.
+rewrite big_seq_cond big_mkcond big1_idem; first exact/Monoid.mulm1.
+  exact/Monoid.mulm1.
+by move=> k _; case: ifP => [/andP[] /[swap] /eqP ->|//].
+Qed.
+
+Lemma dvdp_mu (F : closedFieldType) (p q : {poly F}) :
+  p != 0 -> q != 0 ->
+  (p %| q) = all (fun x => \mu_x p <= \mu_x q)%N (dec_roots p).
+Proof.
+move: (dec_roots p) (uniq_dec_roots p) (dec_roots_closedP p)
+    (dec_roots_closedP q) => r.
+rewrite -!lead_coefE -lead_coef_eq0.
+elim: r p => [p _ pE _ p0 _|x r IHr p /= /andP[] xr runiq pE qE p0 q0].
+  by rewrite pE/= big_nil alg_polyC /dvdp modpC ?eqxx// lead_coef_eq0.
+rewrite {1}pE big_cons dvdpZl// Gauss_dvdp; last first.
+  rewrite /coprimep (eqp_size (gcdpC _ _)) -/(coprimep _ _).
+  apply/coprimep_expr; rewrite coprimep_XsubC root_bigmul -all_predC.
+  apply/allP => y yr/=.
+  case: (\mu_y p) => [|n]; first by rewrite expr0 root1.
+  rewrite root_exp_XsubC; apply/eqP => xy.
+  by move/negP: xr; rewrite xy.
+rewrite root_le_mu//; congr andb.
+rewrite -(dvdpZl _ _ p0) IHr//.
+- apply/eq_in_all => y yr; congr (_ <= _)%N.
+  rewrite mu_mulC// mu_prod; last first.
+    rewrite prodf_seq_neq0; apply/allP => z _ /=.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
+  by rewrite -big_mkcond/= big_pred1_seq// yr.
+- rewrite lead_coefZ lead_coef_prod.
+  under [in RHS]eq_bigr do rewrite lead_coef_exp lead_coefXsubC expr1n.
+  rewrite [in RHS]big1_idem//= ?mulr1//; congr (_ *: _).
+  apply/eq_big_seq => y yr.
+  rewrite mu_mulC// mu_prod; last first.
+    rewrite prodf_seq_neq0; apply/allP => z _ /=.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
+  by rewrite -big_mkcond/= big_pred1_seq// yr.
+- rewrite lead_coef_eq0 scaler_eq0 (negPf p0)/= prodf_seq_neq0.
+  by apply/allP => y _ /=; rewrite expf_eq0 polyXsubC_eq0 andbF.
+Qed.
+
+Lemma mu_eqp (F : closedFieldType) (p q : {poly F}) (x : F) :
+  p %= q -> \mu_x p = \mu_x q.
+Proof.
+have [->|p0] := eqVneq p 0; first by rewrite eqp_sym eqp0 => /eqP ->.
+have [->|q0] := eqVneq q 0; first by rewrite eqp0 => /eqP <-.
+move=> /andP[]; rewrite !dvdp_mu// => /allP/(_ x) pq /allP/(_ x) qp.
+apply/le_anti/andP; split.
+  case/boolP: (x \in dec_roots p) pq => [_ //|+ _]; first by apply.
+  by rewrite mem_dec_roots p0/= => /muNroot ->.
+case/boolP: (x \in dec_roots q) qp => [_ //|+ _]; first by apply.
+by rewrite mem_dec_roots q0/= => /muNroot ->.
+Qed.
+
+Lemma mu_gcdp (F : closedFieldType) (p q : {poly F}) (x : F) :
+  p != 0 -> q != 0 ->
+  \mu_x (gcdp p q) = minn (\mu_x p) (\mu_x q).
+Proof.
+wlog: p q / (\mu_x p <= \mu_x q)%N => pq.
+  case/orP: (leq_total (\mu_x p) (\mu_x q)).
+    exact/pq.
+  by rewrite minnC (mu_eqp _ (gcdpC _ _)) => + /[swap]; apply/pq.
+rewrite (minn_idPl pq) => p0 q0.
+apply/esym/eqP; rewrite -muP//; last first.
+  by rewrite gcdp_eq0 (negPf p0).
+by rewrite !dvdp_gcd root_mu root_muN// root_le_mu// pq.
+Qed.
+
+Lemma gcdp_mul (F : closedFieldType) (p q : {poly F}) :
+  p != 0 -> q != 0 ->
+  gcdp p q %= \prod_(x <- dec_roots p) ('X - x%:P) ^+ (minn (\mu_x p) (\mu_x q)).
+Proof.
+move=> p0 q0.
+have pq0 : gcdp p q != 0 by rewrite gcdp_eq0 (negPf p0).
+have pq0' : \prod_(x <- dec_roots p) ('X - x%:P) ^+ minn (\mu_x p) (\mu_x q) != 0.
+  rewrite prodf_seq_neq0; apply/allP => x _ /=.
+  by rewrite expf_eq0 polyXsubC_eq0 andbF.
+by apply/andP; split; rewrite dvdp_mu//; apply/allP => x _;
+  rewrite mu_gcdp// mu_prod//;
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym;
+  rewrite -big_mkcond/= big_pred1_seq// ?uniq_dec_roots//;
+  case: ifP => //; rewrite mem_dec_roots p0 => /= /negP/negP /muNroot ->;
+  rewrite min0n.
+Qed.
+
+Lemma mu_deriv (F : idomainType) x (p : {poly F}) :
+  (((\mu_x p)%:R : F) != 0)%R -> \mu_x (p^`()) = (\mu_x p).-1.
+Proof.
+move=> px0; have [-> | nz_p] := eqVneq p 0; first by rewrite derivC mu0.
+have [q nz_qx Dp] := mu_spec x nz_p.
+case Dm: (\mu_x p) => [|m]; first by rewrite Dm eqxx in px0.
+rewrite Dp Dm !derivCE exprS mul1r mulrnAr -mulrnAl mulrA -mulrDl.
+rewrite cofactor_XsubC_mu // rootE !(hornerE, hornerMn) subrr mulr0 add0r.
+by rewrite -mulr_natr mulf_neq0// -Dm.
+Qed.
+
+Lemma leq_predn n m : (n <= m)%N -> (n.-1 <= m.-1)%N.
+Proof.
+case: n => [//|n]; case: m => [//|m].
+by rewrite !succnK ltnS.
+Qed.
+
+Lemma size_deriv [F : idomainType] (p : {poly F}) :
+  [char F] =i pred0 -> size p^`() = (size p).-1.
+Proof.
+move=> /charf0P F0.
+have [->|p0] := eqVneq p 0; first by rewrite deriv0 size_poly0.
+apply/le_anti/andP; split.
+  by rewrite -[X in (X <= _)%O]succnK; apply/leq_predn/lt_size_deriv.
+case: (posnP (size p).-1) => [-> //|] p0'.
+rewrite -(prednK p0'); apply/gt_size; rewrite coef_poly.
+rewrite (prednK p0') leqnn -mulr_natr mulf_eq0 negb_or.
+by rewrite -lead_coefE lead_coef_eq0 p0 F0 -lt0n.
+Qed.
+
+Lemma dvdp_prod (A : idomainType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
+  (forall i, P i -> F i %| G i) ->
+  \prod_(i <- r | P i) F i %| \prod_(i <- r | P i) G i.
+Proof.
+move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil dvd1p.
+rewrite !big_cons; case/boolP: (P i) => [Pi|//].
+by apply/dvdp_mul => //; apply/FG.
+Qed.
+
+Lemma divp_prod_dvdp (A : fieldType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
+  (forall i, P i -> G i %| F i) ->
+  \prod_(i <- r | P i) F i %/ \prod_(i <- r | P i) G i = \prod_(i <- r | P i) (F i %/ G i).
+Proof.
+move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil divp1.
+rewrite !big_cons; case/boolP: (P i) => [Pi|//].
+rewrite -divp_divl mulrC -divp_mulA ?FG// mulrC -divp_mulA ?IHr//.
+exact/dvdp_prod.
+Qed.
+
+Lemma subn_pred n m : (0 < m)%N -> (m <= n)%N -> (n - m.-1)%N = (n - m).+1.
+Proof.
+case: m => [//|m _]; case: n => [//|n].
+by rewrite ltnS succnK subSS => /subSn.
+Qed.
+
+Lemma size_dec_roots (F : closedFieldType) (p : {poly F}) :
+  [char F] =i pred0 ->
+  size (dec_roots p) = (size (p %/ gcdp p p^`())).-1.
+Proof.
+move=> F0.
+have /= [->|p0] := eqVneq p 0.
+  rewrite div0p size_poly0/=.
+  case rE : (dec_roots 0) => [//|x r].
+  have: x \in (dec_roots 0) by rewrite rE mem_head.
+  by rewrite mem_dec_roots eqxx.
+have [p'0|p'0] := eqVneq p^`() 0.
+  rewrite p'0 gcdp0 divpp// size_polyC oner_neq0/=.
+  have /size1_polyC ->: (size p <= 1)%N.
+    move: (size_deriv p F0); rewrite p'0 size_poly0.
+    by case: (size p) => [//|]; case.
+  case rE: (dec_roots _) => [//|x r].
+  by move: (mem_head x r); rewrite -rE mem_dec_roots rootC polyC_eq0 andNb.
+rewrite (eqp_size (eqp_divr p (gcdp_mul p0 p'0))).
+move: (dec_roots_closedP p) => pE.
+rewrite {2}pE -lead_coefE divpZl size_scale ?lead_coef_eq0//.
+rewrite divp_prod_dvdp; last first.
+  move=> x _.
+  rewrite root_le_mu; last by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  by rewrite mu_exp mu_XsubC eqxx mul1n geq_minl.
+rewrite big_seq_cond.
+under eq_bigr => x.
+  rewrite andbT mem_dec_roots => /andP[_] px.
+  rewrite -expp_sub ?polyXsubC_eq0// ?geq_minl//.
+  rewrite mu_deriv; last first.
+    rewrite (proj1 (charf0P _) F0) mu_eq0// px//.
+  rewrite (minn_idPr (leq_pred _)) subn_pred// ?mu_gt0// subnn expr1.
+over.
+rewrite -big_seq_cond size_prod_seq; last first.
+  by move=> x _; rewrite polyXsubC_eq0.
+under eq_bigr do rewrite size_XsubC.
+rewrite big_const_seq count_predT iter_addn_0 subSKn.
+by rewrite mul2n subDnAC// subnn.
+Qed.
+
+Lemma dec_roots0 (F : decFieldType) : (@dec_roots F 0) = [::].
+Proof.
+case rE: (dec_roots 0) => [//|x r].
+by move: (mem_head x r); rewrite -rE mem_dec_roots eqxx.
+Qed.
+
 Lemma const_roots n (P : {fset {poly {mpoly R[n]}}}) (s : {SAset R^n}) :
   SAconnected s ->
   {in P, forall p, {in s &, forall x y, size (evalpmp x p) = size (evalpmp y p)}} ->
-  {in P, forall p, {in s &, forall x y, size (evalpmp x (gcdp p p^`())) = size (evalpmp y (gcdp p p^`()))}} ->
-  {in P &, forall p q, {in s &, forall x y, size (evalpmp x (gcdp p q)) = size (evalpmp y (gcdp p q))}} ->
+  {in P, forall p, {in s &, forall x y, size (gcdp (evalpmp x p) (evalpmp x p)^`()) = size (gcdp (evalpmp y p) (evalpmp y p)^`())}} ->
+  {in P &, forall p q, {in s &, forall x y, size (gcdp (evalpmp x p) (evalpmp x q)) = size (gcdp (evalpmp y p) (evalpmp y q))}} ->
   {in s &, forall x y, size (rootsR (evalpmp x (\prod_(p : P) (val p)))) = size (rootsR (evalpmp y (\prod_(p : P) (val p))))}.
 Proof.
 case: n P s => [|n] P s Scon psize proots pqsize x y xS yS.
@@ -1132,49 +1362,375 @@ have rE (u : 'rV[R]_n.+1) :
 rewrite !rE; congr (_ _ ord0 ord0).
 move: x y xS yS; apply/SAconnected_locally_constant_constant => // x.
 rewrite inE/= => xs.
-pose pc := fun (x : 'rV[R]_n.+1) => (map_poly [eta real_complex R] (evalpmp x (\prod_(p : P) \val p))).
-pose rx := dec_roots (pc x).
-pose d := (\big[Order.min/1]_(x <- rx) \big[Order.min/1]_(y <- rx | y != x) complex.Re `|x - y|)%:C%C.
+pose pc := fun (p : P) (x : 'rV[R]_n.+1) => map_poly (real_complex R) (evalpmp x (\val p)).
+pose rx := dec_roots (\prod_(p : P) pc p x).
+pose d := (\big[Order.min/1]_(x <- rx) \big[Order.min/1]_(y <- rx | y != x) (complex.Re `|x - y| / 2))%:C%C.
 have d0 : 0 < d.
   rewrite ltcE/= eqxx/= lt_bigmin ltr01/=; apply/allP => u _.
   rewrite -big_filter lt_bigmin ltr01/=; apply/allP => v.
   rewrite mem_filter => /andP[] vu _.
+  apply/divr_gt0; last exact/ltr0Sn.
   by rewrite -ltcR (normr_gt0 (u - v)) subr_eq0 eq_sym.
-case: (aligned_deformed (pc x) d0) => /= [[]] e eI [].
-rewrite ltcE/= => /andP[/eqP ->] e0; rewrite complexr0 => ed.
-have /fin_all_exists /=: forall i : 'I_(size (pc x)).+1, exists delta, 0 < delta /\ forall (y : 'rV[R]_n.+1), `|x - y| < delta -> `|(pc x)`_i - (pc y)`_i| < (e%:C)%C.
-  move=> i.
-  move: (@meval_continuous _ _ (\prod_(p : P) \val p)`_i x).
-  rewrite /= /continuous_at.
-  move=> /(@cvgr_dist_lt _ (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod R)).
-  move=> /(_ _ e0) /nbhs_ballP[] d'/= d'0 /subsetP xd'.
-  exists d'; split=> // y xy.
-  move: xd' => /(_ y); mp; first by rewrite -ball_normE inE/=.
-  rewrite inE/= !coef_map/= -rmorphB/= normc_def/= expr0n/= addr0 sqrtr_sqr ltcR.
-  by congr (normr (_ - _) < e); apply/meval_eq => j; rewrite tnth_mktuple.
+have /= dP: {in rx &, forall u v, (`|u - v| < 2*d)%R -> u = v}.
+  move=> u v ux vx uvd; apply/eqP; rewrite -[_ == _]negbK; apply/negP => uv.
+  move: uvd.
+  rewrite mulrC mulr_natr -rmorphMn/= -(RRe_real (normr_real _)) ltcR -mulr_natr.
+  rewrite -ltr_pdivrMr ?ltr0Sn// lt_bigmin => /andP[_] /allP-/(_ u ux) /=.
+  rewrite lt_bigmin => /andP[_] /allP-/(_ v vx) /implyP.
+  by rewrite eq_sym ltxx => /(_ uv).
+have /fin_all_exists /=: forall p : P, exists delta, 0 < delta /\ forall (y : 'rV[R]_n.+1), y \in s -> `|x - y| < delta -> alignp d (pc p x) (pc p y).
+  move=> p.
+  case: (aligned_deformed (pc p x) d0) => /= [[]] e eI [].
+  rewrite ltcE/= => /andP[/eqP ->] e0; rewrite complexr0 => ed.
+  have /fin_all_exists /=: forall i : 'I_(size (val p)).+1, exists delta, 0 < delta /\ forall (y : 'rV[R]_n.+1), y \in s -> `|x - y| < delta -> `|(pc p x)`_i - (pc p y)`_i| < e%:C%C.
+    move=> i.
+    move: (@meval_continuous _ _ (val p)`_i x).
+    rewrite /= /continuous_at.
+    move=> /(@cvgr_dist_lt _ (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod R)).
+    move=> /(_ _ e0) /nbhs_ballP[] d'/= d'0 /subsetP xd'.
+    exists d'; split=> // y ys xy.
+    move: xd' => /(_ y); mp; first by rewrite -ball_normE inE/=.
+    rewrite inE/= !coef_map/= -rmorphB/= normc_def/= expr0n/= addr0 sqrtr_sqr ltcR.
+    by congr (normr (_ - _) < e); apply/meval_eq => j; rewrite tnth_mktuple.
+  move=> [d'] d'P; exists (\big[minr/1]_i d' i).
+  split; first by rewrite lt_bigmin ltr01; apply/allP => i _ /=; case: (d'P i).
+  move=> y ys; rewrite lt_bigmin => /andP[_] /allP xy; apply/ed.
+  split=> [|i].
+    suff ->: size (pc p y) = size (pc p x) by [].
+    by rewrite !size_map_poly; apply/psize => //; apply/fsvalP.
+  move: (ltn_ord i); rewrite [X in (i < X)%N]size_map_poly => ilt.
+  have {}ilt := leq_trans (leq_trans ilt (size_poly _ _)) (leqnSn _).
+  case: (d'P (Ordinal ilt)) => _ /=; apply=> //.
+  exact/xy/mem_index_enum.
 move=> [d'] xd'.
-have d'0: 0 < \big[minr/1]_(i < (size (pc x)).+1) d' i.
-  rewrite lt_bigmin ltr01; apply/allP => i _ /=.
-  by case: (xd' i).
-exists (ball x (\big[Order.min/1]_(i < (size (pc x)).+1) d' i)).
+have d'0: 0 < \big[minr/1]_(p : P) d' p.
+  rewrite lt_bigmin ltr01; apply/allP => p _ /=.
+  by case: (xd' p).
+exists (ball x (\big[Order.min/1]_(p : P) d' p)).
 split; first exact/open_subspaceW/ball_open.
 split; first by rewrite inE; apply ballxx.
 move=> y; rewrite in_setI => /andP[]; rewrite inE/= => ys.
 rewrite -ball_normE inE/= lt_bigmin => /andP[_] /allP/= xy.
 apply/eqP; rewrite rowPE forall_ord1 -!rE eqr_nat; apply/eqP.
-have {}/ed pxy: deformp e%:C%C (pc x) (pc y).
-  split=> [|i]; last first.
-    case: (xd' (lift ord_max i)) => _ /=.
-    rewrite /bump leqNgt (ltn_ord i) add0n; apply.
-    exact/xy/mem_index_enum.
-  suff ->: size (pc y) = size (pc x) by [].
-  rewrite !size_map_poly !evalpmp_prod !size_prod/=. 
-  - by congr (_.+1 - _)%N; apply/eq_bigr => i _; apply/psize.
-  - by move=> p _; rewrite -size_poly_eq0; apply/p0.
-  - by move=> p _; rewrite -size_poly_eq0; apply/p0.
-rewrite -![rootsR _](undup_id (uniq_roots _ _ _)) -!/(rootsR _).
-    Search roots uniq.
-    Search size seq_fset.
+pose rs := fun x => [fset x in (rootsR (evalpmp x (\prod_(p : P) \val p)))].
+have card_rs : forall x, #|` rs x | = size (rootsR (evalpmp x (\prod_(p : P) \val p))).
+  by move=> z; rewrite /rs card_imfset//= undup_id// uniq_roots.
+rewrite -!card_rs.
+have pc0 p z: z \in s -> pc p z != 0.
+  by rewrite map_poly_eq0 -size_poly_eq0; apply/p0 => //; apply/fsvalP.
+have pcM0 z: z \in s -> \prod_(p : P) pc p z != 0.
+  by move=> zs; apply/prodf_neq0 => /= p _; apply/pc0.
+have: exists (fxy : forall p,
+      [fset x in dec_roots (pc p x)] -> [fset x in dec_roots (pc p y)]),
+    forall p u, `|val u - val (fxy p u)| < d.
+  apply/(fin_all_exists (P:=fun p f => forall u, `|val u - val (f u)| < d)).
+  move=> /= p; apply/(fin_all_exists (P:=fun u v => `|val u - val v| < d)).
+  case=> /= u; rewrite mem_imfset//= mem_dec_roots => /andP[_] pu.
+  move: xy => /(_ p (mem_index_enum _)).
+  move: xd' => /(_ p)[_] /(_ y ys) /[apply] /(_ u pu).
+  rewrite -big_filter; case rsy: (seq.filter _ _) => [|v l].  
+    by rewrite big_nil leqn0 mu_eq0 ?pu// pc0.
+  move: (mem_head v l); rewrite -rsy mem_filter -normrN opprB => /andP[] uv pv _.
+  suff vP: v \in [fset x in dec_roots (pc p y)]. 
+    by exists [` vP].
+  by rewrite mem_imfset//= mem_dec_roots pc0.
+move=> [/=] fxy fxyd.
+have R0: [char R[i]] =i pred0 by apply/charf0P => i; rewrite pnatr_eq0.
+have fxy_bij: forall p, bijective (fxy p).
+  move=> p; apply/inj_card_bij; last first.
+    rewrite -2!cardfE card_imfset//= card_imfset//=.
+    do 2 rewrite undup_id ?uniq_dec_roots//.
+    rewrite (size_dec_roots (pc p x) R0) (size_dec_roots (pc p y) R0).
+    rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
+    rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
+    rewrite ![(pc _ _)^`()]deriv_map -!gcdp_map !size_map_poly -!/(evalpmp _ _).
+    rewrite (psize (val p) (fsvalP p) x y xs ys).
+    by rewrite (proots (val p) (fsvalP p) x y xs ys).
+  move=> /= u v => uv; apply/val_inj/dP.
+  - move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite mem_dec_roots => /andP[_] pu.
+    rewrite /rx mem_dec_roots pcM0//= root_bigmul/=.
+    by apply/hasP; exists p => //; apply/mem_index_enum.
+  - move: (fsvalP v); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite mem_dec_roots => /andP[_] pv.
+    rewrite /rx mem_dec_roots pcM0//= root_bigmul/=.
+    by apply/hasP; exists p => //; apply/mem_index_enum.
+  suff: (`|(val u - val (fxy p u)) - (val v - val (fxy p v))| < 2 * d)%R.
+    by rewrite opprB addrC addrCA addrAC uv subrr add0r.
+  apply/(le_lt_trans (ler_normB _ _)).
+  by rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
+have: exists (fyx : forall p,
+      [fset x in dec_roots (pc p y)] -> [fset x in dec_roots (pc p x)]),
+    forall p, cancel (fxy p) (fyx p) /\ cancel (fyx p) (fxy p).
+  apply/(fin_all_exists (P:=fun p f => cancel (fxy p) f /\ cancel f (fxy p))).
+  move=> /= p.
+  by case: (fxy_bij p) => g; exists g.
+move=> [] fyx fK.
+have fxyK p : cancel (fxy p) (fyx p) by case: (fK p).
+have {fK} fyxK p : cancel (fyx p) (fxy p) by case: (fK p).
+have fyxd p (u : [fset x in dec_roots (pc p y)]) :
+    `|val u - val (fyx p u)| < d.
+  move: (fyxK p u) => /(congr1 val)/= uE.
+  by rewrite -{1}uE -normrN opprB; apply/fxyd.
+have lift p z (u : [fset x in dec_roots (pc p z)]) :
+    z \in s ->
+    val u \in [fset x in dec_roots (\prod_(p : P) pc p z)].
+  case: u => /= u; rewrite mem_imfset//= mem_dec_roots => /andP[_] pu zs.
+  rewrite mem_imfset//= mem_dec_roots pcM0//= root_bigmul.
+  by apply/hasP; exists p => //; apply/mem_index_enum.
+have unlift z (u : [fset x in dec_roots (\prod_(p : P) pc p z)]) :
+    {p : P | val u \in [fset x in dec_roots (pc p z)]}.
+  case: u => /= u; rewrite mem_imfset//= mem_dec_roots root_bigmul prodf_seq_neq0.
+  move=> /andP[+] /hasP/sig2W[/=] p _ pu => /allP/(_ p (mem_index_enum _)) /= pz0.
+  by exists p; rewrite mem_imfset//= mem_dec_roots pz0.
+have /fin_all_exists/=: forall (u : [fset x in dec_roots (\prod_(p : P) pc p x)]), exists (v : [fset x in dec_roots (\prod_(p : P) pc p y)]), `|val u - val v| < d.
+  move=> u; case: (unlift x u) => p pu.
+  by exists [` (lift p y (fxy p [` pu]) ys)] => /=; apply/fxyd.
+move=> []gxy gxyd.
+have /fin_all_exists/=: forall (u : [fset x in dec_roots (\prod_(p : P) pc p y)]), exists (v : [fset x in dec_roots (\prod_(p : P) pc p x)]), `|val u - val v| < d.
+  move=> u; case: (unlift y u) => p pu.
+  by exists [` (lift p x (fyx p [` pu]) xs)] => /=; apply/fyxd.
+move=> []gyx gyxd.
+have gyxE p (u : [fset x in dec_roots (pc p y)]) :
+    gyx [` lift p y u ys] = [` lift p x (fyx p u) xs].
+  apply/val_inj/dP => /=.
+  - by move: (fsvalP gyx.[lift p y u ys]); rewrite (mem_imfset _ _ (@inj_id _))/=.
+  - by move: (lift p x (fyx p u) xs); rewrite (mem_imfset _ _ (@inj_id _))/=.
+  suff: `|(val u - val gyx.[lift p y u ys]) - (val u - val (fyx p u))| < (2 * d)%R.
+    by rewrite opprB addrCA addrAC subrr add0r -normrN opprB.
+  apply/(le_lt_trans (ler_normB _ _)).
+  rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/gyxd.
+  exact/fyxd.
+have size_pc (p : {poly R[i]}) : size p = ((\sum_(u <- dec_roots p) \mu_u p) + (p != 0%R))%N.
+  have [->|{}p0] := eqVneq p 0; first by rewrite size_poly0 dec_roots0 big_nil.
+  move: (dec_roots_closedP p) => /(congr1 (fun p : {poly _} => size p)).
+  rewrite size_scale; last by rewrite -lead_coefE lead_coef_eq0 p0.
+  rewrite size_prod_seq => /= [| w _]; last first.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  under eq_bigr do rewrite my_size_exp ?polyXsubC_eq0// size_XsubC/= mul1n -addn1.
+  by rewrite big_split/= sum1_size -addSn subDnAC// subnn -addn1.
+have dP' p u: (count (fun v => (`|u - v| < d)%R) (dec_roots (pc p x)) <= 1)%N.
+  rewrite -size_filter.
+  move: (filter_uniq (fun v => `|u - v| < d) (uniq_dec_roots (pc p x))).
+  case rsdE: (seq.filter _ _) => [//|a rsd].
+  case: rsd rsdE => [//|b rsd] rsdE /= /andP[] + _.
+  rewrite in_cons negb_or => /andP[] /eqP + _.
+  have: a \in [:: a, b & rsd] by exact/mem_head.
+  have: b \in [:: a, b & rsd] by rewrite in_cons mem_head orbT.
+  rewrite -rsdE !mem_filter !mem_dec_roots.
+  move=> /andP[] wbd /andP[_] bx /andP[] wba /andP[_] ax.
+  have: (`|(u - a) - (u - b)| < 2 * d)%R.
+    apply/(le_lt_trans (ler_normB _ _)).
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD.
+  rewrite opprB addrAC addrCA subrr addr0 => /dP -> //.
+    rewrite mem_dec_roots pcM0//= root_bigmul.
+    apply/hasP; exists p => //; apply/mem_index_enum.
+  rewrite mem_dec_roots pcM0//= root_bigmul.
+  by apply/hasP; exists p => //; apply/mem_index_enum.
+have mu_gyx p (u : [fset x | x in dec_roots (\prod_p pc p y)]) :
+    \mu_(val (gyx u)) (pc p x) = \mu_(val u) (pc p y).
+  move: (psize (val p) (fsvalP p) x y xs ys).
+  move: (size_pc (pc p x)) (size_pc (pc p y)).
+  rewrite !size_map_poly => -> ->.
+  rewrite pc0.
+
+
+have gxyK: cancel gxy gyx.
+  move=> u; apply/val_inj/dP.
+  - by move: (fsvalP (gyx (gxy u))); rewrite (mem_imfset _ _ (@inj_id _))//.
+  - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))//.
+    suff: (`|(val u - val (gxy u)) + (val (gxy u) - val (gyx (gxy u)))| < 2 * d)%R.
+      rewrite -[(`|_ - _|)%R]normrN opprB; congr (normr _ < _).
+      by rewrite addrC addrCA addrAC subrr add0r.
+  apply/(le_lt_trans (ler_normD _ _)).
+  rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/gxyd.
+  exact/gyxd.
+have gyxK: cancel gyx gxy.
+  move=> v; apply/val_inj; move: (gyx v) (gyxd v) => u vud.
+  case: (unlift y v) (gxy u) (gxyd u) => p pv w uw.
+  case: (unlift y w) => q qw.
+  case: u v vud => /= u.
+  rewrite mem_imfset/= => pu; last by [].
+  case=> /= v; rewrite mem_imfset/=; last by [].
+  rewrite mem_dec_roots root_bigmul => /andP[_] /hasP/= [] p _ pv vu.
+  case=> /= w; rewrite mem_imfset/=; last by [].
+  rewrite mem_dec_roots root_bigmul => /andP[_] /hasP/= [] q _ qw uw.
+  case: (fxy_bij p) => gp fpK gpK.
+  case: (fxy_bij q) => gq fqK gqK.
+  apply/eqP; rewrite -[_ == _]negbK; apply/negP => wv.
+  move: (pqsize (val p) (val q) (fsvalP p) (fsvalP q) x y xs ys).
+  move: (size_pc (gcdp (pc p x) (pc q x))) (size_pc (gcdp (pc p y) (pc q y))).
+  rewrite !gcdp_eq0 !negb_and !pc0//= !addn1 -!gcdp_map !size_map_poly => -> -> /eqP.
+  rewrite eqSS !gcdp_map -!/(pc _ _) => /eqP.
+  under eq_bigr do rewrite mu_gcdp ?pc0//.
+  under [in RHS]eq_bigr do rewrite mu_gcdp ?pc0//.
+  move=> pq.
+  suff: ((\sum_(i <- dec_roots (gcdp (pc p y) (pc q y)))
+      minn (\mu_i (pc p y)) (\mu_i (pc q y))) <
+    (\sum_(i <- dec_roots (gcdp (pc p x) (pc q x)))
+      minn (\mu_i (pc p x)) (\mu_i (pc q x))))%N.
+    by rewrite -pq ltnn.
+  rewrite -(big_rmcond_in (fun u => has (fun v => `|u - v| < d) (dec_roots (gcdp (pc p x) (pc q x)))))/=; last first.
+    move=> a; rewrite mem_dec_roots root_gcd => /andP[_] /andP[] pa qa.
+    rewrite -all_predC => /allP.
+    have apP: a \in [fset x in dec_roots (pc p y)].
+      by rewrite mem_imfset//= mem_dec_roots pc0.
+    move=> /(_ (val (gp [` apP]))).
+    rewrite mem_dec_roots gcdp_eq0 negb_and !pc0//= root_gcd.
+    move: (fsvalP (gp [` apP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite mem_dec_roots => /andP[_] -> /=.
+    have aqP: a \in [fset x in dec_roots (pc q y)].
+      by rewrite mem_imfset//= mem_dec_roots pc0.
+    suff ->: val (gp [` apP]) = val (gq [` aqP]).
+      move: (fsvalP (gq [` aqP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      rewrite mem_dec_roots => /andP[_] /[swap]/[apply].
+      move: (gqK [` aqP]) => /(congr1 val)/= aE.
+      by rewrite -{1}aE -normrN opprB fxyd.
+    apply/dP.
+    - move: (fsvalP (gp [` apP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      rewrite mem_dec_roots => /andP[_] pga.
+      rewrite mem_dec_roots pcM0//= root_bigmul.
+      apply/hasP => /=; exists p => //; apply/mem_index_enum.
+    - move: (fsvalP (gq [` aqP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      rewrite mem_dec_roots => /andP[_] qga.
+      rewrite mem_dec_roots pcM0//= root_bigmul.
+      apply/hasP => /=; exists q => //; apply/mem_index_enum.
+    suff: (`|(val (gp [` apP]) - val (fxy p (gp [` apP]))) - (val (gq [` aqP]) - val (fxy q (gq [` aqP])))| < 2 * d)%R.
+      by rewrite gpK/= gqK/= opprB addrC addrCA addrAC subrr add0r.
+    apply/(le_lt_trans (ler_normB _ _)).
+    rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
+  rewrite (@big_hasE _ _ _ _ _ _ xpredT)/=; last first.
+    move=> a _; rewrite -size_filter.
+    move: (filter_uniq (fun v => `|a - v| < d) (uniq_dec_roots (gcdp (pc p x) (pc q x)))).
+    case rsdE: (seq.filter _ _) => [//|b rsd].
+    case: rsd rsdE => [//|c rsd] rsdE /= /andP[] + _.
+    rewrite in_cons negb_or => /andP[] /eqP + _.
+    have: b \in [:: b, c & rsd] by exact/mem_head.
+    have: c \in [:: b, c & rsd] by rewrite in_cons mem_head orbT.
+    rewrite -rsdE !mem_filter !mem_dec_roots !root_gcd.
+    move=> /andP[] wcd /andP[_] /andP[_] cx /andP[] wcb /andP[_] /andP[_] bx.
+    have: (`|(a - b) - (a - c)| < 2 * d)%R.
+      apply/(le_lt_trans (ler_normB _ _)).
+      by rewrite mulr2n mulrDl mul1r; apply/ltrD.
+    rewrite opprB addrAC addrCA subrr addr0 => /dP -> //.
+      rewrite mem_dec_roots pcM0//= root_bigmul.
+      apply/hasP; exists q => //; apply/mem_index_enum.
+    rewrite mem_dec_roots pcM0//= root_bigmul.
+    by apply/hasP; exists q => //; apply/mem_index_enum.
+  rewrite (bigD1_seq u)/=; first last.
+  - exact/uniq_dec_roots.
+  - rewrite mem_dec_roots gcdp_eq0 negb_and pc0//= root_gcd.
+
+    rewrite vP -[X in (X <= _)%N]addn0; apply/leq_add => //.
+      by rewrite mu_gt0// pc0.
+      by move=> w _; apply/dP'.
+    apply/leq_sum => v _.
+    case/boolP: (root (pc p x) v) => [vx|/muNroot -> //].
+    by move: (xd' p) => [_]; apply=> //; apply/xy/mem_index_enum.
+
+    
+
+
+  Search multiplicity gcdp.
+  rewrite -(gcdp_map (meval (tnth (ngraph x)) : {rmorphism {mpoly R[n.+1]} -> R})).
+  rewrite /evalpmp. -gcdp_map.
+  Check gcdp_map.
+  have [pq|pq] := eqVneq q p.
+    move: qw pv; rewrite {}pq => {q} pw pv.
+    
+
+
+have fxybij : bijective fxy.
+  apply/inj_card_bij => [u v fuv|].
+    apply/val_inj/dP.
+    - by move: (fsvalP u); rewrite -[fsval u]/(id _) mem_imfset//.
+    - by move: (fsvalP v); rewrite -[fsval v]/(id _) mem_imfset//.
+    suff: (`|(val u - val (fxy u)) - (val v - val (fxy v))| < 2 * d)%R.
+      by congr (normr _ < _); rewrite fuv addrC opprB addrCA addrAC subrr add0r.
+    apply/(le_lt_trans (ler_normB _ _)).
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
+  rewrite -2!cardfE card_imfset//= card_imfset//=.
+  do 2 rewrite undup_id ?uniq_dec_roots//.
+  move: (size_dec_roots (pc p x) R0).
+  rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
+  rewrite deriv_map -gcdp_map/= !size_map_poly.
+  rewrite (proots (val p) (fsvalP p) x y xs ys).
+  rewrite (psize (val p) (fsvalP p) x y xs ys).
+  move: (size_dec_roots (pc p y) R0).
+  rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
+  rewrite deriv_map -gcdp_map/= !size_map_poly => <- pxy.
+  rewrite card_finset.
+  Search card Imfset.imfset.
+have roots_uniq u v (ux : root (\prod_(p : P) pc p x) u) : root (\prod_(p : P) pc p y) v -> `|u - v| < d ->
+    v = sval (has_roots u ux).
+  case: (has_roots _ _) => /= w [].
+  rewrite !root_bigmul => /hasP/sig2W /= [] p _ wp wu /hasP/sig2W /= [] q _ vq vu.
+  
+    
+    Search bijective card.
+    Check bij_eq_card.
+
+    rewrite /pc.
+    Search gcdp "morph".
+    Search size gcdp (_ %/ _).
+    Search size dec_roots.
+    
+  move=> vy uv; case: (has_roots _ _) => /= w [].
+  move: rewrite root_bigmul. wy uw.
+
+
+
+    
+    Check root_bigmul.
+    Search (_ < _ * _)%R (_ / _)%R.
+        
+
+    -/(size [:: w.
+    Search (count _ _ <= _)%N.
+
+
+
+    Search seq.filter has.
+  Search bigop orb.
+  rewrite size_map_poly => ->.
+
+  rewrite -(size_map_poly (
+  rewrite size_scale; last first.
+    by rewrite -lead_coefE lead_coef_eq0 map_poly_eq0 -size_poly_eq0; apply/p0 => //; apply/fsvalP.
+  rewrite size_prod_seq => /= [| w _]; last first.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+    Search (size (_ ^+ _)).
+  under eq_bigr do rewrite size_
+  Search multiplicity bigop size.
+have size_pc p z : z \in s -> size (pc p z) = (\sum_(u <- dec_roots (\prod_(p : P) pc p z)) \mu_u (pc p z)).+1.
+  move=> zs.
+  rewrite (bigID (fun u => root (pc p z) u))/= -[LHS]addn0 -addSn.
+  congr (_ + _)%N; last first.
+    apply/esym; rewrite big_mkcond/=; apply/big1_idem => //= u _.
+    by case /boolP: (root (pc p z) u) => //= /muNroot ->.
+  rewrite -big_filter.
+  rewrite (perm_big (dec_roots (pc p z)))/=.
+    move: (dec_roots_closedP (pc p z)) => /(congr1 (fun p : {poly _} => size p)).
+    rewrite size_scale; last by rewrite -lead_coefE lead_coef_eq0 pc0.
+    rewrite size_prod_seq => /= [| w _]; last first.
+      by rewrite expf_eq0 polyXsubC_eq0 andbF.
+    under eq_bigr do rewrite my_size_exp ?polyXsubC_eq0// size_XsubC/= mul1n -addn1.
+    by rewrite big_split/= sum1_size -addSn subDnAC// subnn.
+  apply/uniq_perm; first exact/filter_uniq/uniq_dec_roots.
+    exact/uniq_dec_roots.
+  move=> u; rewrite mem_filter !mem_dec_roots.
+  apply/andP/andP => [[] zu _|[] _ zu].
+    by split=> //; apply/pc0.
+  split=> //; apply/andP; split.
+    by apply/prodf_neq0 => /= q _; apply/pc0.
+  rewrite root_bigmul/=; apply/hasP => /=.
+  by exists p => //; apply/mem_index_enum.
+
+apply/(bij_eq_card (f:=fun u => [arg min_(v < 
+Print Order.arg_min.
+Search "arg_min".
+
+Check    bij_eq_card.
 
 
 Definition elimp_subdef1 n (P : {fset {mpoly R[n.+1]}}) :=
