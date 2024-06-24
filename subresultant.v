@@ -23,7 +23,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Import GRing.Theory Monoid.Theory Pdiv.Idomain.
+Import GRing.Theory Monoid.Theory Pdiv.Idomain Order.POrderTheory.
 Local Open Scope ring_scope.
 
 (**************************************************************************)
@@ -239,6 +239,10 @@ Section SubResultant.
 
 Variables (R : ringType) (np nq k : nat) (p q : {poly R}).
 
+Lemma band0 n m :
+  band 0  = 0 :> 'M[R]_(n, m).
+Proof. by apply/matrixP => i j; rewrite !mxE/= mulr0 polyseq0 nth_nil. Qed.
+
 (**************************************************************************)
 (* We define the SylvesterHabitch_mx in this way, in order to be able to  *)
 (* reuse the poly_rV and rVpoly mappings rather than redefining custom    *)
@@ -267,6 +271,22 @@ by rewrite rVpoly_delta coefXnM ltnNge if_neg -?mulrb.
 Qed.
 
 End SubResultant.
+
+Lemma det_rsub_band (R : comRingType) m n (p : {poly R}) :
+  (size p).-1 = n ->
+  \det (rsubmx (band p : 'M_(m, n + m))) = lead_coef p ^+ m.
+Proof.
+move <-; elim: m => [|m ihm] //; first by rewrite det_mx00 expr0.
+rewrite exprS -add1n -[X in \det X]submxK.
+rewrite [X in block_mx X _ _ _]mx11_scalar.
+rewrite !mxE /= rVpoly_delta /= expr0 mul1r addn0 -lead_coefE.
+set ur := ursubmx _; have -> : ur = 0.
+  apply/matrixP=> i j; rewrite !mxE/= !rVpoly_delta/= !add1n ord1 expr0 mul1r.
+  by rewrite nth_default // addnS -addn1 addnC -leq_subLR subn1 leq_addr.
+rewrite det_lblock det_scalar expr1 -ihm; congr (_ * \det _).
+apply/matrixP => i j; rewrite !mxE /= !rVpoly_delta /= !add1n addnS.
+by rewrite !coefXnM ltnS subSS.
+Qed.
 
 (* Note: it is unclear yet whether the appropriate formulation is *)
 (* ((size q).-1 - j) or (size q - j.+1)                  -- Cyril *)
@@ -412,7 +432,7 @@ move=> s_jp s_jq; apply/idP/idP => [sg|/forallP /= rpq].
     by rewrite -!subn1 -!subnDA add1n subn1 !leq_sub2l // (leq_trans _ sg).
   rewrite mulNr !scalerCA -!divpK ?(dvdp_gcdr, dvdp_gcdl) //.
   by rewrite mulrCA subrr size_poly0.
-have {rpq} rpq : forall i, (i < j)%N -> subresultant i p q = 0.
+have {}rpq : forall i, (i < j)%N -> subresultant i p q = 0.
   by move=> i Hi; apply/eqP; rewrite -[i]/(val (Ordinal Hi)); apply: rpq.
 elim: j => // j ihj in s_jp s_jq rpq *.
 have [s_jp' s_jq'] := (ltnW s_jp, ltnW s_jq).
@@ -540,22 +560,6 @@ move=> c_neq0; rewrite subresultantC subresultant_scaler ?size_scale //.
 by rewrite mulrA subresultantC addnC -signr_odd mulr_signM addbb mul1r.
 Qed.
 
-Lemma det_rsub_band (R : idomainType) m n (p : {poly R}) :
-  (size p).-1 = n ->
-  \det (rsubmx (band p : 'M_(m, n + m))) = lead_coef p ^+ m.
-Proof.
-move <-; elim: m => [|m ihm] //; first by rewrite det_mx00 expr0.
-rewrite exprS -add1n -[X in \det X]submxK.
-rewrite [X in block_mx X _ _ _]mx11_scalar.
-rewrite !mxE /= rVpoly_delta /= expr0 mul1r addn0 -lead_coefE.
-set ur := ursubmx _; have -> : ur = 0.
-  apply/matrixP=> i j; rewrite !mxE/= !rVpoly_delta/= !add1n ord1 expr0 mul1r.
-  by rewrite nth_default // addnS -addn1 addnC -leq_subLR subn1 leq_addr.
-rewrite det_lblock det_scalar expr1 -ihm; congr (_ * \det _).
-apply/matrixP => i j; rewrite !mxE /= !rVpoly_delta /= !add1n addnS.
-by rewrite !coefXnM ltnS subSS.
-Qed.
-
 (* Something like Proposition 4.36 from BPR *)
 (* Should we parametrize by a remainder of p rather than correcting p? *)
 Lemma subresultant_mod (R : idomainType) j (p q : {poly R})
@@ -625,10 +629,6 @@ rewrite size_poly_gt0 divpN0// -(leq_sub2rE (p:=1)) ?size_poly_gt0//.
 by rewrite !subn1 le_pq/= size_divp// -predn_sub -subnS leq_sub2l.
 Qed.
 
-Lemma band0 (R : ringType) n m :
-  band 0  = 0 :> 'M[R]_(n, m).
-Proof. by apply/matrixP => i j; rewrite !mxE/= mulr0 polyseq0 nth_nil. Qed.
-
 Lemma subresultantp0 (R : idomainType) j (p : {poly R}) :
   (j < (size p).-1)%N -> subresultant j p 0 = 0.
 Proof.
@@ -649,36 +649,86 @@ move=> jq; apply/eqP; rewrite subresultantC mulf_eq0; apply/orP; right.
 exact/eqP/subresultantp0.
 Qed.
 
+Lemma subresultant_map_poly (A B : ringType) i (p q : {poly A}) (f : {rmorphism A -> B}) :
+  f (lead_coef p) != 0 -> f (lead_coef q) != 0 ->
+  subresultant i (map_poly f p) (map_poly f q) = f (subresultant i p q).
+Proof.
+rewrite /subresultant rmorphM rmorphXn rmorphN1 -det_map_mx => fp fq.
+have ->: size (map_poly f p) = size p.
+  apply/le_anti/andP; split; first exact/size_poly.
+  case: (posnP (size p)) => [-> //|p0].
+  by rewrite -(prednK p0); apply/gt_size; rewrite coef_map -lead_coefE.
+have ->: size (map_poly f q) = size q.
+  apply/le_anti/andP; split; first exact/size_poly.
+  case: (posnP (size q)) => [-> //|q0].
+  by rewrite -(prednK q0); apply/gt_size; rewrite coef_map -lead_coefE.
+rewrite map_rsubmx map_mxM map_block_mx map_perm_mx !map_mx0 map_mx1.
+rewrite /SylvesterHabicht_mx map_col_mx.
+congr (_ * \det (rsubmx (_ *m _)))%R; apply/esym.
+by congr col_mx; apply/map_lin1_mx => x /=;
+  rewrite mxpoly.map_poly_rV rmorphM/= mxpoly.map_rVpoly.
+Qed.
+
+Lemma subresultant_last (A : idomainType) (p q : {poly A}) :
+  subresultant (size p).-1 p q = lead_coef p ^+ ((size q).-1 - (size p).-1)%N.
+Proof.
+rewrite subresultantC subnn.
+have trig: is_trig_mx
+  (rsubmx
+     (block_mx (perm_mx extra_ssr.perm_rev) 0 0 1%:M *m 
+      SylvesterHabicht_mx 0 ((size q).-1 - (size p).-1)
+        ((size p).-1 + (0 + ((size q).-1 - (size p).-1))) q p)).
+  apply/forallP => /= i; apply/forallP => /= k; apply/implyP => ik; apply/eqP.
+  rewrite !mxE; under eq_bigr => /= l _.
+    suff ->: block_mx (perm_mx extra_ssr.perm_rev) 0 0 1%:M i l *
+        SylvesterHabicht_mx 0 ((size q).-1 - (size p).-1)
+          ((size p).-1 + (0 + ((size q).-1 - (size p).-1))) q p l
+          (rshift (size p).-1 k) = 0.
+      over.
+    rewrite SylvesterHabicht_mxE !mxE.
+    move: (splitK i) (splitK l).
+    case: (fintype.split i) => [|i' iE]; first by case.
+    case: (fintype.split l) => [|l' lE]; first by case.
+    rewrite !mxE -lE unsplitK/= !mxE/=.
+    case: eqP => il; last exact/mul0r.
+    move: ik; rewrite -iE il/= add0n => lk. 
+    rewrite nth_default; first by rewrite mul0rn mulr0.
+    apply/(leq_trans (leqSpred _)).
+    rewrite -addn1 -[X in (_ <= X)%N]addnBA; last exact/ltnW.
+    by rewrite leq_add2l subn_gt0.
+  by rewrite big_const iter_addr_0 mul0rn.
+rewrite /subresultant subnn det_trig//.
+under eq_bigr => i _.
+  suff ->: rsubmx
+          (block_mx (perm_mx extra_ssr.perm_rev) 0 0 1%:M *m 
+           SylvesterHabicht_mx 0 ((size q).-1 - (size p).-1)
+             ((size p).-1 + (0 + ((size q).-1 - (size p).-1))) q p) i i = lead_coef p.
+    over.
+  rewrite !mxE; under eq_bigr => /= k _.
+    suff ->: block_mx (perm_mx extra_ssr.perm_rev) 0 0 1%:M i k *
+        SylvesterHabicht_mx 0 ((size q).-1 - (size p).-1)
+          ((size p).-1 + (0 + ((size q).-1 - (size p).-1))) q p k
+          (rshift (size p).-1 i) = if k == i then lead_coef p else 0.
+      over.
+    rewrite SylvesterHabicht_mxE !mxE.
+    move: (splitK i) (splitK k).
+    case: (fintype.split i) => [|i' iE]; first by case.
+    case: (fintype.split k) => [|k' kE]; first by case.
+    rewrite !mxE -kE unsplitK/= !mxE/=.
+    rewrite -!(inj_eq val_inj)/= -iE/= eq_sym.
+    rewrite [(0 + k')%N]add0n [(0 + i')%N]add0n.
+    case: eqP => ik; last exact/mul0r.
+    by rewrite mul1r ik -addnBA// subnn addn0 leq_addl mulr1n lead_coefE.
+  by rewrite -big_mkcond/= (big_pred1 i).
+rewrite prodr_const cardT size_enum_ord add0n mulrA -exprD addnn.
+by rewrite -signr_odd odd_double expr0 mul1r.
+Qed.
+
+
+
 Import Num.Theory Order.POrderTheory Pdiv.Field.
 
-Lemma map_ord_iota (T : Type) (f : nat -> T) (n : nat) :
-  [seq f i | i : 'I_n] = [seq f i | i <- iota 0 n].
-Proof.
-by rewrite [LHS](eq_map (g:=f \o (val : 'I_n -> nat)))// map_comp val_enum_ord.
-Qed.
-
 (* Lemma 4.34 from BPR is cindexR_rec from qe_rcf_th, except it uses rmodp *)
-
-Lemma iotaE0 (i n : nat) : iota i n = [seq i+j | j <- iota 0 n].
-Proof. by elim: n => // n IHn; rewrite -addn1 !iotaD/= map_cat IHn/= add0n. Qed.
-
-Lemma eq_map_seq [S : eqType] [T : Type] [f g : S -> T] (r : seq S) :
-  {in r, forall x, f x = g x} -> map f r = map g r.
-Proof.
-elim: r => //= x r IHr fg; congr cons; first exact/fg/mem_head.
-by apply/IHr => y yr; apply/fg; rewrite in_cons yr orbT.
-Qed.
-
-Lemma cindexR_mulCp (R : rcfType) (c : R) (p q : {poly R}) :
-  cindexR (c *: p) q = sgz c * cindexR p q.
-Proof.
-rewrite /cindexR mulr_sumr.
-by under eq_bigr do rewrite jump_mulCp.
-Qed.
-
-Lemma sgz_invr (F : numFieldType) (x : F) :
-  sgz x^-1 = sgz x.
-Proof. by rewrite /sgz invr_eq0 invr_lt0. Qed.
 
 Theorem pmv_subresultant (R : rcfType) (p q : {poly R}) :
   (size q < size p)%N ->

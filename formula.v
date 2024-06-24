@@ -836,15 +836,15 @@ move=> e x <-; move: h; elim: f => //.
 - by move=> t /eqP h /=; rewrite !eval_fv.
 - move=> f1 h1 f2 h2.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
-  move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
+  move: (h1 ht1) => {}h1; move: (h2 ht2) => {}h2.
   by apply: (iff_trans (and_iff_compat_r _ _) (and_iff_compat_l _ _)).
 - move=> f1 h1 f2 h2.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
-  move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
+  move: (h1 ht1) => {}h1; move: (h2 ht2) => {}h2.
   by apply: (iff_trans (or_iff_compat_r _ _) (or_iff_compat_l _ _)).
 - move=> f1 h1 f2 h2 /=.
   rewrite fsetU_eq0 => /andP [ht1 ht2].
-  move: (h1 ht1) => {h1} h1; move: (h2 ht2) => {h2} h2.
+  move: (h1 ht1) => {}h1; move: (h2 ht2) => {}h2.
   by apply: (iff_trans (if_iff_compat_r _ _) (if_iff_compat_l _ _)).
 - by move=> f holds_ex_f fv_f; split => ?; apply/(holds_ex_f fv_f).
 - move=> i f h.
@@ -881,7 +881,7 @@ elim: k => [|k IHk] /= in e *.
     by move=> /(_ [tuple of [::]]); rewrite cats0.
   by move=> hef v; rewrite tuple0 cats0.
 rewrite nquantSout /=; split => holdsf; last first.
-  move=> v; case: (tupleP v) => x {v} v /=.
+  move=> v; case: (tupleP v) => x {}v /=.
   rewrite -cat_rcons -(rcons_set_nth _ 0%:R).
   by move: v; apply/IHk; rewrite ?size_set_nth (maxn_idPl _).
 move=> x; set e' := set_nth _ _ _ _.
@@ -898,7 +898,7 @@ elim: k => [|k IHk] /= in e *.
 - rewrite nquantify0; split; first by move=> [v]; rewrite tuple0 cats0.
   by exists [tuple of [::]]; rewrite cats0.
 - rewrite nquantSout /=; split => [[v holdsf]|[x holdsf]].
-  + case: (tupleP v) => x {v} v /= in holdsf *.
+  + case: (tupleP v) => x {}v /= in holdsf *.
     exists x; set e' := set_nth _ _ _ _.
     have -> : (size e).+1 = size e' by rewrite size_set_nth (maxn_idPl _).
     by apply/IHk; exists v; rewrite /e' /= rcons_set_nth cat_rcons.
@@ -1069,6 +1069,10 @@ Proof.
 apply/rcf_satP/rcf_satP; first by move/holds_cat_nseq.
 by move=> h; apply/holds_cat_nseq.
 Qed.
+
+Lemma rcf_sat_take [n : nat] (f : {formula_n F}) (e : seq F) :
+  rcf_sat (take n e) f = rcf_sat e f.
+Proof. by apply/rcf_satP/rcf_satP => /holds_take. Qed.
 
 Lemma rcf_sat_forall k l (E : 'I_k -> formula F) :
     rcf_sat l (\big[And/True%oT]_(i < k) E i) = [forall i, rcf_sat l (E i)].

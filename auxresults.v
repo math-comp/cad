@@ -1,8 +1,9 @@
 (* (c) Copyright Microsoft Corporation and Inria. All rights reserved. *)
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice.
-From mathcomp Require Import order fintype generic_quotient.
-From mathcomp Require Import div tuple bigop ssralg ssrnum poly polydiv finmap.
-From mathcomp Require Import mpoly polyorder polyrcf normedtype topology.
+From mathcomp Require Import order fintype generic_quotient path ssrint.
+From mathcomp Require Import div tuple bigop ssralg ssrnum matrix poly polydiv.
+From mathcomp Require Import finmap mpoly polyorder polyrcf normedtype.
+From mathcomp Require Import classical_sets topology qe_rcf_th.
 Import numFieldTopology.Exports.
 
 Set Implicit Arguments.
@@ -24,6 +25,16 @@ Proof. by move=> h; split => h1 h2; apply/h/h1. Qed.
 Lemma if_iff_compat_r : B <-> C -> (B -> A) <-> (C -> A).
 Proof. by move=> h; split => h1 h2; apply/h1/h. Qed.
 
+Lemma bool_eq_arrow {b b' : bool} : b = b' -> b -> b'.
+Proof. by case: b' => // /negP. Qed.
+
+Lemma forallb_all [n : nat] (a : pred 'I_n) :
+  [forall i, a i] = all a (enum 'I_n).
+Proof.
+apply/forallP/allP => /= aT i //.
+by apply/aT; rewrite mem_enum.
+Qed.
+
 End MoreLogic.
 
 Section MoreNatTheory.
@@ -31,11 +42,20 @@ Section MoreNatTheory.
 Lemma lt_predn n : (n.-1 < n) = (n != 0).
 Proof. by case: n => [//|n]; rewrite ltnSn. Qed.
 
+Lemma ltn_neq (n m : nat) : (n < m)%N -> n != m.
+Proof. by rewrite ltn_neqAle => /andP[]. Qed.
+
 Fact n_eq1 n : n != 0 -> n < 2 -> n = 1.
 Proof. by case: n => [?|[?|[]]]. Qed.
 
 Fact leq_npred m n : m > 0 -> (m <= n.-1) = (m < n).
 Proof. by move: m n => [|m] [|n]. Qed.
+
+Lemma leq_predn n m : (n <= m)%N -> (n.-1 <= m.-1)%N.
+Proof.
+case: n => [//|n]; case: m => [//|m].
+by rewrite !succnK ltnS.
+Qed.
 
 Fact predn_sub m n : (m - n).-1 = (m.-1 - n).
 Proof. by case: m => //= m; rewrite subSKn. Qed.
@@ -92,6 +112,12 @@ Qed.
 Lemma lift_inord (n : nat) (i : 'I_n) :
   lift ord0 i = inord i.+1.
 Proof. by apply/val_inj; rewrite /= inordK ?ltnS. Qed.
+
+Lemma subn_pred n m : (0 < m)%N -> (m <= n)%N -> (n - m.-1)%N = (n - m).+1.
+Proof.
+case: m => [//|m _]; case: n => [//|n].
+by rewrite ltnS succnK subSS => /subSn.
+Qed.
 
 End MoreNatTheory.
 
@@ -309,6 +335,19 @@ rewrite !enum_ordSl IHn/=; congr (_ :: _); first exact/val_inj.
 by rewrite map_cat -!map_comp; congr (_ ++ _); apply/eq_map => i; apply/val_inj.
 Qed.
 
+Lemma iotaE0 (i n : nat) : iota i n = [seq i+j | j <- iota 0 n].
+Proof. by elim: n => // n IHn; rewrite -addn1 !iotaD/= map_cat IHn/= add0n. Qed.
+
+Lemma map_ord_iota (f : nat -> T) (n : nat) :
+  [seq f i | i : 'I_n] = [seq f i | i <- iota 0 n].
+Proof.
+by rewrite [LHS](eq_map (g:=f \o (val : 'I_n -> nat)))// map_comp val_enum_ord.
+Qed.
+
+Lemma nth_map_ord (x : T) n (f : 'I_n -> T) (i : 'I_n) :
+  nth x [seq f i | i <- enum 'I_n] i = f i.
+Proof. by rewrite (nth_map i) ?nth_enum_ord// size_enum_ord. Qed.
+
 End GeneralBaseType.
 
 Section WithEqType.
@@ -328,6 +367,13 @@ Proof.
 move=> sub_a1_a2 x.
 move/mapP => [y hy] eq_x_fy ; apply/mapP ; exists y => //.
 exact: sub_filter.
+Qed.
+
+Lemma eq_map_seq [U : Type] [f g : T -> U] (r : seq T) :
+  {in r, forall x, f x = g x} -> map f r = map g r.
+Proof.
+elim: r => //= x r IHr fg; congr cons; first exact/fg/mem_head.
+by apply/IHr => y yr; apply/fg; rewrite in_cons yr orbT.
 Qed.
 
 End WithEqType.
@@ -478,6 +524,39 @@ Proof.
 apply/negbTE; rewrite -fproper0 fproperEcard cardfs0 cardfs1 andbT.
 by apply/fsubsetP => j; rewrite in_fset0.
 Qed.
+
+Lemma imfset1 (T U : choiceType) (f : T -> U) (x : T) :
+  [fset f x | x in [fset x]] = [fset f x].
+Proof.
+apply/fsetP => y; rewrite inE; apply/imfsetP/eqP => [[z]|yE].
+  by rewrite inE => /eqP ->.
+by exists x; rewrite // inE.
+Qed.
+
+Lemma imfset0 [T U : choiceType] (f : T -> U) :
+  [fset f x | x in fset0] = fset0.
+Proof.
+have [-> //|[x]] := fset_0Vmem [fset f x | x in fset0].
+by move=> /imfsetP[y] /=; rewrite inE.
+Qed.
+
+Lemma imfsetU [T U : choiceType] (f : T -> U) (s t : {fset T}) :
+  [fset f x | x in s `|` t] = [fset f x | x in s] `|` [fset f x | x in t].
+Proof.
+apply/fsetP => x; rewrite in_fsetU; apply/imfsetP/orP => [[y] /= + ->|].
+  by rewrite in_fsetU => /orP [ys|yt]; [left|right]; apply/imfsetP; exists y.
+by case=> /imfsetP [y] /= ys ->; exists y => //; rewrite in_fsetU ys// orbT.
+Qed.
+
+Lemma imfset_bigfcup [I T U : choiceType] (r : seq I) (P : pred I)
+  (F : I -> {fset T}) (f : T -> U) :
+  [fset f x | x in \bigcup_(i <- r | P i) F i] =
+    \bigcup_(i <- r | P i) [fset f x | x in F i].
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil imfset0.
+by rewrite !big_cons; case: (P i) => //; rewrite imfsetU IHr.
+Qed.
+
 
 End MoreFinmap.
 
@@ -643,6 +722,89 @@ rewrite big_cons/=; case: (P i) => //=.
 rewrite le_max IHr !orbA; congr (_ || _); exact/orbC.
 Qed.
 
+Lemma big_hasE (I J : Type) (op : Monoid.com_law idx)
+  (r : seq I) (P : pred I) (F : I -> R) (s : seq J) (a : I -> pred J) :
+  (forall i, P i -> (count (a i) s <= 1)%N) ->
+  \big[op/idx]_(i <- r | P i && has (a i) s) F i = \big[op/idx]_(j <- s) \big[op/idx]_(i <- r | P i && a i j) F i.
+Proof.
+move=> s1.
+elim: r => [|i r IHr].
+  under [in RHS]eq_bigr do rewrite big_nil.
+  rewrite big_nil big_const_idem//.
+  exact/Monoid.mulm1.
+under [in RHS]eq_bigr do rewrite big_cons.
+rewrite big_cons; case /boolP: (P i) => //= Pi.
+case/boolP: (has (a i) s) => [si|]; last first. 
+  rewrite -all_predC.
+  rewrite {}IHr; elim: s s1 => /= [|j s IHs] s1 si; first by rewrite !big_nil.
+  rewrite !big_cons.
+  move/andP: si => [] /negPf -> /IHs -> // k /s1.
+  by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
+rewrite {}IHr; elim: s s1 si => /= [//|] j s IHs s1.
+rewrite !big_cons Monoid.mulmA.
+case: (a i j) (s1 i Pi) => /= [|_].
+  rewrite add1n ltnS leqNgt -has_count => ais _; congr (op _ _).
+  elim: s ais {IHs s1} => [_|k s IHs] /=.
+    by rewrite !big_nil.
+  by rewrite negb_or !big_cons => /andP[] /negPf -> /IHs ->.
+move=> /IHs <-.
+  by rewrite Monoid.mulmCA Monoid.mulmA.
+move=> k /s1.
+by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
+Qed.
+
+Lemma big_pred1_seq (op : Monoid.law idx) 
+    [I : eqType] (r : seq I) (i : I) (F : I -> R) :
+  uniq r ->
+  \big[op/idx]_(j <- r | j == i) F j = if i \in r then F i else idx.
+Proof.
+elim: r => [_|j r IHr /= /andP[] jr runiq]; first by rewrite big_nil.
+rewrite big_cons in_cons eq_sym.
+move: jr; have [<- /= /negP jr|ij _ /=] := eqVneq i j; last exact/IHr.
+rewrite big_seq_cond big_mkcond big1_idem; first exact/Monoid.mulm1.
+  exact/Monoid.mulm1.
+by move=> k _; case: ifP => [/andP[] /[swap] /eqP ->|//].
+Qed.
+
+Lemma ltn_sum (I : Type) (r : seq I) (P : pred I) (E1 E2 : I -> nat) :
+       (forall i : I, P i -> (E1 i <= E2 i)%N) ->
+       has (fun i => P i && (E1 i < E2 i)%N) r ->
+       (\sum_(i <- r | P i) E1 i < \sum_(i <- r | P i) E2 i)%N.
+Proof.
+elim: r => [//|i r IHr] E12 /=.
+rewrite !big_cons; case /boolP: (P i) => /= [Pi /orP|_ /(IHr E12)//].
+case=> [E12i|/(IHr E12) {}IHr].
+  by rewrite -addSn; apply/leq_add => //; apply/leq_sum.
+by rewrite -addnS; apply/leq_add => //; apply/E12.
+Qed.
+
+Lemma big_ordD (op : Monoid.law idx) (n m : nat) (P : pred 'I_(n + m)) (F : 'I_(n + m) -> R) :
+  \big[op/idx]_(i < n + m | P i) F i = op (\big[op/idx]_(i < n | P (lshift m i)) F (lshift m i)) (\big[op/idx]_(i < m | P (rshift n i)) F (rshift n i)).
+Proof.
+pose G i :=
+  match ltnP i (n + m) with
+  | LtnNotGeq inm => F (Ordinal inm)
+  | _ => idx
+  end.
+pose Q i :=
+  match ltnP i (n + m) with
+  | LtnNotGeq inm => P (Ordinal inm)
+  | _ => false
+  end.
+have FG i : F i = G i.
+  rewrite /G; move: (ltn_ord i); case: ltnP => // j _.
+  by congr F; apply/val_inj.
+have PQ i : P i = Q i.
+  rewrite /Q; move: (ltn_ord i); case: ltnP => // j _.
+  by congr P; apply/val_inj.
+under eq_bigr do rewrite FG.
+under eq_bigl do rewrite PQ.
+rewrite big_ord_iota iotaD big_cat add0n -big_ord_iota.
+congr (op _ _); first exact/eq_big.
+rewrite iotaE0 big_map -big_ord_iota.
+by apply/eq_big => /= i; rewrite ?PQ ?HQ.
+Qed.
+
 
 End MoreBigop.
 
@@ -706,19 +868,68 @@ Proof.
 by rewrite ltnNge => /eqP pn; apply/negP => /leq_sizeP/(_ n (leqnn _)).
 Qed.
 
+Lemma size_deriv [F : idomainType] (p : {poly F}) :
+  [char F] =i pred0 -> size p^`() = (size p).-1.
+Proof.
+move=> /charf0P F0.
+have [->|p0] := eqVneq p 0; first by rewrite deriv0 size_poly0.
+apply/le_anti/andP; split.
+  by rewrite -[X in (X <= _)%O]succnK; apply/leq_predn/lt_size_deriv.
+case: (posnP (size p).-1) => [-> //|] p0'.
+rewrite -(prednK p0'); apply/gt_size; rewrite coef_poly.
+rewrite (prednK p0') leqnn -mulr_natr mulf_eq0 negb_or.
+by rewrite -lead_coefE lead_coef_eq0 p0 F0 -lt0n.
+Qed.
+
+Lemma lead_coef_deriv (R : idomainType) (p : {poly R}) :
+  [char R] =i pred0 ->
+  lead_coef p^`() = lead_coef p *+ (size p).-1.
+Proof.
+move=> R0.
+rewrite !lead_coefE coef_deriv (size_deriv p R0).
+case: (ltnP 1 (size p)) => [|p1]; first by case: (size p) => [//|]; case.
+move/leq_predn: (p1); rewrite leqn0 => /eqP ->.
+by rewrite mulr0n/= nth_default.
+Qed.
+
 End MoreCoef.
+
+Section MorePolyDvd.
+
+Lemma dvdp_prod (A : idomainType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
+  (forall i, P i -> F i %| G i)%R ->
+  (\prod_(i <- r | P i) F i %| \prod_(i <- r | P i) G i)%R.
+Proof.
+move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil dvd1p.
+rewrite !big_cons; case/boolP: (P i) => [Pi|//].
+by apply/dvdp_mul => //; apply/FG.
+Qed.
+
+Lemma divp_prod_dvdp (A : fieldType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
+  (forall i, P i -> G i %| F i)%R ->
+  (\prod_(i <- r | P i) F i %/ \prod_(i <- r | P i) G i = \prod_(i <- r | P i) (F i %/ G i))%R.
+Proof.
+move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil divp1.
+rewrite !big_cons; case/boolP: (P i) => [Pi|//].
+rewrite -divp_divl mulrC -divp_mulA ?FG// mulrC -divp_mulA ?IHr//.
+exact/dvdp_prod.
+Qed.
+
+End MorePolyDvd.
 
 Section MoreRoot.
 
+Local Open Scope ring_scope.
+
 Lemma mu_XsubC (R : idomainType) (x y : R) :
-  (\mu_x ('X - y%:P))%R = (x == y).
+  \mu_x ('X - y%:P) = (x == y).
 Proof.
 have [->|xy] := eqVneq x y; first exact: mu_XsubC.
 by rewrite muNroot// root_XsubC.
 Qed.
 
 Lemma mu_prod [R : idomainType] (I : Type) (s : seq I) (P : pred I) (F : I -> {poly R}) (x : R) :
-  (\prod_(i <- s | P i) F i != 0 -> \mu_x (\prod_(i <- s | P i) F i) = \sum_(i <- s | P i) \mu_x (F i))%R.
+  \prod_(i <- s | P i) F i != 0 -> \mu_x (\prod_(i <- s | P i) F i) = \sum_(i <- s | P i) \mu_x (F i).
 Proof.
 elim: s => [|p s IHs].
   rewrite !big_nil => _; apply/muNroot/root1.
@@ -736,51 +947,73 @@ Qed.
 
 Lemma in_rootsR (R : rcfType)
   (P : {poly R}) (x : R) :
-  x \in rootsR P = (P != 0%R) && (root P x).
+  x \in rootsR P = (P != 0) && (root P x).
 Proof.
 rewrite andbC /rootsR in_roots; case/boolP: (root P x) => [|//] /= /rootP Px.
-rewrite andbC; have [//|/= P0] := eqVneq P 0%R.
+rewrite andbC; have [//|/= P0] := eqVneq P 0.
 by rewrite interval.itv_boundlr/= !interval.leBSide/= -ltr_norml cauchy_boundP.
 Qed.
 
+Lemma rootsRPE (R : rcfType) d (p : {poly R}) (z : d.-tuple R) :
+  (forall i, root p (tnth z i))
+  -> (forall x, root p x -> x \in z)
+  -> sorted <%R z
+  -> (z : seq R) = rootsR p.
+Proof.
+have [-> _ z0P _|p0] := eqVneq p 0.
+  rewrite rootsR0.
+  move: z0P => /(_ (1 + \big[Order.max/0]_(x <- z) x) (root0 _)) /tnthP-[] i ziE.
+  suff: (tnth z i <= tnth z i - 1).
+    by rewrite -subr_ge0 addrAC subrr add0r oppr_ge0 ler10.
+  rewrite -{2}ziE addrAC subrr add0r le_bigmax; apply/orP; right.
+  apply/hasP; exists (tnth z i); first exact/mem_tnth.
+  exact/lexx.
+move=> z0 z0P zsort.
+apply/(irr_sorted_eq_in (leT:=<%R : rel R)) => //.
+- move=> a b c _ _ _; exact/lt_trans.
+- exact/sorted_roots.
+move=> u; rewrite in_rootsR p0/=.
+by apply/idP/idP => [|/z0P//] /tnthP -[] i ->.
+Qed.
+
 Definition dec_roots (F : decFieldType) (p : {poly F}) : seq F :=
-  if p == 0%R then [::] else
+  if p == 0 then [::] else
   [seq x <- undup (projT1 (dec_factor_theorem p)) | root p x].
 
 Lemma uniq_dec_roots (F : decFieldType) (p : {poly F}) :
   uniq (dec_roots p).
-Proof. by rewrite /dec_roots; case: (p == 0%R) => //; apply/filter_uniq/undup_uniq. Qed.
+Proof. by rewrite /dec_roots; case: (p == 0) => //; apply/filter_uniq/undup_uniq. Qed.
 
 Lemma mem_dec_roots (F : decFieldType) (p : {poly F}) x :
-  x \in dec_roots p = (p != 0%R) && (root p x).
+  x \in dec_roots p = (p != 0) && (root p x).
 Proof.
 rewrite /dec_roots.
-have [->|p0]/= := eqVneq p 0%R => //.
+have [->|p0]/= := eqVneq p 0 => //.
 rewrite /dec_roots mem_filter; apply/andP/idP => [[]//|px].
 split=> //; rewrite mem_undup.
 case: (dec_factor_theorem p) => s [q]/= [pE] qroot.
 move: p0 px; rewrite pE rootM root_bigmul.
-have [->|/qroot {}qroot _] := eqVneq q 0%R; first by rewrite mul0r eqxx.
+have [->|/qroot {}qroot _] := eqVneq q 0; first by rewrite mul0r eqxx.
 rewrite (negPf (qroot _)) => /= /hasP [y] ys.
 by rewrite root_XsubC => /eqP ->.
 Qed.
 
 Lemma dec_rootsP (F : decFieldType) (p : {poly F}) :
-  exists q : {poly F}, p = (q * \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p))%R /\ (q != 0%R -> forall x : F, ~~ root q x).
+  exists q : {poly F}, p = (q * \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p)) /\ (q != 0 -> forall x : F, ~~ root q x).
 Proof.
 rewrite /dec_roots.
-have [->|p0] := eqVneq p 0%R.
-  by exists 0%R; rewrite mul0r eqxx.
+have [->|p0] := eqVneq p 0.
+  by exists 0; rewrite mul0r eqxx.
 case: (dec_factor_theorem p) => s [q]/= [pE] qroot.
-exists q; move: pE p0; have [->|/[dup] q0 /qroot {}qroot pE p0] := eqVneq q 0%R.
+exists q; move: pE p0; have [->|/[dup] q0 /qroot {}qroot pE p0] := eqVneq q 0.
   by rewrite !mul0r => ->.
 split=> //.
-rewrite big_filter big_mkcond/= {1}pE -prodr_undup_exp_count; congr (_ * _)%R.
+rewrite big_filter big_mkcond/= {1}pE -prodr_undup_exp_count; congr (_ * _).
 apply/eq_big_seq => x; rewrite mem_undup => xs.
 have ->: root p x.
   rewrite pE rootM (negPf (qroot x)) root_bigmul; apply/hasP; exists x => //=.
   by rewrite root_XsubC.
-congr (_ ^+ _)%R.
+congr (_ ^+ _).
 rewrite pE mu_mul; last first.
   rewrite mulf_eq0 negb_or (negPf q0)/= prodf_seq_neq0; apply/allP => y _ /=.
   by rewrite polyXsubC_eq0.
@@ -792,23 +1025,34 @@ by rewrite mu_XsubC eq_sym; case: (x == y).
 Qed.
 
 Lemma dec_roots_closedP (F : closedFieldType) (p : {poly F}) :
-  (p = p`_(size p).-1 *: \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p))%R.
+  (p = p`_(size p).-1 *: \prod_(x <- dec_roots p) ('X - x%:P) ^+ (\mu_x p)).
 Proof.
-have [->|p0] := eqVneq p 0%R; first by rewrite coef0 scale0r.
+have [->|p0] := eqVneq p 0; first by rewrite coef0 scale0r.
 move: (dec_rootsP p) => [q].
-have [->|q0 [pE]/(_ isT) qr] := eqVneq q 0%R; first by rewrite mul0r => [][p0']; move/eqP: p0.
+have [->|q0 [pE]/(_ isT) qr] := eqVneq q 0; first by rewrite mul0r => [][p0']; move/eqP: p0.
 have [sq|/closed_rootP [x]] := eqVneq (size q) 1; last by move/negP: (qr x).
 have /size1_polyC qE : (size q <= 1)%N by rewrite sq.
-rewrite {1}pE qE mul_polyC; congr (_ *: _)%R.
+rewrite {1}pE qE mul_polyC; congr (_ *: _).
 move/(congr1 lead_coef): pE.
 rewrite lead_coefM lead_coef_prod.
 under eq_bigr do rewrite lead_coef_exp lead_coefXsubC expr1n.
 by rewrite big_const_idem/= ?mulr1// qE lead_coefC lead_coefE coefC/=.
 Qed.
+
+Lemma dec_roots0 (F : decFieldType) : (@dec_roots F 0) = [::].
+Proof.
+case rE: (dec_roots 0) => [//|x r].
+by move: (mem_head x r); rewrite -rE mem_dec_roots eqxx.
+Qed.
+
   
 End MoreRoot.
 
 Local Open Scope ring_scope.
+
+Lemma subrBB (S : comRingType) (a b c : S) :
+  (b - a) - (c - a) = b - c.
+Proof. by rewrite opprB addrC addrCA addrAC subrr add0r. Qed.
 
 Section MoreComUnitRingTheory.
 Variable (R : comUnitRingType).
@@ -834,6 +1078,10 @@ by rewrite mulrDl [X in (_ * y1) / X]mulrC -!mulr_div ?divrr // !mulr1.
 Qed.
 
 End MoreComUnitRingTheory.
+
+Lemma sgz_invr (F : numFieldType) (x : F) :
+  sgz x^-1 = sgz x.
+Proof. by rewrite /sgz invr_eq0 invr_lt0. Qed.
 
 Section MoreFieldTheory.
 
@@ -1100,6 +1348,33 @@ apply: continuous_big => //=.
 exact: mul_continuous.
 Qed.
 
+Lemma id_continuous {T : topologicalType} : continuous (@id T).
+Proof. by apply/continuousP => A; rewrite preimage_id. Qed.
+
+Lemma horner_continuous {K : numFieldType} (p : {poly K}) :
+  continuous (horner p)%R.
+Proof.
+apply/(eq_continuous (f:=fun x : K => \sum_(i < size p) p`_i * x ^+ i)) => x.
+  by rewrite -[p in RHS]coefK horner_poly.
+apply/(@continuous_sum K (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod K)).
+move=> /= i _.
+apply/continuousM; first exact/cst_continuous.
+exact/continuousX/id_continuous.
+Qed.
+
+Lemma meval_continuous n {K : numFieldType} (p : {mpoly K[n]}) :
+  continuous (fun x : 'rV[K]_n => p.@[x ord0])%R.
+Proof.
+apply/(eq_continuous (f:=fun x : 'rV[K]_n => \sum_(m <- msupp p) p@_m * \prod_i x ord0 i ^+ m i)) => x.
+  exact/mevalE.
+apply/(@continuous_sum K (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod K)).
+move=> /= i _.
+apply/continuousM; first exact/cst_continuous.
+apply/continuous_prod => j _.
+exact/continuousX/coord_continuous.
+Qed.
+
+
 End MoreContinuity.
 
 Section MoreMultinomials.
@@ -1139,4 +1414,205 @@ case: (ltnP _ _) => /= [jn|]; first by congr (v _); apply/val_inj.
 by rewrite leqNgt (ltn_ord j).
 Qed.
 
+Lemma meval_sum [I : Type] {K : ringType} (v : 'I_n -> K) (r : seq I) (F : I -> {mpoly K[n]}) (P : pred I) :
+  (\sum_(i <- r | P i) F i).@[v] = \sum_(i <- r | P i) (F i).@[v].
+Proof.
+elim: r => [|i r IHr]; first by rewrite !big_nil meval0.
+rewrite !big_cons; case: (P i) => [|//].
+by rewrite mevalD IHr.
+Qed.
+
 End MoreMultinomials.
+
+Section MoreRealClosed.
+Variables (R : rcfType).
+
+Lemma jump_derivp (p : {poly R}) (x : R) : jump p^`() p x = (root p x && (p != 0))%:R.
+Proof.
+rewrite /jump.
+have [->|p0] := eqVneq p 0.
+  by rewrite deriv0 mulr0 sgp_right0 ltxx expr0 eqxx andbF.
+rewrite andbT; move: (size_deriv p (char_num R)); have [-> /eqP|p'0 _] := eqVneq p^`() 0.
+  rewrite size_poly0 -eqSS prednK ?size_poly_gt0// => /eqP p1.
+  move: p0; have/size1_polyC -> : (size p <= 1)%N by rewrite -p1.
+  by rewrite polyC_eq0 mul0r sgp_right0 ltxx expr0 rootC => /negPf ->.
+case/boolP: (root p x) => px; last by rewrite muNroot.
+rewrite (mu_deriv px) subn1 -subSS prednK ?mu_gt0// subSnn mulr1n.
+by rewrite sgp_right_mul -sgp_right_deriv// -expr2 ltNge sqr_ge0 expr0.
+Qed.
+
+Lemma cindexR_derivp (p : {poly R}) : cindexR p^`() p = size (rootsR p).
+Proof.
+rewrite -sum1_size /cindexR rmorph_sum big_seq [RHS]big_seq.
+by apply/eq_bigr => i; rewrite in_rootsR jump_derivp => /andP[] -> ->.
+Qed.
+
+(* mu_eq0 is stated with rcfType in real_closed.qe_rcf_th *)
+Lemma mu_eq0 (F : idomainType) (p : {poly F}) (x : F) :
+  p != 0 -> (\mu_x p == 0%N) = ~~ root p x.
+Proof. by move=> /mu_gt0 <-; rewrite lt0n negbK. Qed.
+
+Lemma dvdp_mu (F : closedFieldType) (p q : {poly F}) :
+  p != 0 -> q != 0 ->
+  (p %| q) = all (fun x => \mu_x p <= \mu_x q)%N (dec_roots p).
+Proof.
+move: (dec_roots p) (uniq_dec_roots p) (dec_roots_closedP p)
+    (dec_roots_closedP q) => r.
+rewrite -!lead_coefE -lead_coef_eq0.
+elim: r p => [p _ pE _ p0 _|x r IHr p /= /andP[] xr runiq pE qE p0 q0].
+  by rewrite pE/= big_nil alg_polyC /dvdp modpC ?eqxx// lead_coef_eq0.
+rewrite {1}pE big_cons dvdpZl// Gauss_dvdp; last first.
+  rewrite /coprimep (eqp_size (gcdpC _ _)) -/(coprimep _ _).
+  apply/coprimep_expr; rewrite coprimep_XsubC root_bigmul -all_predC.
+  apply/allP => y yr/=.
+  case: (\mu_y p) => [|n]; first by rewrite expr0 root1.
+  rewrite root_exp_XsubC; apply/eqP => xy.
+  by move/negP: xr; rewrite xy.
+rewrite root_le_mu//; congr andb.
+rewrite -(dvdpZl _ _ p0) IHr//.
+- apply/eq_in_all => y yr; congr (_ <= _)%N.
+  rewrite mu_mulC// mu_prod; last first.
+    rewrite prodf_seq_neq0; apply/allP => z _ /=.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
+  by rewrite -big_mkcond/= big_pred1_seq// yr.
+- rewrite lead_coefZ lead_coef_prod.
+  under [in RHS]eq_bigr do rewrite lead_coef_exp lead_coefXsubC expr1n.
+  rewrite [in RHS]big1_idem//= ?mulr1//; congr (_ *: _).
+  apply/eq_big_seq => y yr.
+  rewrite mu_mulC// mu_prod; last first.
+    rewrite prodf_seq_neq0; apply/allP => z _ /=.
+    by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
+  by rewrite -big_mkcond/= big_pred1_seq// yr.
+- rewrite lead_coef_eq0 scaler_eq0 (negPf p0)/= prodf_seq_neq0.
+  by apply/allP => y _ /=; rewrite expf_eq0 polyXsubC_eq0 andbF.
+Qed.
+
+Lemma mu_eqp (F : closedFieldType) (p q : {poly F}) (x : F) :
+  p %= q -> \mu_x p = \mu_x q.
+Proof.
+have [->|p0] := eqVneq p 0; first by rewrite eqp_sym eqp0 => /eqP ->.
+have [->|q0] := eqVneq q 0; first by rewrite eqp0 => /eqP <-.
+move=> /andP[]; rewrite !dvdp_mu// => /allP/(_ x) pq /allP/(_ x) qp.
+apply/le_anti/andP; split.
+  case/boolP: (x \in dec_roots p) pq => [_ //|+ _]; first by apply.
+  by rewrite mem_dec_roots p0/= => /muNroot ->.
+case/boolP: (x \in dec_roots q) qp => [_ //|+ _]; first by apply.
+by rewrite mem_dec_roots q0/= => /muNroot ->.
+Qed.
+
+Lemma mu_gcdp (F : closedFieldType) (p q : {poly F}) (x : F) :
+  p != 0 -> q != 0 ->
+  \mu_x (gcdp p q) = minn (\mu_x p) (\mu_x q).
+Proof.
+wlog: p q / (\mu_x p <= \mu_x q)%N => pq.
+  case/orP: (leq_total (\mu_x p) (\mu_x q)).
+    exact/pq.
+  by rewrite minnC (mu_eqp _ (gcdpC _ _)) => + /[swap]; apply/pq.
+rewrite (minn_idPl pq) => p0 q0.
+apply/esym/eqP; rewrite -muP//; last first.
+  by rewrite gcdp_eq0 (negPf p0).
+by rewrite !dvdp_gcd root_mu root_muN// root_le_mu// pq.
+Qed.
+
+Lemma mu_deriv (F : idomainType) x (p : {poly F}) :
+  (((\mu_x p)%:R : F) != 0)%R -> \mu_x (p^`()) = (\mu_x p).-1.
+Proof.
+move=> px0; have [-> | nz_p] := eqVneq p 0; first by rewrite derivC mu0.
+have [q nz_qx Dp] := mu_spec x nz_p.
+case Dm: (\mu_x p) => [|m]; first by rewrite Dm eqxx in px0.
+rewrite Dp Dm !derivCE exprS mul1r mulrnAr -mulrnAl mulrA -mulrDl.
+rewrite cofactor_XsubC_mu // rootE !(hornerE, hornerMn) subrr mulr0 add0r.
+by rewrite -mulr_natr mulf_neq0// -Dm.
+Qed.
+
+Lemma cindexR_mulCp (c : R) (p q : {poly R}) :
+  cindexR (c *: p) q = sgz c * cindexR p q.
+Proof.
+rewrite /cindexR mulr_sumr.
+by under eq_bigr do rewrite jump_mulCp.
+Qed.
+
+Lemma changes_rcons (x : R) (s : seq R) : changes (rcons s x) = ((last 0 s * x < 0)%R + changes s)%N.
+Proof.
+elim: s => [|y s IHs]; first by rewrite /= mulrC.
+rewrite /= {}IHs; case: s => [|z s] /=; first by rewrite mul0r mulr0.
+by rewrite !addnA [((y * z < 0)%R + _)%N]addnC.
+Qed.
+
+Lemma changes_rev (s : seq R) : changes (rev s) = changes s.
+Proof.
+move nE: (size s) => n.
+elim: n s nE => [|n IHn] s nE; first by rewrite (size0nil nE).
+case: s nE => [//|] x s/= /eqP; rewrite eqSS => /eqP sn.
+by rewrite rev_cons changes_rcons last_rev mulrC IHn.
+Qed.
+
+Lemma changesE (s : seq R) :
+  changes s = \sum_(i < (size s).-1) ((s`_i * s`_i.+1 < 0)%R : nat).
+Proof.
+elim: s => /= [|x + ->]; first by rewrite big_ord0.
+case=> /= [|y s]; first by rewrite !big_ord0 mulr0 ltxx.
+by rewrite big_ord_recl/=.
+Qed.
+
+Lemma gcdp_mul (F : closedFieldType) (p q : {poly F}) :
+  p != 0 -> q != 0 ->
+  gcdp p q %= \prod_(x <- dec_roots p) ('X - x%:P) ^+ (minn (\mu_x p) (\mu_x q)).
+Proof.
+move=> p0 q0.
+have pq0 : gcdp p q != 0 by rewrite gcdp_eq0 (negPf p0).
+have pq0' : \prod_(x <- dec_roots p) ('X - x%:P) ^+ minn (\mu_x p) (\mu_x q) != 0.
+  rewrite prodf_seq_neq0; apply/allP => x _ /=.
+  by rewrite expf_eq0 polyXsubC_eq0 andbF.
+by apply/andP; split; rewrite dvdp_mu//; apply/allP => x _;
+  rewrite mu_gcdp// mu_prod//;
+  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym;
+  rewrite -big_mkcond/= big_pred1_seq// ?uniq_dec_roots//;
+  case: ifP => //; rewrite mem_dec_roots p0 => /= /negP/negP /muNroot ->;
+  rewrite min0n.
+Qed.
+
+Lemma size_dec_roots (F : closedFieldType) (p : {poly F}) :
+  [char F] =i pred0 ->
+  size (dec_roots p) = (size (p %/ gcdp p p^`())).-1.
+Proof.
+move=> F0.
+have /= [->|p0] := eqVneq p 0.
+  rewrite div0p size_poly0/=.
+  case rE : (dec_roots 0) => [//|x r].
+  have: x \in (dec_roots 0) by rewrite rE mem_head.
+  by rewrite mem_dec_roots eqxx.
+have [p'0|p'0] := eqVneq p^`() 0.
+  rewrite p'0 gcdp0 divpp// size_polyC oner_neq0/=.
+  have /size1_polyC ->: (size p <= 1)%N.
+    move: (size_deriv p F0); rewrite p'0 size_poly0.
+    by case: (size p) => [//|]; case.
+  case rE: (dec_roots _) => [//|x r].
+  by move: (mem_head x r); rewrite -rE mem_dec_roots rootC polyC_eq0 andNb.
+rewrite (eqp_size (eqp_divr p (gcdp_mul p0 p'0))).
+move: (dec_roots_closedP p) => pE.
+rewrite {2}pE -lead_coefE divpZl size_scale ?lead_coef_eq0//.
+rewrite divp_prod_dvdp; last first.
+  move=> x _.
+  rewrite root_le_mu; last by rewrite expf_eq0 polyXsubC_eq0 andbF.
+  by rewrite mu_exp mu_XsubC eqxx mul1n geq_minl.
+rewrite big_seq_cond.
+under eq_bigr => x.
+  rewrite andbT mem_dec_roots => /andP[_] px.
+  rewrite -expp_sub ?polyXsubC_eq0// ?geq_minl//.
+  rewrite mu_deriv; last first.
+    rewrite (proj1 (charf0P _) F0) mu_eq0// px//.
+  rewrite (minn_idPr (leq_pred _)) subn_pred// ?mu_gt0// subnn expr1.
+over.
+rewrite -big_seq_cond size_prod_seq; last first.
+  by move=> x _; rewrite polyXsubC_eq0.
+under eq_bigr do rewrite size_XsubC.
+rewrite big_const_seq count_predT iter_addn_0 subSKn.
+by rewrite mul2n subDnAC// subnn.
+Qed.
+
+
+
+End MoreRealClosed.

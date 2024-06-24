@@ -29,13 +29,12 @@ Require Import ZArith Init.
 
 From HB Require Import structures.
 Require Import mathcomp.ssreflect.ssreflect.
-From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice fintype div.
+From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice path fintype div.
 From mathcomp Require Import tuple finfun generic_quotient bigop finset perm.
-From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial interval finalg.
+From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial interval finalg complex.
 From mathcomp Require Import zmodp mxpoly mpoly mxtens qe_rcf ordered_qelim realalg.
 From mathcomp Require Import matrix finmap order finset classical_sets topology.
-
-From SemiAlgebraic Require Import auxresults formula.
+From mathcomp Require Import polyrcf.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -46,13 +45,15 @@ Import ord.
 Import Order.Theory Order.Syntax.
 Import numFieldTopology.Exports.
 
-Local Open Scope nat_scope.
-Local Open Scope ring_scope.
+From SemiAlgebraic Require Import auxresults formula.
+
+Local Open Scope type_scope.
 Local Open Scope fset_scope.
 Local Open Scope fmap_scope.
 Local Open Scope quotient_scope.
-Local Open Scope type_scope.
 Local Open Scope classical_set_scope.
+Local Open Scope nat_scope.
+Local Open Scope ring_scope.
 
 Declare Scope sa_scope.
 Delimit Scope sa_scope with SA.
@@ -930,7 +931,7 @@ apply/SAin_setP/andP => /=; rewrite -holds_take take_ngraph holdsAnd /= => -[/rc
   by rewrite !mxE.
 move=> /eqP /rowP x0; split=> // => i; rewrite mem_iota subnKC ?leq_addr// => /andP[mi im] _.
 rewrite (nth_ngraph _ _ (Ordinal im)) -(splitK (Ordinal im)).
-move: mi; rewrite leqNgt -{1}[i]/(Ordinal im : nat).
+move: mi; rewrite leqNgt -{1}[i%N]/(Ordinal im : nat).
 case: splitP => // j _ _.
 by move: (x0 j); rewrite !mxE.
 Qed. 
@@ -949,7 +950,7 @@ case: (ltnP m n) => [mn|nm _]; last first.
     apply/andP/SAin_setP => /=; rewrite holdsAnd -holds_take -(take_takel _ (@leq_addr (m-n) n)%N) !take_ngraph !row_mxKl (rwP (rcf_satP _ _)) subDnCA ?leq_addr// subDnCA// subnn addn0 addnC.
       move=> [] /andP[] llA /eqP -> /eqP ->; split=> //= i.
       rewrite mem_iota addnA => /andP[+ ilt] _.
-      rewrite -[i]/(Ordinal ilt : nat) nth_ngraph mxE.
+      rewrite -[i%N]/(Ordinal ilt : nat) nth_ngraph mxE.
       case: (splitP (Ordinal ilt)) => j ->; rewrite mxE//.
       by case: (splitP j) => j' ->; rewrite leqNgt ?ltn_ord// mxE.
     move=> [llA /= h0]; split; last first.
@@ -982,7 +983,7 @@ case: (ltnP m n) => [mn|nm _]; last first.
       rewrite -(take_takel _ (@leq_addr (k - n)%N n)) !take_ngraph !row_mxKl.
       exact/rcf_satP.
     apply/holdsAnd => i; rewrite mem_iota subDnCA ?leq_addr// subDnCA// subnn addn0 [X in (n + X)%N]addnC /= addnA => /andP[+ ilt] _.
-    rewrite -[i]/(Ordinal ilt : nat) nth_ngraph mxE.
+    rewrite -[i%N]/(Ordinal ilt : nat) nth_ngraph mxE.
     case: (splitP (Ordinal ilt)) => j ->; rewrite mxE//.
     by case: (splitP j) => j' ->; rewrite leqNgt ?ltn_ord// mxE.
   move: A; rewrite -(subnKC nm) -(subnKC kn) [X in (m - X)%N]subnKC// -addnA => A.
@@ -996,7 +997,7 @@ case: (ltnP m n) => [mn|nm _]; last first.
     apply/holds_take.
     by rewrite takeD take_ngraph drop_ngraph take_ngraph -ngraph_cat row_mxKr !row_mxKl hsubmxK.
     apply/holdsAnd => i; rewrite {1}addnA subnKC// subnKC// mem_iota -{1 2}(subnKC kn) -addnA => /andP[] + ilt _ /=.
-    rewrite -[i]/(Ordinal ilt : nat) nth_ngraph.
+    rewrite -[i%N]/(Ordinal ilt : nat) nth_ngraph.
     rewrite mxE; case: splitP => j ->.
       by rewrite leqNgt (leq_trans (ltn_ord j) (leq_addr _ _)).
     rewrite leq_add2l mxE; case: splitP => j' ->; last by rewrite mxE.
@@ -1027,6 +1028,21 @@ rewrite ngraph_cat subnKC//.
 have /eqP ds: size (drop (m - k)%N y) = (n - m)%N.
   by rewrite size_drop size_tuple subnBA// addnC subnKC// (ltnW (leq_ltn_trans km mn)).
 by exists (Tuple ds); rewrite -catA ngraph_tnth/= cat_take_drop.
+Qed.
+
+End SAsetTheory.
+Section SAsetTheory.
+Variables (F : rcfType) (n : nat).
+Implicit Types (A B C : {SAset F^n}) (x y z : 'rV[F]_n) (s t : seq 'rV[F]_n).
+
+Lemma SAset_castXl m (s : {SAset F^n}) (t : {SAset F^m}) :
+  t != SAset0 F m -> SAset_cast n (s :*: t) = s.
+Proof.
+have [->|[] x0 xt _] := set0Vmem t; first by rewrite eqxx.
+apply/eqP/SAsetP => x.
+  apply/inSAset_castDn/idP => [[y [+ ->]]|xs].
+  by rewrite inSAsetX => /andP[+ _].
+by exists (row_mx x x0); rewrite inSAsetX row_mxKl row_mxKr xs.
 Qed.
 
 Definition SAset_proj m (s : {SAset F^n}) := SAset_cast n (SAset_cast m s).
@@ -1399,7 +1415,7 @@ apply/SAin_setP/idP; rewrite -[X in nquantify X _ _](size_ngraph (row_mx l r)).
     by rewrite size_cat size_map size_enum_ord size_ngraph.
   rewrite size_cat size_map size_enum_ord /= => ilt.
   have i0: 'I_(n+1) by rewrite addn1; exact: ord0.
-  rewrite (nth_map (Ordinal ilt)) ?size_enum_ord// -[i]/(Ordinal ilt : nat) nth_ord_enum.
+  rewrite (nth_map (Ordinal ilt)) ?size_enum_ord// -[i%N]/(Ordinal ilt : nat) nth_ord_enum.
   rewrite mxE -{1}(splitK (Ordinal ilt)); case: (split _) => j.
     rewrite nth_cat size_map size_enum_ord ltn_unsplit/=.
     by rewrite (nth_map j) ?size_enum_ord// nth_ord_enum /=.
@@ -1445,7 +1461,7 @@ apply/SAin_setP/idP; rewrite -[X in nquantify X _ _](size_ngraph (row_mx l r)).
     by rewrite size_cat size_map size_enum_ord size_ngraph.
   rewrite size_cat size_map size_enum_ord /= => ilt.
   have i0: 'I_(n+1) by rewrite addn1; exact: ord0.
-  rewrite (nth_map (Ordinal ilt)) ?size_enum_ord// -[i]/(Ordinal ilt : nat) nth_ord_enum.
+  rewrite (nth_map (Ordinal ilt)) ?size_enum_ord// -[i%N]/(Ordinal ilt : nat) nth_ord_enum.
   rewrite mxE -{1}(splitK (Ordinal ilt)); case: (split _) => j.
     rewrite nth_cat size_map size_enum_ord ltn_unsplit/=.
     by rewrite (nth_map j) ?size_enum_ord// nth_ord_enum /=.
@@ -2023,6 +2039,962 @@ Lemma SAmpolyE n (p : {mpoly F[n]}) (x : 'rV[F]_n) :
   SAmpoly p x = \row__ p.@[x ord0].
 Proof. by apply/eqP; rewrite inSAfun SAmpoly_graphP !mxE. Qed.
 
+Definition SAselect_graph n m (x : m.-tuple nat) : {SAset F^(n + m)} :=
+  [set| \big[And/True]_(i : 'I_m)
+      ('X_(n + i) == 'X_(if (n <= (x`_i)%R)%N then ((x`_i)%R + m)%N else x`_i))].
+
+Lemma SAselect_graphP n m (x : m.-tuple nat) (u : 'rV[F]_n) (v : 'rV[F]_m) :
+  (row_mx u v \in SAselect_graph n x) = (v == \row_i (ngraph u)`_(tnth x i))%R.
+Proof.
+apply/SAin_setP/eqP => /= [|->].
+  move=> /holdsAnd vE; apply/rowP => i.
+  move: vE => /(_ i (mem_index_enum _) isT)/=.
+  rewrite enum_ordD map_cat nth_catr 2?size_map ?size_enum_ord//.
+  rewrite -map_comp (nth_map i) ?size_enum_ord// nth_ord_enum/= !mxE.
+  rewrite (unsplitK (inr i)) (tnth_nth 0) nth_cat 2!size_map size_enum_ord.
+  case: (ltnP (x`_i)%R n) => ni ->.
+    rewrite ni -map_comp (nth_map (Ordinal ni)) ?size_enum_ord//.
+    rewrite (nth_map (Ordinal ni)) ?size_enum_ord//.
+    rewrite -[x`_i]/(nat_of_ord (Ordinal ni)) nth_ord_enum/= mxE.
+    by rewrite (unsplitK (inl (Ordinal ni))).
+  rewrite ltnNge (leq_trans ni (leq_addr _ _))/= nth_default.
+    by rewrite nth_default// size_map size_enum_ord.
+  by rewrite size_map size_enum_ord -addnBAC// leq_addl.
+apply/holdsAnd => i _ _ /=.
+rewrite enum_ordD map_cat nth_catr 2?size_map ?size_enum_ord//.
+rewrite -map_comp (nth_map i) ?size_enum_ord// nth_ord_enum/= !mxE.
+rewrite (unsplitK (inr i)) mxE (tnth_nth 0) nth_cat 2!size_map size_enum_ord.
+case: (ltnP (x`_i)%R n) => ni.
+  rewrite ni -map_comp (nth_map (Ordinal ni)) ?size_enum_ord//.
+  rewrite (nth_map (Ordinal ni)) ?size_enum_ord//.
+  rewrite -[x`_i]/(nat_of_ord (Ordinal ni)) nth_ord_enum/= mxE.
+  by rewrite (unsplitK (inl (Ordinal ni))).
+rewrite ltnNge (leq_trans ni (leq_addr _ _))/= nth_default; last first.
+  by rewrite size_map size_enum_ord.
+by rewrite nth_default// size_map size_enum_ord -addnBAC// leq_addl.
+Qed.
+
+Fact SAfun_SAselect n m (x : m.-tuple nat) :
+  (SAselect_graph n x \in @SAfunc _ n m) && (SAselect_graph n x \in @SAtot _ n m).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite !SAselect_graphP => /eqP -> /eqP.
+apply/inSAtot => u; exists (\row_i (ngraph u)`_(tnth x i))%R.
+by rewrite SAselect_graphP eqxx.
+Qed.
+
+Definition SAselect n m (x : m.-tuple nat) := MkSAfun (SAfun_SAselect n x).
+
+Lemma SAselectE n m (x : m.-tuple nat) (u : 'rV[F]_n) :
+  SAselect n x u = \row_i (ngraph u)`_(tnth x i).
+Proof. by apply/eqP; rewrite inSAfun SAselect_graphP. Qed.
+
+Fixpoint SAsum n : {SAfun F^n -> F^1}.
+Proof.
+case: n => [|n]; first exact: (SAfun_const 0 0).
+apply/(SAcomp (SAadd 1) (SAjoin _ (SAselect _ (in_tuple [:: n])))).
+apply/(SAcomp (SAsum n) _).
+apply/SAselect/mktuple => i.
+exact/i.
+Defined.
+  
+Lemma SAsumE n (u : 'rV[F]_n) :
+  SAsum n u = \row__ \sum_i (u ord0 i)%R.
+Proof.
+apply/eqP; rewrite rowPE forall_ord1 mxE; apply/eqP.
+elim: n u => [|n IHn] u; first by rewrite /SAsum SAfun_constE big_ord0 mxE.
+rewrite /= SAcompE/= SAjoinE SAaddE SAcompE/= !SAselectE !mxE IHn.
+rewrite (tnth_nth 0)/= (nth_map ord0) ?size_enum_ord//.
+rewrite -[X in nth _ _ X]/(nat_of_ord (@ord_max n)) nth_ord_enum big_ord_recr/=.
+congr (_ + _)%R; apply/eq_bigr => i _.
+rewrite mxE tnth_mktuple (nth_map ord0); last first.
+  by rewrite size_enum_ord ltnS ltnW.
+congr (u _ _).
+have ->: i = lift ord_max i :> nat by rewrite /= /bump leqNgt (ltn_ord i).
+rewrite nth_ord_enum; apply/val_inj => /=.
+by rewrite /bump leqNgt (ltn_ord i).
+Qed.
+
+(* Evaluates a polynomial represented in big-endian in F^n at a point in F. *)
+Definition SAhorner_graph n : {SAset F^(n + 1 + 1)} :=
+  [set| nquantify n.+2 n Exists (
+  subst_formula (rcons (iota n.+2 n) n.+1) (SAsum n) /\
+  \big[And/True]_(i < n) ('X_(n.+2 + i) == ('X_i * 'X_n ^+ i)))].
+
+Lemma SAhorner_graphP n (u : 'rV[F]_(n + 1)) (v : 'rV[F]_1) :
+  (row_mx u v \in SAhorner_graph n) = (v == \row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
+Proof.
+rewrite /SAhorner_graph.
+rewrite -2![X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
+apply/SAin_setP/eqP => [/nexistsP[x]/= []|vE].
+  move=> /holds_subst + /holdsAnd/= xE.
+  rewrite -cats1 subst_env_cat/= subst_env_iota_catr; first last.
+  - exact/size_tuple.
+  - by rewrite size_map size_enum_ord !addn1.
+  rewrite nth_cat size_map size_enum_ord 2!{1}addn1 leqnn.
+  have nsE: n.+1 = rshift (n + 1)%N (@ord0 0) by rewrite /= addn0 addn1.
+  rewrite [X in _`_X]nsE nth_map_ord mxE (unsplitK (inr _)) => xv.
+  have {xv} <-: SAsum _ (\row_(i < n) tnth x i) = v.
+    apply/eqP; rewrite inSAfun.
+    apply/rcf_satP; rewrite ngraph_cat ngraph_tnth.
+    suff ->: ngraph v = [:: v ord0 ord0] :> seq _ by [].
+    apply/(@eq_from_nth _ 0); first exact/size_ngraph.
+    rewrite size_ngraph; case=> // ltn01.
+    by rewrite -[X in _`_X]/(nat_of_ord (@ord0 0)) nth_mktuple.
+  rewrite SAsumE; apply/eqP; rewrite rowPE forall_ord1 !mxE horner_poly. 
+  apply/eqP/eq_bigr => /= i _.
+  have {1}->: i = lshift 1 (lshift 1 i) :> nat by [].
+  rewrite mxE nth_map_ord.
+  move: xE => /(_ i (mem_index_enum _) isT).
+  rewrite nth_cat size_map size_enum_ord 2!{1}addn1 ltnNge (leq_addr _)/=.
+  rewrite 2!{1}addn1 subDnCA// subnn addn0.
+  rewrite nth_cat size_map size_enum_ord 2!{1}addn1.
+  rewrite (ltn_trans (ltn_ord i) (leqnSn n.+1)).
+  rewrite nth_cat size_map size_enum_ord [X in (_ < X + 1)%N]addn1 leq_addr.
+  have nE: n = lshift 1 (rshift n (@ord0 0)) by rewrite /= addn0.
+  have {2}->: i = lshift 1 (lshift 1 i) :> nat by [].
+  by rewrite [X in _`_X ^+ _]nE !nth_map_ord !mxE !(unsplitK (inl _)) -tnth_nth.
+apply/nexistsP; exists ([tuple ((ngraph u)`_i * u ord0 (rshift n ord0) ^+ i)%R | i < n]).
+move=> /=; split.
+  apply/holds_subst.
+  rewrite -cats1 subst_env_cat/= subst_env_iota_catr; first last.
+  - by rewrite size_map size_enum_ord.
+  - by rewrite size_map size_enum_ord !addn1.
+  rewrite nth_cat size_map size_enum_ord 2![in X in (_ < X)%N]addn1 leqnn.
+  have nsE: n.+1 = rshift (n + 1) (@ord0 0) by rewrite /= addn0 addn1.
+  rewrite [X in _`_X]nsE nth_map_ord mxE (unsplitK (inr _)).
+  suff: SAsum _ (\row_(i < n) ((ngraph u)`_i * u ord0 (rshift n ord0) ^+ i)%R) = v.
+    move=> /eqP; rewrite inSAfun => /rcf_satP.
+    rewrite ngraph_cat; congr holds; congr cat; last first.
+      by rewrite /= enum_ordSl enum_ord0/=.
+    apply/(@eq_from_nth _ 0).
+      by rewrite size_ngraph size_map size_enum_ord.
+    rewrite size_ngraph => i ilt.
+    by rewrite -/(nat_of_ord (Ordinal ilt)) nth_mktuple nth_map_ord mxE.
+  rewrite SAsumE; apply/eqP; rewrite rowPE forall_ord1 vE horner_poly !mxE. 
+  apply/eqP/eq_bigr => /= i _; rewrite mxE.
+  have {1 3}->: i = lshift 1 (lshift 1 i) :> nat by [].
+  by rewrite nth_map_ord.
+apply/holdsAnd => i _ _ /=.
+rewrite nth_cat size_map size_enum_ord 2!{1}addn1 ltnNge (leq_addr _)/=.
+rewrite 2![in X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+rewrite nth_cat size_map size_enum_ord 2![in X in (_ - X)%N]addn1.
+rewrite -[X in (_ < X)%N]addnA (leq_trans (ltn_ord i) (leq_addr _ _)).
+rewrite nth_cat size_map size_enum_ord [X in (_ < X + 1)%N]addn1 leq_addr nth_map_ord.
+have nE: n = lshift 1 (rshift n (@ord0 0)) by rewrite /= addn0.
+have {1 3}->: i = lshift 1 (lshift 1 i) :> nat by [].
+by rewrite [X in _`_X ^+ _]nE !nth_map_ord !mxE !(unsplitK (inl _)).
+Qed.
+
+Fact SAfun_SAhorner n :
+  (SAhorner_graph n \in @SAfunc _ (n + 1) 1) && (SAhorner_graph n \in @SAtot _ (n + 1) 1).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite !SAhorner_graphP => /eqP -> /eqP.
+apply/inSAtot => u; exists (\row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
+by rewrite SAhorner_graphP eqxx.
+Qed.
+
+Definition SAhorner n := MkSAfun (SAfun_SAhorner n).
+
+Lemma SAhornerE n (u : 'rV[F]_(n + 1)) :
+  SAhorner n u = (\row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
+Proof. by apply/eqP; rewrite inSAfun SAhorner_graphP. Qed.
+
+(* Function giving the number of roots of a polynomial of degree at most n.-1
+   encoded in big endian in F^n *)
+Definition SAnbroots_graph n : {SAset F^(n + 1)} :=
+  [set| (\big[And/True]_(i < n.+1) ('X_i == 0)) \/ \big[Or/False]_(i < n) (('X_n == Const i%:R%R) /\
+    nquantify n.+1 i Exists (
+      \big[And/True]_(j < i) subst_formula (iota 0 n ++ [:: n.+1 + j; n.+1 + i]%N)
+        (SAhorner n) /\
+        \big[And/True]_(j < i.-1) ('X_(n.+1 + j) <% 'X_(n.+1 + j.+1)) /\
+      'forall 'X_(n.+1 + i), subst_formula (iota 0 n ++ [:: n.+1 + i; (n.+1 + i).+1]%N)
+        (SAhorner n) ==> \big[Or/False]_(j < i) ('X_(n.+1 + i) == 'X_(n.+1 + j))))].
+
+
+Ltac mp := 
+  match goal with
+  | |- (?x -> _) -> _ => have /[swap]/[apply]: x
+  end.
+
+Lemma SAnbroots_graphP n (u : 'rV[F]_n) (v : 'rV[F]_1) :
+  (row_mx u v \in SAnbroots_graph n) = (v == \row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R).
+Proof.
+  have subst_env0 (u' : 'rV[F]_n) (i : 'I_n) (r : i.-tuple F) (x : F):
+    (subst_env (iota 0 n ++ [:: (n.+1 + i)%N; (n.+1 + i).+1])
+      (set_nth 0 ([seq row_mx u' v ord0 i0 | i0 <- enum 'I_(n + 1)] ++ r)
+        (n.+1 + i) x)) =
+    ([seq row_mx u' v ord0 i0 | i0 <- [seq lshift 1 i | i <- enum 'I_n]] ++
+        [:: x; 0]).
+  rewrite subst_env_cat {1}set_nth_catr; last first.
+    by rewrite size_map size_enum_ord addn1 leq_addr.
+  rewrite {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
+    by rewrite -map_comp size_map size_enum_ord.
+  rewrite nth_set_nth/= eqxx nth_set_nth/= -[X in (X == _)]addn1.
+  rewrite -[X in (_ == X)]addn0 eqn_add2l/= -addnS nth_cat.
+  rewrite size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
+  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+  by rewrite [r`_i.+1]nth_default// size_tuple.
+have [->|u0] := eqVneq u 0.
+  have ->: \poly_(i < n) (@ngraph F n 0)`_i = 0.
+    apply/polyP => i; rewrite coef_poly coef0.
+    case: (ltnP i n) => [ilt|//].
+    by rewrite -/(nat_of_ord (Ordinal ilt)) nth_map_ord mxE.
+  rewrite rootsR0/=; apply/SAin_setP/eqP => [/= [/holdsAnd|/holdsOr-[] i]| ->].
+  - move=> /(_ ord_max (mem_index_enum _) isT) /=.
+    have nE: n = rshift n (@ord0 0) by rewrite /= addn0.
+    rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) => v0.
+    by apply/eqP; rewrite rowPE forall_ord1 mxE; apply/eqP.
+  - move=> [_][_]/= [_].
+    rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx 0 v)).
+    move=> /nexistsP[r]/= [_][_] /(_ (1 + \big[Order.max/0]_(x <- r) x))%R; mp.
+      apply/holds_subst; rewrite subst_env0 -map_comp.
+      have /eqP: SAhorner n (row_mx 0 (\row__ (1 + \big[maxr/0]_(x <- r) x)%R)) = 0.
+        apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
+        apply/eqP; rewrite -[in RHS](horner0 (1 + \big[maxr/0]_(x <- r) x)%R).
+        rewrite mxE; congr (_.[_])%R.
+        apply/polyP => j; rewrite coef0 coef_poly.
+        case: (ltnP j n) => [jn|//]; rewrite ngraph_cat nth_cat size_ngraph jn.
+        by rewrite -/(nat_of_ord (Ordinal jn)) nth_map_ord mxE.
+      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+      congr (holds (_ ++ _) _); last by rewrite /= enum_ordSl enum_ord0/= !mxE.
+      apply/(@eq_from_nth _ 0) => [|k]; rewrite size_ngraph.
+        by rewrite size_map size_enum_ord.
+      move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
+      by rewrite [in RHS]mxE (unsplitK (inl _)).
+    move=> /holdsOr[j] [_][_]/= .
+    rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
+    move: (ltn_ord j); rewrite ltn_neqAle => /andP[] /negPf -> _.
+    rewrite nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
+    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0 => jE.
+    have: r`_j <= \big[maxr/0]_(x <- r) x.
+      rewrite le_bigmax; apply/orP; right; apply/hasP; exists r`_j.
+        by apply/mem_nth; rewrite size_tuple.
+      exact/lexx.
+    by rewrite -jE; rewrite -subr_ge0 opprD addrCA subrr addr0 oppr_ge0 ler10.
+  left; apply/holdsAnd; case=> i /= ilt _ _ /=.
+  rewrite enum_ordD map_cat -2!map_comp nth_cat size_map size_enum_ord.
+  case: (ltnP i n) => iltn.
+    by rewrite -/(nat_of_ord (Ordinal iltn)) nth_map_ord mxE (unsplitK (inl _)) mxE.
+  have ->: i = n by apply/le_anti/andP.
+  rewrite subnn -[X in _`_X]/(nat_of_ord (@ord0 0)) nth_map_ord mxE.
+  by rewrite (unsplitK (inr _)) mxE.
+apply/SAin_setP/eqP => [[/holdsAnd|/holdsOr/=[] i [_][_]]|].
+  - move=> uv0; suff: u = 0 by move/eqP: u0.
+  apply/rowP => i; rewrite mxE.
+  move: uv0 => /(_ (lift ord_max i) (mem_index_enum _) isT)/=.
+  rewrite /bump leqNgt (ltn_ord i)/= add0n.
+  rewrite -[X in _`_X]/(nat_of_ord (lshift 1 i)) nth_map_ord mxE.
+  by rewrite (unsplitK (inl _)).
+  - have nE: n = @rshift n 1 ord0 by rewrite /= addn0.
+  rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) => -[] vE.
+  rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
+  move=> /nexistsP[r]/= [] /holdsAnd/= rroot [] rsort rall. 
+  apply/eqP; rewrite rowPE forall_ord1 vE mxE eqr_nat -(size_tuple r); apply/eqP.
+  congr size; apply/rootsRPE => [j|x x0|].
+  - move: rroot => /(_ j (mem_index_enum _) isT) /holds_subst.
+    rewrite subst_env_cat {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
+      by rewrite -map_comp size_map size_enum_ord.
+    rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
+    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+    rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
+    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+    rewrite [r`_i]nth_default; last by rewrite size_tuple.
+    move=> r0; suff {}r0': SAhorner n (row_mx u (\row__ r`_j)) = 0.
+      move: r0' => /eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
+      rewrite !mxE -tnth_nth /root; congr (_.[_]%R == 0).
+      by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
+    apply/eqP; rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
+    move: r0; congr (holds (_ ++ _) _); last first.
+      by rewrite /= enum_ordSl enum_ord0/= !mxE.
+    rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
+        rewrite size_map size_enum_ord.
+      by rewrite size_ngraph.
+    move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
+    by rewrite mxE (unsplitK (inl _)).
+  - move: rall => /(_ x); mp.
+      apply/holds_subst; rewrite subst_env0.
+      have /eqP: SAhorner n (row_mx u (\row__ x)) = 0.
+        apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
+        move: x0; rewrite !mxE /root; congr (_.[_]%R == 0).
+        by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
+      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+      congr (holds (_ ++ _) _); last by rewrite /= enum_ordSl enum_ord0/= !mxE.
+      rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k]; rewrite size_ngraph.
+        by rewrite size_map size_enum_ord.
+      move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
+      by rewrite mxE (unsplitK (inl _)).
+    move=> /holdsOr /= [j] [_][_].
+    rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
+    move: (ltn_ord j); rewrite ltn_neqAle => /andP[] /negPf -> _.
+    rewrite nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
+    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0 => ->.
+    by apply/mem_nth; rewrite size_tuple.
+  - apply/(sortedP 0) => j; rewrite size_tuple -ltn_predRL => ji.
+    move: rsort => /holdsAnd /(_ (Ordinal ji) (mem_index_enum _) isT)/=.
+    rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
+    rewrite {1}addn1 subDnCA// subnn addn0.
+    rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
+    by rewrite {1}addn1 subDnCA// subnn addn0.
+set r := (rootsR (\poly_(i < n) (ngraph u)`_i)) => vE.
+right; apply/holdsOr => /=.
+have rn: (size r < n)%N.
+  rewrite ltnNge; apply/negP.
+  move=> /(leq_trans (size_poly _ (fun i => (ngraph u)`_i)))/poly_ltsp_roots.
+  move=> /(_ (uniq_roots _ _ _)); mp.
+    by apply/allP => x; rewrite in_rootsR => /andP[_].
+  move=> /polyP => u0'; move/eqP: u0; apply.
+  apply/rowP => i; move: u0' => /(_ i).
+  by rewrite coef_poly ltn_ord nth_map_ord mxE coef0.
+exists (Ordinal rn); split; first exact/mem_index_enum.
+split=> //=.
+split.
+  have nE: n = rshift n (@ord0 0) by rewrite /= addn0.
+  by rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) vE mxE.
+rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
+apply/nexistsP; exists (in_tuple r).
+split.
+  apply/holdsAnd => /= i _ _; apply/holds_subst.
+  rewrite subst_env_cat {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
+    by rewrite -map_comp size_map size_enum_ord.
+  rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
+  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+  rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
+  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+  rewrite [r`_(size r)]nth_default//.
+  have: r`_i \in r by apply/mem_nth.
+  rewrite in_rootsR => /andP[_] r0.
+  have {}r0: SAhorner n (row_mx u (\row__ r`_i)) = 0.
+    apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
+    move: r0; rewrite !mxE /root; congr (_.[_]%R == 0).
+    by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
+  move/eqP : r0; rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+  congr (holds (_ ++ _) _); last first.
+    by rewrite /= enum_ordSl enum_ord0/= !mxE.
+  rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
+      rewrite size_ngraph.
+    by rewrite size_map size_enum_ord.
+  move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
+  by rewrite mxE (unsplitK (inl _)).
+split=> /= [|x /holds_subst].
+  apply/holdsAnd => /= i _ _.
+  rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
+  rewrite {1}addn1 subDnCA// subnn addn0.
+  rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
+  rewrite {1}addn1 subDnCA// subnn addn0.
+  have /(sortedP 0)/(_ i) : sorted <%R r by apply/sorted_roots.
+  by rewrite -ltn_predRL => /(_ (ltn_ord i)).
+rewrite -/(nat_of_ord (Ordinal rn)) -[r]/(tval (in_tuple r)) subst_env0 => x0.
+have /(nthP 0) []: x \in r.
+  rewrite in_rootsR; apply/andP; split.
+    apply/eqP => /polyP u0'; move/eqP: u0; apply.
+    apply/rowP => i; move: u0' => /(_ i).
+    by rewrite coef_poly ltn_ord nth_map_ord mxE coef0.
+  suff {}r0: SAhorner n (row_mx u (\row__ x)) = 0.
+    move/eqP : r0; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
+    rewrite !mxE /root; congr (_.[_]%R == 0).
+    by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
+  apply/eqP; rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
+  move: x0; congr (holds (_ ++ _) _); last first.
+    by rewrite /= enum_ordSl enum_ord0/= !mxE.
+  rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
+      rewrite size_map size_enum_ord.
+    by rewrite size_ngraph.
+  move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
+  by rewrite mxE (unsplitK (inl _)).
+move=> i ir <-; apply/holdsOr; exists (Ordinal ir).
+split; first exact/mem_index_enum.
+split=> //=.
+rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
+rewrite (ltn_eqF ir) nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1.
+by rewrite ltnNge leq_addr/= [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
+Qed.
+
+Fact SAfun_SAnbroots n :
+  (SAnbroots_graph n \in @SAfunc _ n 1) && (SAnbroots_graph n \in @SAtot _ n 1).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite !SAnbroots_graphP => /eqP -> /eqP.
+apply/inSAtot => u; exists (\row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R)%R.
+by rewrite SAnbroots_graphP eqxx.
+Qed.
+
+Definition SAnbroots n := MkSAfun (SAfun_SAnbroots n).
+
+Lemma SAnbrootsE n (u : 'rV[F]_n) :
+  SAnbroots n u = (\row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R)%R.
+Proof. by apply/eqP; rewrite inSAfun SAnbroots_graphP. Qed.
+
+Lemma rcf_sat_True (e : seq F) : rcf_sat e True.
+Proof. exact/rcf_satP. Qed.
+
+(* TODO: See if this shortens the previous proofs. *)
+Lemma rcf_sat_nexists (e : seq F) (P : formula F) (u : seq F) :
+  (forall v : seq F, size v = size u -> rcf_sat (e ++ v) P -> v = u) ->
+  rcf_sat e (nquantify (size e) (size u) Exists P) = rcf_sat (e ++ u) P.
+Proof.
+move=> u_uniq.
+apply/rcf_satP/rcf_satP; last by move=> up; apply/nexistsP; exists (in_tuple u).
+by move=> /nexistsP[v] /[dup] /rcf_satP/(u_uniq _ (size_tuple v)) ->.
+Qed.
+
+(* Why does size_take not use minn? *)
+Lemma size_take (n0 : nat) (T : Type) (s : seq T) :
+  size (take n0 s) = minn n0 (size s).
+Proof. by rewrite size_take. Qed.
+
+Lemma mktupleE (n : nat) (T' : Type) (f : 'I_n -> T') :
+  tval (mktuple f) = [seq f i | i <- enum 'I_n].
+Proof.
+case: n f => [|n] f.
+  by rewrite enum_ord0/=; apply/size0nil; rewrite size_tuple card_ord.
+by apply/(@eq_from_nth _ (f ord0)) => [|i]; rewrite size_tuple.
+Qed.
+
+Definition SAmulc_graph : {SAset F^((2 + 2) + 2)} :=
+  [set| 'X_4 == ('X_0 * 'X_2 - 'X_1 * 'X_3) /\ 'X_5 == ('X_0 * 'X_3 + 'X_1 * 'X_2)].
+
+Lemma forall_ord2 (P : 'I_2 -> bool) :
+  [forall i, P i] = (P ord0 && P ord_max).
+Proof.
+apply/forallP/andP => [p //|[] p0 p1 /=].
+case; case=> [ilt|[ilt|//]].
+  by move: p0; congr P; apply/val_inj.
+by move: p1; congr P; apply/val_inj.
+Qed.
+
+Lemma SAmulc_graphP (u v w : 'rV[F]_2) :
+  row_mx (row_mx u v) w \in SAmulc_graph =
+  (let x := ((u ord0 ord0 +i* u ord0 ord_max) * (v ord0 ord0 +i* v ord0 ord_max))%C in
+  (w == \row_i if i == 0 then complex.Re x else complex.Im x)).
+Proof.
+rewrite inE rcf_sat_repr_pi rcf_sat_subst -[_ (ngraph _)]cats0.
+rewrite subst_env_iota_catl ?size_ngraph// rcf_sat_And !rcf_sat_Equal/=.
+have nE: 4 = rshift 4 (@ord0 1) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)).
+have {}nE: 0 = lshift 2 (lshift 2 (@ord0 1)) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inl _)).
+have {}nE: 2 = lshift 2 (rshift 2 (@ord0 1)) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord !mxE !(unsplitK (inl _)).
+have {}nE: 1 = lshift 2 (lshift 2 (@ord_max 1)) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord !mxE (unsplitK (inl _)) (unsplitK (inr _)).
+have {}nE: 3 = lshift 2 (rshift 2 (@ord_max 1)) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord !mxE !(unsplitK (inl _)).
+have {}nE: 5 = rshift 4 (@ord_max 1) :> nat by [].
+rewrite [X in _`_X]nE nth_map_ord !mxE !(unsplitK (inr _)).
+by rewrite rowPE forall_ord2 !mxE/=.
+Qed.
+
+Fact SAfun_SAmulc :
+  (SAmulc_graph  \in @SAfunc _ (2 + 2) 2) && (SAmulc_graph \in @SAtot _ (2 + 2) 2).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite -[u]hsubmxK !SAmulc_graphP => /eqP -> /eqP.
+apply/inSAtot => u.
+pose x := ((lsubmx u ord0 ord0 +i* lsubmx u ord0 ord_max) * (rsubmx u ord0 ord0 +i* rsubmx u ord0 ord_max))%C.
+exists (\row_i if i == 0 then complex.Re x else complex.Im x).
+by rewrite -[u]hsubmxK SAmulc_graphP.
+Qed.
+
+Definition SAmulc := MkSAfun SAfun_SAmulc.
+
+Lemma SAmulcE (u v : 'rV[F]_2) :
+  SAmulc (row_mx u v) = 
+    (let x := ((u ord0 ord0 +i* u ord0 ord_max) * (v ord0 ord0 +i* v ord0 ord_max))%C in
+    \row_i if i == 0 then complex.Re x else complex.Im x).
+Proof. by apply/eqP; rewrite inSAfun SAmulc_graphP. Qed.
+
+Fixpoint SAexpc_subdef n :
+  {f : {SAfun F^2 -> F^2} | forall u : 'rV[F]_2, let x := (u ord0 ord0 +i* u ord0 ord_max)%C ^+ n in (f u = \row_(i < 2) if i == 0 then complex.Re x else complex.Im x)}.
+Proof.
+case: n => [|n].
+  exists (SAfun_const 2 (\row_(i < 2) (i == 0)%:R)) => u/=.
+  by rewrite SAfun_constE; apply/rowP => i; rewrite !mxE mulrb.
+case: (SAexpc_subdef n) => f fE.
+exists (SAcomp SAmulc (SAjoin f (SAid 2))) => u/=.
+rewrite SAcompE/= SAjoinE SAidE fE SAmulcE/=.
+apply/rowP => i; rewrite !mxE/= exprSr.
+apply/complexI; rewrite [RHS]fun_if complexRe complexIm ReM ImM.
+rewrite -!complexRe/= -!complexIm/= -!rmorphM/= -rmorphB/= -rmorphD/=.
+by rewrite -fun_if [u ord0 ord0 * _]mulrC.
+Qed.
+
+Definition SAexpc n := proj1_sig (SAexpc_subdef n).
+
+Lemma SAexpcE n (u : 'rV[F]_2) :
+  SAexpc n u = let x := (u ord0 ord0 +i* u ord0 ord_max)%C ^+ n in
+    \row_(i < 2) if i == 0 then complex.Re x else complex.Im x.
+Proof. exact: (proj2_sig (SAexpc_subdef n) u). Qed.
+
+(* Evaluates a complex polynomial represented in big-endian in F^n at a point in F^2. *)
+Definition SAhornerRC_graph n : {SAset F^(n + 2 + 2)} :=
+  [set| nquantify n.+4 (4 * n)%N Exists (
+  subst_formula (rcons (iota n.+4 n) n.+2) (SAsum n) /\
+  subst_formula (rcons (iota (n.*2).+4 n) n.+3) (SAsum n) /\
+  \big[And/True]_(i < n) subst_formula [:: n, n.+1, ((n * 3).+4 + i)%N, ((n * 4).+4 + i)%N & [::]]
+    (SAexpc i) /\
+  \big[And/True]_(i < n) ('X_(n.+4 + i) == 'X_i * 'X_((n * 3).+4 + i)) /\
+  \big[And/True]_(i < n) ('X_(n.*2.+4 + i) == 'X_i * 'X_((n * 4).+4 + i)))].
+
+Lemma SAhornerRC_graphP n (u : 'rV[F]_(n + 2)) (v : 'rV[F]_2) :
+  let x := (u ord0 (rshift n ord0) +i* u ord0 (rshift n ord_max))%C in
+  let r := (\poly_(i < n) ((ngraph u)`_i)%:C).[x]%C in
+  (row_mx u v \in SAhornerRC_graph n) = (v == \row_i (if i == 0 then complex.Re r else complex.Im r))%R.
+Proof.
+move=> x r.
+rewrite /SAhornerRC_graph inE rcf_sat_repr_pi rcf_sat_subst.
+rewrite -[ _(ngraph _)]cats0 subst_env_iota_catl ?size_ngraph//.
+set e := [seq u ord0 (lshift 2 i) * complex.Re (x ^+ i) | i <- enum 'I_n] ++ [seq u ord0 (lshift 2 i) * complex.Im (x ^+ i) | i <- enum 'I_n] ++ [seq complex.Re (x ^+ i) | i <- iota 0 n] ++ [seq complex.Im (x ^+ i) | i <- iota 0 n].
+have se: size e = (4 * n)%N.
+  rewrite /= !size_cat ![size [seq _ | _ <- enum 'I_n]]size_map size_enum_ord !size_map size_iota.
+  by rewrite addnn addnA !addnn -!mul2n mulnA.
+move=> /=; move uvE: (map _ _) => uv.
+have suv: size uv = n.+4 by rewrite -uvE size_ngraph !addn2.
+move PE: (_ /\ _)%oT => P.
+suff PP w: size w = size e -> (rcf_sat (uv ++ w) P = (w == e) && (v == \row_i (if i == 0 then complex.Re r else complex.Im r))).
+  rewrite -se -suv (rcf_sat_nexists (u:=e)); first by rewrite PP// eqxx.
+  by move=> w /PP -> /andP[] /eqP + _.
+move=> we; rewrite -PE !rcf_sat_And !rcf_sat_subst -!cats1 !subst_env_cat/=.
+rewrite -{1 3}[w](cat_take_drop n) subst_env_iota//; last first.
+  by rewrite size_take we se; apply/minn_idPl/leq_pmull.
+rewrite nth_cat suv leqnSn.
+have nE: rshift (n + 2) (@ord0 1) = n.+2 :> nat by rewrite /rshift/= addn0 addn2.
+rewrite -{1}uvE -[X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)).
+rewrite catA -[drop n w](cat_take_drop n) subst_env_iota; first last.
+- rewrite size_take size_drop we se mulSn subDnCA// subnn addn0.
+  exact/minn_idPl/leq_pmull.
+- rewrite size_cat suv size_take we se !addSn -addnn; congr (_ + _).+4.
+  exact/minn_idPl/leq_pmull.
+rewrite nth_cat suv leqnn.
+have {}nE: rshift (n + 2) (@ord_max 1) = n.+3 :> nat by rewrite /rshift/= addn2 addn1.
+rewrite -{1}uvE -[X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)).
+rewrite !rcf_sat_forall/=.
+under eq_forallb => /= i.
+  rewrite rcf_sat_subst/=.
+  rewrite !nth_cat suv.
+  rewrite (leq_trans (leqnSn _) (leq_trans (leqnSn _) (leqnSn _))).
+  rewrite (leq_trans (leqnSn _) (leqnSn _)).
+  rewrite !addSn !ltnS mulnS -addnA ltnNge leq_addr/=.
+  rewrite [(_ * 4)%N]mulnS -addnA ltnNge leq_addr/=.
+  rewrite !subSS !subDnCA// subnn !addn0.
+  have ->: rcf_sat [:: uv`_n; uv`_n.+1; w`_(n * 2 + i); w`_(n * 3 + i)]
+          (SAexpc i) = 
+      (row_mx (\row_j uv`_(j + n)) (\row_j w`_((j + 2) * n + i)) \in SAgraph (SAexpc i)).
+    by rewrite inE ngraph_cat/= !enum_ordSl enum_ord0/= !mxE/= ![(_ * n)%N]mulnC.
+  rewrite -inSAfun SAexpcE/= rowPE forall_ord2 !mxE/= !add0n !add1n.
+over.
+under [X in [&& _, _, _, X & _]]eq_forallb => /= i.
+  rewrite rcf_sat_Equal/= !nth_cat suv ltnNge leq_addr/= subDnCA// subnn addn0.
+  rewrite (leq_trans (ltn_ord i)); last by repeat rewrite ltnW ?leqnSn.
+  rewrite !addSn !ltnS mulnS -addnA ltnNge leq_addr/=.
+  rewrite !subSS subDnCA// subnn addn0.
+over.
+under [X in [&& _, _, _, _ & X]]eq_forallb => /= i.
+  rewrite rcf_sat_Equal/= !nth_cat suv !addSn !ltnS -addnn -addnA ltnNge leq_addr/=.
+  rewrite !subSS subDnCA// subnn addn0.
+  rewrite -ltnS (leq_trans (ltn_ord i)); last by repeat rewrite ltnW ?leqnSn.
+  rewrite mulnS -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+over.
+have ->: rcf_sat (take n w ++ [:: v ord0 ord0]) (SAsum n) = (row_mx (\row_i w`_i) (\row__ v ord0 ord0) \in (SAgraph (SAsum n))).
+  rewrite inE ngraph_cat; congr (rcf_sat (_ ++ _) _); last first.
+    by rewrite mktupleE enum_ordSl enum_ord0/= mxE.
+  apply/esym/(@eq_from_nth _ 0) => [|i].
+    by rewrite size_take we se size_ngraph; apply/esym/minn_idPl/leq_pmull.
+  rewrite size_ngraph => ilt.
+  by rewrite -[X in _`_X]/(nat_of_ord (Ordinal ilt)) nth_ngraph mxE nth_take.
+have ->: rcf_sat (take n (drop n w) ++ [:: v ord0 ord_max]) (SAsum n) = (row_mx (\row_i w`_(n + i)) (\row__ v ord0 ord_max) \in (SAgraph (SAsum n))).
+  rewrite inE ngraph_cat; congr (rcf_sat (_ ++ _) _); last first.
+    by rewrite mktupleE enum_ordSl enum_ord0/= mxE.
+  apply/esym/(@eq_from_nth _ 0) => [|i].
+    rewrite size_take size_drop we se mulSn subDnCA// subnn addn0 size_ngraph.
+    exact/esym/minn_idPl/leq_pmull.
+  rewrite size_ngraph => ilt.
+  by rewrite -[X in _`_X]/(nat_of_ord (Ordinal ilt)) nth_ngraph mxE nth_take// nth_drop.
+rewrite -!inSAfun !SAsumE rowPE forall_ord1 rowPE forall_ord1 !mxE.
+under eq_bigr do rewrite mxE.
+under [X in (X == v _ ord_max)]eq_bigr do rewrite mxE.
+rewrite -uvE.
+have {}nE: n = lshift 2 (rshift n (@ord0 1)) by rewrite /rshift/= addn0.
+rewrite [X in (map _ _)`_X]nE nth_map_ord mxE (unsplitK (inl _)).
+have {}nE: n.+1 = lshift 2 (rshift n (@ord_max 1)) by rewrite /rshift/= addn1.
+rewrite [X in (map _ _)`_X]nE nth_map_ord mxE (unsplitK (inl _)).
+case/boolP: [forall _, _] => [/forallP/= we23|/forallPn[] /= i]; last first.
+  rewrite !andbF; have [->|//] := eqVneq w e.
+  rewrite !nth_cat ![size (map _ (enum 'I_n))]size_map size_enum_ord.
+  rewrite mulSn -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+  rewrite ltnNge mul1n leq_addr/= subDnCA// subnn addn0.
+  rewrite ![size (map _ (iota _ _))]size_map size_iota ltn_ord.
+  rewrite (nth_map 0) ?size_iota// nth_iota// add0n eqxx.
+  rewrite mulSn -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+  rewrite mulSn -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+  rewrite ltnNge mul1n leq_addr/= subDnCA// subnn addn0.
+  by rewrite (nth_map 0) ?size_iota// nth_iota// add0n eqxx.
+case/boolP: [forall _, _] => [/forallP/= we0|/forallPn[] /= i]; last first.
+  move: (we23 i) => /andP[] /eqP; rewrite [(2 * n)%N]mulnC => <- _.
+  rewrite !andbF; have [->|//] := eqVneq w e.
+  rewrite !nth_cat ![size (map _ (enum 'I_n))]size_map size_enum_ord.
+  rewrite ltn_ord nth_map_ord.
+  have iE: i = lshift 2 (lshift 2 i) :> nat by [].
+  by rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)) eqxx.
+case/boolP: [forall _, _] => [/forallP/= we1|/forallPn[] /= i]; last first.
+  move: (we23 i) => /andP[_] /eqP; rewrite [(3 * n)%N]mulnC => <-.
+  rewrite !andbF; have [->|//] := eqVneq w e.
+  rewrite !nth_cat ![size (map _ (enum 'I_n))]size_map size_enum_ord.
+  rewrite ltnNge leq_addr/= subDnCA// subnn addn0.
+  rewrite ltn_ord nth_map_ord.
+  have iE: i = lshift 2 (lshift 2 i) :> nat by [].
+  by rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)) eqxx.
+rewrite rowPE forall_ord2 !mxE/=.
+have /eqP -> /=: w = e.
+  apply/(@eq_from_nth _ 0) => // i.
+  rewrite we se => i4n.
+  have n0: (0 < n)%N.
+    move: i4n; case: n {u x r e se suv PE uvE we nE we23 we0 we1} => [|//].
+    by rewrite muln0.
+  move: i4n; rewrite -ltn_divLR// {2 3}(divn_eq i n).
+  have: (i %% n < n)%N by rewrite ltn_mod.
+  move: (i %% n)%N (i %/ n)%N => {}i + ilt.
+  case=> [_|].
+    rewrite mul0n add0n.
+    move: (we0 (Ordinal ilt)) (we23 (Ordinal ilt)) => /eqP -> /= /andP[] + _.
+    rewrite [(n * 2)%N]mulnC => /eqP <-.
+    have iE: i = lshift 2 (lshift 2 (Ordinal ilt)) :> nat by [].
+    rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)).
+    rewrite nth_cat size_map size_enum_ord ilt.
+    by rewrite [X in _`_X]iE nth_map_ord.
+  case=> [_|].
+    rewrite mul1n.
+    move: (we1 (Ordinal ilt)) (we23 (Ordinal ilt)) => /eqP -> /= /andP[] _.
+    rewrite [(n * 3)%N]mulnC => /eqP <-.
+    have iE: i = lshift 2 (lshift 2 (Ordinal ilt)) :> nat by [].
+    rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)).
+    rewrite 2!nth_cat size_map size_enum_ord ltnNge leq_addr/=.
+    rewrite subDnCA// subnn addn0 size_map size_enum_ord ilt.
+    by rewrite [X in _`_X]iE nth_map_ord.
+  case=> [_|].
+    move: (we23 (Ordinal ilt)) => /andP[] /eqP <- _.
+    rewrite 3!nth_cat size_map size_enum_ord mulSn -addnA ltnNge leq_addr/=.
+    rewrite subDnCA// subnn addn0 mul1n.
+    rewrite size_map size_enum_ord ltnNge leq_addr/=.
+    rewrite subDnCA// subnn addn0 size_map size_iota ilt.
+    by rewrite (nth_map 0) ?size_iota// nth_iota.
+  case=> [_|//].
+    move: (we23 (Ordinal ilt)) => /andP[] _ /eqP <-.
+    rewrite !nth_cat ![size (map _ (enum 'I_n))]size_map size_enum_ord.
+    rewrite mulSn -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+    rewrite mulSn -addnA ltnNge leq_addr/= subDnCA// subnn addn0.
+    rewrite ![size (map _ (iota _ _))]size_map size_iota.
+    rewrite ltnNge mul1n leq_addr/= subDnCA// subnn addn0.
+    by rewrite (nth_map 0) ?size_iota// nth_iota.
+rewrite andbT /r horner_poly; congr andb; rewrite eq_sym; congr eq_op; apply/complexI.
+  rewrite complexRe !raddf_sum; apply/eq_bigr => i _ /=.
+  rewrite ReM -complexIm/= mul0r subr0 -!complexRe/= -rmorphM/=; congr (_%:C)%C.
+  move: (we0 i) (we23 i) => /eqP -> /andP[] + _.
+  rewrite [(n * 2)%N]mulnC => /eqP <-.
+  have iE: i = lshift 2 (lshift 2 i) :> nat by [].
+  rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)).
+  have {}iE: i = (lshift 2 i) :> nat by [].
+  by rewrite [X in _`_X]iE nth_map_ord.
+rewrite complexIm !raddf_sum; apply/eq_bigr => i _ /=.
+rewrite ImM -!complexIm/= mulr0 addr0 -complexRe/= -rmorphM/=; congr (_%:C)%C.
+move: (we1 i) (we23 i) => /eqP -> /andP[] _.
+rewrite [(n * 3)%N]mulnC => /eqP <-.
+have iE: i = lshift 2 (lshift 2 i) :> nat by [].
+rewrite [X in _`_X]iE nth_map_ord mxE (unsplitK (inl _)).
+have {}iE: i = (lshift 2 i) :> nat by [].
+by rewrite [X in _`_X]iE nth_map_ord.
+Qed.
+
+Fact SAfun_SAhornerRC n :
+  (SAhornerRC_graph n \in @SAfunc _ (n + 2) 2) && (SAhornerRC_graph n \in @SAtot _ (n + 2) 2).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite !SAhornerRC_graphP => /eqP -> /eqP.
+apply/inSAtot => u.
+pose x := (u ord0 (rshift n ord0) +i* u ord0 (rshift n ord_max))%C. 
+pose r := (\poly_(i < n) ((ngraph u)`_i)%:C).[x]%C.
+exists (\row_i (if i == 0 then complex.Re r else complex.Im r)).
+by rewrite SAhornerRC_graphP.
+Qed.
+
+Definition SAhornerRC n := MkSAfun (SAfun_SAhornerRC n).
+
+Lemma SAhornerRCE n (u : 'rV[F]_(n + 2)) :
+  let x := (u ord0 (rshift n ord0) +i* u ord0 (rshift n ord_max))%C in
+  let r := (\poly_(i < n) ((ngraph u)`_i)%:C).[x]%C in
+  SAhornerRC n u = (\row_i (if i == 0 then complex.Re r else complex.Im r))%R.
+Proof. by apply/eqP; rewrite inSAfun SAhornerRC_graphP. Qed.
+
+(* Function giving the number of complex roots of a polynomial of degree at most
+   n.-1 encoded in big endian in F^n *)
+Definition SAnbrootsC_graph n : {SAset F^(n + 1)} :=
+  [set| (\big[And/True]_(i < n.+1) ('X_i == 0)) \/ \big[Or/False]_(d < n) (('X_n == Const d%:R%R) /\
+    nquantify n.+1 d.*2 Exists (
+      \big[And/True]_(j < d) subst_formula (iota 0 n ++ [:: n.+1 + j.*2; n.+1 + j.*2.+1; n.+1 + d.*2; n.+1 + d.*2]%N)
+        (SAhornerRC n) /\
+        \big[And/True]_(i < d) \big[And/True]_(j < d | j != i) ('X_(n.+1 + i.*2) != 'X_(n.+1 + j.*2) \/ 'X_(n.+1 + i.*2.+1) != 'X_(n.+1 + j.*2.+1)) /\
+        nquantify (n.+1 + d.*2) 2 Forall (subst_formula (iota 0 n ++ [:: n.+1 + d.*2; n.+1 + d.*2.+1; n.+1 + d.*2.+2; n.+1 + d.*2.+2]%N)
+        (SAhornerRC n) ==> \big[Or/False]_(j < d) ('X_(n.+1 + d.*2) == 'X_(n.+1 + j.*2) /\ 'X_(n.+1 + d.*2.+1) == 'X_(n.+1 + j.*2.+1)))))].
+
+Lemma SAnbrootsC_graphP n (u : 'rV[F]_n) (v : 'rV[F]_1) :
+  (row_mx u v \in SAnbrootsC_graph n) = (v == \row__ (size (dec_roots (\poly_(i < n) ((ngraph u)`_i)%:C%C)))%:R).
+Proof.
+move uvE: (tval (ngraph (row_mx u v))) => uv.
+move: uvE; have [->|u0] := eqVneq u 0 => uvE.
+  have ->: \poly_(i < n) ((@ngraph F n 0)`_i)%:C%C = 0.
+    apply/polyP => i; rewrite coef_poly coef0.
+    case: (ltnP i n) => [ilt|//].
+    by rewrite (nth_mktuple _ _ (Ordinal ilt)) mxE.
+  rewrite dec_roots0/=; apply/SAin_setP/eqP => [/= [/holdsAnd|/holdsOr-[] i]| ->].
+  - move=> /(_ ord_max (mem_index_enum _) isT) /=.
+    have nE: n = rshift n (@ord0 0) by rewrite /= addn0.
+    rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) => v0.
+    by apply/eqP; rewrite rowPE forall_ord1 mxE; apply/eqP.
+  - move=> [_][_]/= [_].
+    rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx 0 v)).
+    move=> /nexistsP[r]/= [_][_]; rewrite uvE.
+    have suvr: (n.+1 + i.*2)%N = size (uv ++ r).
+      by rewrite -uvE size_cat size_ngraph size_tuple addn1.
+    rewrite suvr.
+    move=> /nforallP-/(_ (mktuple (fun=> 1 + \big[Order.max/0]_(x <- r) x)))%R /=.
+    mp.
+      apply/holds_subst; rewrite subst_env_cat.
+      rewrite -{1}uvE/= {1}enum_ordD map_cat -!catA subst_env_iota_catl; last first.
+        by rewrite 2!size_map size_enum_ord.
+      rewrite catA nth_cat ltnn subnn enum_ordSl/=.
+      rewrite nth_cat [X in (X < _)%N]addnS suvr ltnNge leqnSn/=.
+      rewrite -suvr subnDl subSn// subnn enum_ordSl/=.
+      rewrite nth_default; last first.
+        by rewrite !addnS suvr size_cat/= enum_ord0/= addn2.
+      have /eqP: SAhornerRC n (row_mx 0 (\row__ (1 + \big[maxr/0]_(x <- r) x)%R)) = \row__ 0.
+        apply/eqP; rewrite SAhornerRCE rowPE forall_ord2 !mxE/= !(unsplitK (inr _)).
+        move pE : (poly _ _) => p.
+        suff ->: p = 0 by rewrite horner0/= eqxx.
+        apply/polyP => j; rewrite -pE coef0 coef_poly.
+        case: (ltnP j n) => [jn|//].
+        rewrite ngraph_cat nth_cat size_ngraph jn.
+        by rewrite (nth_mktuple _ _ (Ordinal jn)) mxE.
+      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+      congr (holds (_ ++ _) _); last by rewrite /= !enum_ordSl enum_ord0/= !mxE.
+      apply/(@eq_from_nth _ 0) => [|k]; rewrite size_ngraph.
+        by rewrite 2!size_map size_enum_ord.
+      move=> kn; rewrite /= -map_comp !(nth_map_ord _ _ (Ordinal kn)).
+      by rewrite [in RHS]mxE (unsplitK (inl _)).
+    move=> /holdsOr[j] [_][_]/= [] + _.
+    rewrite nth_cat ltnn subnn {1}enum_ordSl/=.
+    rewrite nth_cat -suvr ltn_add2l ltn_double ltn_ord nth_cat.
+    rewrite -{1 3}uvE size_ngraph addn1 ltnNge leq_addr/=.
+    rewrite subDnCA// subnn addn0 => rE.
+    suff: r`_j.*2 <= \big[maxr/0]_(x <- r) x.
+      by rewrite -rE; rewrite -subr_ge0 opprD addrCA subrr addr0 oppr_ge0 ler10.
+    rewrite le_bigmax; apply/orP; right; apply/hasP; exists r`_j.*2.
+      by apply/mem_nth; rewrite size_tuple ltn_double.
+    exact/lexx.
+  left; apply/holdsAnd; case=> i /= ilt _ _ /=.
+  rewrite enum_ordD map_cat -2!map_comp nth_cat size_map size_enum_ord.
+  case: (ltnP i n) => iltn.
+    by rewrite -/(nat_of_ord (Ordinal iltn)) nth_map_ord mxE (unsplitK (inl _)) mxE.
+  have ->: i = n by apply/le_anti/andP.
+  rewrite subnn -[X in _`_X]/(nat_of_ord (@ord0 0)) nth_map_ord mxE.
+  by rewrite (unsplitK (inr _)) mxE.
+have pu0: \poly_(i < n) (([seq u ord0 i0 | i0 <- enum 'I_n]`_i)%:C)%C != 0.
+  apply/eqP => /polyP pu0.
+  move/eqP: u0 => /rowP; apply => i.
+  move: (pu0 i); rewrite coef_poly ltn_ord nth_map_ord mxE coef0.
+  by move/complexI.
+have ComplexK (x : F[i]): (complex.Re x +i* complex.Im x)%C = x.
+  by apply/eqP; rewrite eq_complex !eqxx.
+rewrite inE rcf_sat_repr_pi rcf_sat_subst uvE -[uv]cats0 subst_env_iota_catl; last first.
+  by rewrite -uvE size_ngraph.
+rewrite rcf_sat_Or rcf_sat_forall.
+have /negP/negPf -> /=: ~ [forall i : 'I_(n.+1), rcf_sat uv ('X_i == 0)].
+  move=> /forallP /= uv0.
+  move: u0; rewrite rowPE => /forallPn/= [] i.
+  move: (uv0 (lift ord_max i)) => /rcf_satP/=.
+  rewrite -uvE ngraph_cat nth_cat /bump [(n <= i)%N]leqNgt size_ngraph !(ltn_ord i)/=.
+  by rewrite nth_map_ord mxE => -> /eqP.
+apply/rcf_satP/eqP => [/holdsOr/=[] d [_][_]|vE].
+  rewrite -{1}uvE ngraph_cat nth_cat size_ngraph ltnn.
+  rewrite subnn (nth_map_ord _ _ ord0) => -[] vE.
+  rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)) uvE.
+  move=> /nexistsP[r]/= [] /holdsAnd/= rroot [] runiq rall.
+  set r' := (mktuple (fun i : 'I_d => (r`_(val i).*2 +i* r`_(val i).*2.+1)%C)).
+  apply/eqP; rewrite rowPE forall_ord1 vE mxE eqr_nat -(size_tuple r').
+  apply/eqP/perm_size/uniq_perm.
+  - apply/negP => /negP/(uniqPn 0)/= [] i [] j [] ij.
+    rewrite size_map size_enum_ord => jd.
+    rewrite (nth_map_ord _ _ (Ordinal (ltn_trans ij jd))).
+    rewrite (nth_map_ord _ _ (Ordinal jd)) => -[] rij rij1.
+    move/holdsAnd: runiq => /= /(_ (Ordinal (ltn_trans ij jd)) (mem_index_enum _) isT).
+    move=> /holdsAnd /= /(_ (Ordinal jd) (mem_index_enum _)).
+    rewrite -(inj_eq val_inj)/=.
+    mp; first by apply/eqP => ji; rewrite ji ltnn in ij.
+    rewrite !nth_cat -[X in size X]uvE size_ngraph addn1.
+    do 4 (rewrite ltnNge leq_addr/= subDnCA// subnn addn0).
+    by rewrite rij rij1; case.
+  - exact/uniq_dec_roots.
+  move=> x; rewrite mem_dec_roots pu0/= rootE.
+  apply/(nthP 0)/eqP => [[] i|x0].
+    rewrite size_map size_enum_ord => id <-.
+    rewrite (nth_map_ord _ _ (Ordinal id)).
+    move: rroot => /(_ (Ordinal id) (mem_index_enum _) isT) /holds_subst.
+    rewrite subst_env_cat -{1}uvE ngraph_cat -catA subst_env_iota_catl ?size_ngraph//=.
+    rewrite !nth_cat -![X in size X]uvE size_ngraph addn1.
+    do 3 (rewrite ltnNge leq_addr/= subDnCA// subnn addn0).
+    rewrite [r`_d.*2]nth_default ?size_tuple// => ru0.
+    have /eqP: SAhornerRC n (row_mx u (\row_j r`_(j + i.*2))) = \row__ 0.
+      apply/eqP; rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
+      by rewrite /= !enum_ordSl enum_ord0/= !mxE/= /bump/=.
+    rewrite SAhornerRCE/= !mxE !(unsplitK (inr _)) !mxE.
+    rewrite rowPE forall_ord2 !mxE/=.
+    move pE: (poly _ _) => p.
+    move qE: (poly _ _) => q.
+    rewrite [q.[_]]complexE.
+    suff ->: p = q by move=> /andP[] /eqP -> /eqP ->; rewrite mulr0 addr0.
+    apply/polyP => j; rewrite -pE -qE !coef_poly/=.
+    case: (ltnP j n) => [jn|//].
+    rewrite (nth_map_ord _ _ (lshift 2 (Ordinal jn))) mxE (unsplitK (inl _)).
+    by rewrite (nth_map_ord _ _ (Ordinal jn)).
+  move: rall.
+  have suvr: size (uv ++ r) = (n.+1 + d.*2)%N.
+    by rewrite size_cat -uvE size_ngraph size_tuple addn1.
+  rewrite -suvr => /nforallP /(_ (mktuple (fun i => if i == 0 then complex.Re x else complex.Im x)))/=.
+  mp.
+    apply/holds_subst.
+    rewrite subst_env_cat -{1}uvE ngraph_cat -!catA subst_env_iota_catl ?size_ngraph//=.
+    rewrite catA !nth_cat ltnn subnn suvr !addnS ltnNge leqnSn/=.
+    rewrite ltnNge (leq_trans (leqnSn _) (leqnSn _))/=.
+    rewrite subSn// subnn subSn// subSn// subnn !enum_ordSl enum_ord0/=.
+    suff /eqP: SAhornerRC n (row_mx u (\row_j if j == 0 then complex.Re x else complex.Im x)) = \row__ 0.
+      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+      by rewrite /= !enum_ordSl enum_ord0/= !mxE/= /bump/=.
+    rewrite SAhornerRCE/= !mxE !(unsplitK (inr _)) !mxE.
+    apply/eqP; rewrite rowPE forall_ord2 !mxE/=.
+    move: x0; move pE: (poly _ _) => p; move qE: (poly _ _) => q.
+    suff ->: p = q by rewrite ComplexK => ->; rewrite !eqxx.
+    apply/esym/polyP => j; rewrite -pE -qE !coef_poly/=.
+    case: (ltnP j n) => [jn|//].
+    rewrite (nth_map_ord _ _ (lshift 2 (Ordinal jn))) mxE (unsplitK (inl _)).
+    by rewrite (nth_map_ord _ _ (Ordinal jn)).
+  move=> /holdsOr/= [] i [_][_].
+  rewrite !nth_cat ltnn subnn suvr !ltn_add2l ltn_double (ltn_ord i).
+  rewrite -[X in size X]uvE size_ngraph addn1 ltnNge leq_addr/=.
+  rewrite subDnCA// subnn addn0.
+  rewrite ltnNge (leqnSn _)/= 2!addnS subSn// subnn.
+  rewrite ltn_Sdouble (ltn_ord i) -addnS ltnNge leq_addr/=.
+  rewrite subDnCA// subnn addn0 !enum_ordSl enum_ord0/= => -[] ri ris.
+  exists i; first by rewrite size_map size_enum_ord.
+  by apply/eqP; rewrite nth_map_ord eq_complex/= ri ris !eqxx.
+apply/holdsOr => /=.
+move pE: (poly _ _) vE => p vE.
+have sn: (size (dec_roots p) < n)%N.
+  rewrite size_dec_roots; last exact/char_num.
+  apply/(leq_ltn_trans (leq_predn (leq_divp p _))).
+  case: (posnP n) => n0.
+    move/eqP: u0; elim; apply/rowP; case=> i ilt; exfalso.
+    by rewrite n0 in ilt.
+  case sp: (size p) => [//|k]; rewrite succnK.
+  by move: sp => <-; rewrite -pE; apply/size_poly.
+exists (Ordinal sn) => /=.
+split; first exact/mem_index_enum.
+split=> //.
+split.
+  by rewrite -uvE ngraph_cat nth_cat size_ngraph ltnn subnn vE/= enum_ordSl/= mxE.
+have ->: n.+1 = size uv by rewrite -uvE size_ngraph addn1.
+apply/nexistsP.
+exists (mktuple (fun i => if odd i then complex.Im (dec_roots p)`_i./2 else complex.Re (dec_roots p)`_i./2)%N).
+split.
+  apply/holdsAnd => /= i _ _; apply/holds_subst.
+  rewrite subst_env_cat -{1}uvE ngraph_cat -!catA subst_env_iota_catl ?size_ngraph//=.
+  do 3 rewrite nth_cat ltnNge leq_addr/= subDnCA// subnn addn0.
+  move: (ltn_ord i); rewrite -ltn_double => i2lt.
+  rewrite (nth_map_ord _ _ (Ordinal i2lt))/= odd_double doubleK.
+  move: (ltn_ord i); rewrite -ltn_Sdouble => i2slt.
+  rewrite (nth_map_ord _ _ (Ordinal i2slt))/= odd_double/= uphalf_double.
+  rewrite [(map _ _)`__]nth_default; last by rewrite size_map size_enum_ord.
+  suff /eqP: SAhornerRC n (row_mx u (\row_j if j == 0 then complex.Re (dec_roots p)`_i else complex.Im (dec_roots p)`_i)) = \row__ 0.
+    rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
+    by rewrite /= !enum_ordSl enum_ord0/= !mxE/= /bump/=.
+  rewrite SAhornerRCE/= !mxE !(unsplitK (inr _)) !mxE.
+  apply/eqP; rewrite rowPE forall_ord2 !mxE/= ComplexK.
+  move qE: (poly _ _) => q.
+  have <-: p = q.
+    apply/esym/polyP => j; rewrite -pE -qE !coef_poly/=.
+    case: (ltnP j n) => [jn|//].
+    rewrite (nth_map_ord _ _ (lshift 2 (Ordinal jn))) mxE (unsplitK (inl _)).
+    by rewrite (nth_map_ord _ _ (Ordinal jn)).
+  have: (dec_roots p)`_i \in dec_roots p by apply/mem_nth.
+  rewrite mem_dec_roots => /andP[_] /rootP ->.
+  by rewrite eqxx.
+split.
+  apply/holdsAnd => /= i _ _.
+  apply/holdsAnd => /= j _; rewrite eq_sym => /negPf ji.
+  do 4 rewrite nth_cat ltnNge leq_addr/= subDnCA// subnn addn0.
+  move: (ltn_ord i); rewrite -ltn_double => i2lt.
+  rewrite (nth_map_ord _ _ (Ordinal i2lt))/= odd_double doubleK.
+  move: (ltn_ord i); rewrite -ltn_Sdouble => i2slt.
+  rewrite (nth_map_ord _ _ (Ordinal i2slt))/= odd_double/= uphalf_double.
+  move: (ltn_ord j); rewrite -ltn_double => j2lt.
+  rewrite (nth_map_ord _ _ (Ordinal j2lt))/= odd_double doubleK.
+  move: (ltn_ord j); rewrite -ltn_Sdouble => j2slt.
+  rewrite (nth_map_ord _ _ (Ordinal j2slt))/= odd_double/= uphalf_double.
+  move: (uniq_dec_roots p) => /(nth_uniq 0)/= /(_ i j (ltn_ord i) (ltn_ord j)).
+  rewrite (inj_eq val_inj) ji => /negP/negP.
+  by rewrite eq_complex negb_and => /orP [/eqP|/eqP] ij; [left|right].
+move tE: (mktuple _) => t.
+rewrite -[X in (_ + X)%N](size_tuple t) -size_cat.
+apply/nforallP => w/= /holds_subst.
+rewrite subst_env_cat -{1}uvE ngraph_cat -!catA subst_env_iota_catl ?size_ngraph//=.
+rewrite !addnS -[in X in (_ + X)%N](size_tuple t) -size_cat catA.
+rewrite nth_cat ltnNge leqnn/= subnn.
+rewrite nth_cat ltnNge leqnSn/= subSn// subnn.
+rewrite [(_ ++ _)`__]nth_default => [w0|]; last first.
+  by rewrite size_cat size_tuple addn2.
+have: (w`_0 +i* w`_1)%C \in dec_roots p.
+  rewrite mem_dec_roots -{1}pE pu0/= rootE.
+   have: SAhornerRC n (row_mx u (\row_j w`_j)) == \row__ 0.
+    rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
+    by rewrite /= !enum_ordSl enum_ord0/= !mxE/= /bump/=.
+  rewrite SAhornerRCE/= !mxE !(unsplitK (inr _)) !mxE.
+  rewrite rowPE forall_ord2 !mxE/=.
+  move qE: (poly _ _) => q.
+  suff <-: p = q by rewrite eq_complex.
+  apply/esym/polyP => j; rewrite -pE -qE !coef_poly/=.
+  case: (ltnP j n) => [jn|//].
+  rewrite (nth_map_ord _ _ (lshift 2 (Ordinal jn))) mxE (unsplitK (inl _)).
+  by rewrite (nth_map_ord _ _ (Ordinal jn)).
+move=> /(nthP 0)/= [] i ip iE.
+apply/holdsOr => /=; exists (Ordinal ip).
+split; first exact/mem_index_enum.
+split=> //.
+split; rewrite nth_cat.
+  rewrite ltnn subnn -catA nth_cat ltnNge leq_addr/= subDnCA// subnn addn0. 
+  rewrite -ltn_double in ip.
+  rewrite nth_cat size_tuple ip -tE (nth_map_ord _ _ (Ordinal ip))/=.
+  by rewrite odd_double doubleK iE.
+rewrite ltnNge leqnSn/= -catA subSn// subnn.
+rewrite nth_cat ltnNge leq_addr/= subDnCA// subnn addn0.
+rewrite -ltn_Sdouble in ip.
+rewrite nth_cat size_tuple ip -tE (nth_map_ord _ _ (Ordinal ip))/=.
+by rewrite odd_double uphalf_double iE.
+Qed.
+
+Fact SAfun_SAnbrootsC n :
+  (SAnbrootsC_graph n \in @SAfunc _ n 1) && (SAnbrootsC_graph n \in @SAtot _ n 1).
+Proof.
+apply/andP; split.
+  by apply/inSAfunc => u y1 y2; rewrite !SAnbrootsC_graphP => /eqP -> /eqP.
+apply/inSAtot => u; exists (\row__ (size (dec_roots (\poly_(i < n) ((ngraph u)`_i)%:C%C)))%:R)%R.
+by rewrite SAnbrootsC_graphP.
+Qed.
+
+Definition SAnbrootsC n := MkSAfun (SAfun_SAnbrootsC n).
+
+Lemma SAnbrootsCE n (u : 'rV[F]_n) :
+  SAnbrootsC n u = (\row__ (size (dec_roots (\poly_(i < n) ((ngraph u)`_i)%:C%C)))%:R)%R.
+Proof. by apply/eqP; rewrite inSAfun SAnbrootsC_graphP. Qed.
+
 Definition SAset_lt (s t : {SAset F^1}) :=
   (t != SAset0 F 1) && rcf_sat [::] ('forall 'X_0, s ==> 'forall 'X_1, subst_formula [:: 1%N] t ==> ('X_0 <% 'X_1))%oT.
 
@@ -2073,8 +3045,11 @@ set T := [fset x | x in S].
 have inT x : x \in T = (x \in S).
   by apply/imfsetP/idP => [[] y yS -> //|xS]; exists x.
 move=> /(lt_sorted_ltn_nth (SAset0 F 1 : SAsetltType)) Ssort.
-apply/forallP => /= -[] /= s; rewrite inT => /(nthP (SAset0 F 1)) [i] iS <-.
-apply/forallP => /= -[] /= t; rewrite inT => /(nthP (SAset0 F 1)) [j] jS <-.
+apply/forallP => /= -[] /= s; rewrite inT => sS.
+(* What ??? *)
+move: (elimT (nthP (SAset0 F 1)) sS) => {sS} [] i iS <-.
+apply/forallP => /= -[] /= t; rewrite inT => tS.
+move: (elimT (nthP (SAset0 F 1)) tS) => {tS} [] j jS <-.
 apply/implyP; move: iS jS; wlog: i j / (i < j)%N => ij iS jS ijE.
   have /lt_total : i != j.
     by move: ijE; apply/contra => /eqP ->; apply/eqP.
@@ -2167,7 +3142,9 @@ Proof.
 elim: xi => [|x xi IHxi]; first by rewrite partition_of_pts0 big_seq1.
 move=> /[dup] xile /path.path_sorted xile'.
 apply/eqP; rewrite -subTset; apply/SAset_subP => y.
-rewrite -IHxi// inSAset_bigcup => /hasP[] /= s /(nthP (SAset0 F _)) [i].
+rewrite -IHxi// inSAset_bigcup => /hasP[] /= s sxi.
+(* What??? *)
+move: (elimT (nthP (SAset0 F _)) sxi) => {sxi} [] i.
 rewrite size_map size_iota => ilt <-.
 rewrite (nth_map 0) ?size_iota// nth_iota// add0n.
 case: (posnP i) => i0.
@@ -2228,7 +3205,9 @@ apply/andP; split; last first.
   move=> s; rewrite -inS => sS xs.
   by exists [` sS] => //; apply/mem_index_enum.
 apply/andP; split; last exact/SAset_lt_trivI/sorted_partition_of_pts.
-rewrite inS; apply/negP => /(nthP (SAset0 F 1)) [i].
+rewrite inS; apply/negP => xi0.
+(* What??? *)
+move: (elimT (nthP (SAset0 F 1)) xi0) => {xi0} [] i.
 rewrite size_map size_iota; case: (posnP i) => [->|i0] ixi; last first.
   move: xisort => /sorted_partition_of_pts /(lt_sorted_ltn_nth (SAset0 F 1 : SAsetltType)).
   move=> /(_ 0 i); rewrite !inE size_map size_iota => /(_ isT ixi).
@@ -2419,7 +3398,8 @@ apply/andP; split; last first.
   rewrite inSAset_fiber hsubmxK => xu.
   by apply/hasP; exists [` uS ] => //; apply/mem_index_enum.
 apply/andP; split.
-  apply/negP; rewrite inS => /(nthP (SAset0 F _)) [i].
+  apply/negP; rewrite inS => xi0.
+  move: (elimT (nthP (SAset0 F _)) xi0) => {xi0} [] i.
   rewrite size_map size_iota => ilt i0.
   have: SAset_fiber (SAset0 F (n + 1)) 0 = SAset0 F _.
     by rewrite /SAset_fiber SApreimset0.
@@ -2430,9 +3410,11 @@ apply/andP; split.
   set T := [fset x | x in _] => /andP[] /andP[] + _ _ => /imfsetP; apply.
   exists (SAset0 F 1) => //=.
   by rewrite -i0 mem_nth// size_map size_iota size_map.
-apply/forallP => -[] /= s; rewrite inS => /(nthP (SAset0 F _)) [i] + <-.
+apply/forallP => -[] /= s; rewrite inS => sxi.
+move: (elimT (nthP (SAset0 F _)) sxi) => {sxi} [] i + <-.
 rewrite size_map size_iota => ilt.
-apply/forallP => -[] /= t; rewrite inS => /(nthP (SAset0 F _)) [j] + <-.
+apply/forallP => -[] /= t; rewrite inS => txi.
+move: (elimT (nthP (SAset0 F _)) txi) => {txi} [] j + <-.
 rewrite size_map size_iota => jlt.
 apply/implyP => ij.
 case/boolP: (i == j) => [/eqP ijE|{}ij]; first by rewrite ijE eqxx in ij.
@@ -2489,7 +3471,8 @@ apply/andP; split; last first.
   apply/hasP; exists [` vS ] => /=; first exact/mem_index_enum.
   by rewrite inSAsetI xv inSAsetX xs inSAsetT.
 apply/andP; split.
-  apply/negP => /bigfcupP [] /= s _ /imfsetP [t] /= /(nthP (SAset0 F _)) [i].
+  apply/negP => /bigfcupP [] /= s _ /imfsetP [t] /= txi.
+  move: (elimT (nthP (SAset0 F _)) txi) => {txi} [] i.
   rewrite size_map size_iota => ilt <- i0.
   have [s0|[x xs]] := set0Vmem (val s).
     by move: S0; rewrite -s0 => /negP; apply; apply/(fsvalP s).
@@ -2506,8 +3489,8 @@ apply/andP; split.
   set T := [fset x | x in _] => /andP[] /andP[] + _ _ => /imfsetP; apply.
   exists (SAset0 F 1) => //=.
   by rewrite -i0 mem_nth// size_map size_iota size_map.
-apply/forallP => -[] /= a /bigfcupP [s] _ /imfsetP [sa] /=.
-move=>/(nthP (SAset0 F _)) [i] + <- ->.
+apply/forallP => -[] /= a /bigfcupP [s] _ /imfsetP [sa] /= saxi.
+move: (elimT (nthP (SAset0 F _)) saxi) => {saxi} [] i + <- ->.
 rewrite size_map size_iota => ilt.
 apply/forallP => -[] /= b /bigfcupP [t] _ /imfsetP [tb] /=.
 move=>/(nthP (SAset0 F _)) [j] + <- ->.
@@ -2543,8 +3526,42 @@ Qed.
 Definition SAset_path_connected n (s : {SAset F^n}) :=
   {in s &, forall x y, exists xi : {SAfun F^1 -> F^n}, {within [set` SAepigraph (@SAfun_const 0 1 0) :&: SAhypograph (@SAfun_const 0 1 1)], continuous xi} /\ xi 0 = x /\ xi 1 = y}.
 
+Lemma SAset_cast_partition_of_graphs_above n (s : {SAset F^n})
+  (xi : seq (SAfunltType n)) t :
+  sorted <%O xi ->
+  t \in partition_of_graphs_above s xi -> SAset_cast n t = s.
+Proof.
+move=> xisort /imfsetP[] /= u uxi ->.
+apply/eqP/SAsetP => x; apply/inSAset_castDn/idP => [|xs].
+  by move=> [y] [+] ->; rewrite inSAsetI inSAsetX => /andP[_] /andP[].
+move: uxi => /(nthP (SAset0 F _)) [] i.
+rewrite size_map size_iota => ilt <-.
+set xi' := [seq (f : {SAfun F^n -> F^1}) x ord0 ord0 | f <- xi].
+have: sorted <%O xi' by apply/(homo_sorted _ _ xisort) => f g /SAfun_ltP /(_ x).
+move=> /SAset_partition_of_pts.
+set S := [fset x0 | x0 in _] => /andP[] /andP[] + _ _.
+have [<-|[y] yi _] := set0Vmem (nth (SAset0 F _) (partition_of_pts xi') i).
+  move=> /negP; elim; apply/imfsetP.
+  exists (nth (SAset0 F 1) (partition_of_pts xi') i) => //=.
+  by apply/mem_nth; rewrite 2!size_map size_iota.
+exists (row_mx x y); split; last by rewrite row_mxKl.
+move: yi; rewrite -SAset_fiber_partition_of_graphs.
+rewrite (nth_map (SAset0 F _)) ?size_map ?size_iota// inSAset_fiber inSAsetI => ->.
+by rewrite inSAsetX row_mxKl row_mxKr xs inSAsetT.
+Qed.
+
+Lemma SAset_partition_cast n m (S : {fset {SAset F^n}}) :
+  n = m -> SAset_partition [fset SAset_cast m x | x in S] = SAset_partition S.
+Proof.
+move=> nm; move: S; rewrite nm => S; congr SAset_partition.
+apply/fsetP => /= x; apply/imfsetP/idP => [|xS].
+  by move=> /= [y] yS ->; rewrite SAset_cast_id.
+by exists x => //; rewrite SAset_cast_id.
+Qed.
+
+
 End SAfunOps.
-(*
+
 Section SAconvex.
 Variables (F : rcfType).
 
@@ -2625,64 +3642,6 @@ exists (qf_elim s); split; first exact/rform_qf_elim.
 split; first exact/qf_elim_qf.
 apply/eqP/SAsetP => x; apply/rcf_satP/SAin_setP => [xs|/rcf_satP/qf_elim_holdsP//].
 exact/rcf_satP/qf_elim_holdsP.
-Qed.
-
-Fixpoint mpoly_rterm (R : unitRingType) (n : nat) (t : term R) : {mpoly R[n]} :=
-  match t with
-  | Var i =>
-    match ltnP i n with
-    | LtnNotGeq ilt => 'X_(Ordinal ilt)
-    | _ => 0
-    end
-  | Const c => mpolyC n c
-  | NatConst i => mpolyC n i%:R
-  | Add t u => (mpoly_rterm n t) + (mpoly_rterm n u)
-  | Opp t => - (mpoly_rterm n t)
-  | NatMul t i => (mpoly_rterm n t) *+ i
-  | Mul t u => (mpoly_rterm n t) * (mpoly_rterm n u)
-  | Exp t i => (mpoly_rterm n t) ^+ i
-  end.
-
-Lemma mevalXn (n k : nat) (R : comRingType) (x : 'I_n -> R) (p : {mpoly R[n]}) :
-  (p ^+ k).@[x] = p.@[x] ^+ k.
-Proof.
-elim: k => [|k IHk]; first by rewrite !expr0 meval1.
-by rewrite !exprS mevalM IHk.
-Qed.
-
-Lemma meval_mpoly_rterm (R : realDomainType) (n : nat) (x : 'I_n -> R) (t : term R) :
-  (mpoly_rterm n t).@[x] = eval [seq x i | i <- enum 'I_n] t.
-Proof.
-elim: t => /=.
-- move=> i; case: (ltnP i n) => [ilt|ige].
-    rewrite mevalXU (nth_map (Ordinal ilt)) ?size_enum_ord//.
-    by rewrite -[X in nth _ _ X]/(nat_of_ord (Ordinal ilt)) nth_ord_enum.
-  by rewrite meval0 nth_default// size_map size_enum_ord.
-- exact/mevalC.
-- move=> i; exact/mevalC.
-- by move=> t IHt u IHu; rewrite mevalD IHt IHu.
-- by move=> t IHt; rewrite mevalN IHt.
-- by move=> t IHt i; rewrite mevalMn IHt.
-- by move=> t IHt u IHu; rewrite mevalM IHt IHu.
-- by move=> t IHt i; rewrite mevalXn IHt.
-Qed.
-
-Lemma forall_ord1 (p : pred 'I_1) :
-  [forall i : 'I_1, p i] = p ord0.
-Proof.
-apply/forallP/idP => [/(_ ord0) //|p0].
-by case; case=> // ilt; move: p0; congr p; apply/val_inj.
-Qed.
-
-Lemma eval_rterm (R : unitRingType) (e : seq R) (t : GRing.term R) :
-  GRing.rterm t -> GRing.eval e (to_rterm t) = GRing.eval e t.
-Proof.
-elim: t => //=.
-- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
-- by move=> t /[apply] ->.
-- by move=> t /[swap] n /[apply] ->.
-- by move=> t IHt u IHu /andP[] {}/IHt -> {}/IHu ->.
-- by move=> t /[swap] n /[apply] ->.
 Qed.
 
 Lemma SAset_nf (F : rcfType) (n : nat) (s : {SAset F^n}) :
@@ -2810,41 +3769,100 @@ case: (SAset_formula s) => + [+][+] -> {s}; elim=> //=.
 - by move=> f /[apply]/[apply] /IHC; rewrite SAsetC_comprehension.
 Qed.
 
+Lemma in_itv' (disp : unit) (T : porderType disp) (x : T) (i : interval T) :
+    (x \in i) = let 'Interval l u := i in
+      ((l <= (BLeft x)) && ((BRight x) <= u))%O.
+Proof.
+case: i => l u; rewrite in_itv; congr andb.
+by case: l => //=; case.
+Qed.
+
+Lemma SAset_nf_1Uitv (F : rcfType) (s : {SAset F^1}) :
+  {r | s = \big[@SAsetU F 1/SAset0 F 1]_(i <- r) SAset_itv i}.
+Proof.
+pose has_nf (f : {SAset F^1}) :=
+  {r | f = \big[@SAsetU F 1/SAset0 F 1]_(i <- r) SAset_itv i}.
+have has_nfU2 f g : has_nf f -> has_nf g -> has_nf (f :|: g).
+  by move=> [] fi -> [] gi ->; exists (fi ++ gi); rewrite big_cat.
+have has_nfU (T : Type) (r : seq T) f :
+    (forall i, has_nf (f i)) ->
+    has_nf (\big[@SAsetU F 1/SAset0 F 1]_(i <- r) f i).
+  elim: r => [|i r IHr] fP.
+    by rewrite big_nil; exists [::]; rewrite big_nil.
+  by rewrite big_cons; apply/has_nfU2 => //; apply/IHr.
+have has_nfI2 f g : has_nf f -> has_nf g -> has_nf (f :&: g).
+  move=> [] fi -> [] gi ->; rewrite SAsetIbigcup/=.
+  exists [seq let: (Interval xl xr, Interval yl yr) := x in
+    Interval (Order.max xl yl) (Order.min xr yr) | x <- allpairs pair fi gi].
+  rewrite big_map; apply/eq_bigr => -[] [] xl xr [] yl yr _.
+  apply/eqP/SAsetP => x.
+  rewrite inSAsetI !inSAset_itv !in_itv'.
+  by rewrite ge_max le_min/= andbACA.
+have has_nfI (T : Type) (r : seq T) f :
+    (forall i, has_nf (f i)) ->
+    has_nf (\big[@SAsetI F 1/SAsetT F 1]_(i <- r) f i).
+  elim: r => [|i r IHr] fP; last first.
+    by rewrite big_cons; apply/has_nfI2 => //; apply/IHr.
+  rewrite big_nil; exists [:: `]-oo, +oo[].
+  rewrite big_cons big_nil SAsetUC SAset0U.
+  apply/eqP/SAsetP => x.
+  by rewrite inSAsetT inSAset_itv in_itv.
+case: (SAset_nf s) => + -> => nf.
+apply/has_nfU => -[/=] p r; apply/has_nfI2.
+  have [->|p0] := eqVneq p 0.
+    exists [:: `]-oo, +oo[].
+    apply/eqP/SAsetP => x.
+    rewrite inSApreimset inSAset1 SAmpolyE rowPE forall_ord1 !mxE.
+    by rewrite meval0 big_cons big_nil SAsetUC SAset0U inSAset_itv in_itv/= eqxx.
+  exists [seq `[x, x] | x <- rootsR (map_poly (mcoeff 0) (muni p))].
+  apply/eqP/SAsetP => x.
+  rewrite inSApreimset inSAset1 SAmpolyE rowPE forall_ord1 !mxE.
+  rewrite inSAset_bigcup has_map/= /preim/=.
+  under eq_has => y/=.
+    rewrite inSAset_itv in_itv/=.
+    have ->: (y <= x 0 0 <= y) = (y == x 0 0).
+      by apply/idP/eqP => [/le_anti //| ->]; rewrite lexx.
+    over.
+  rewrite has_pred1 in_rootsR.
+  have -> /=: map_poly (mcoeff 0) (muni p) != 0.
+    move: p0; apply/contraNN => /eqP/polyP p0.
+    apply/eqP/mpolyP => m; rewrite mcoeff0; apply/eqP.
+    move: (p0 (m ord0)); rewrite coef_map/= coef0 muniE coef_sum.
+    under eq_bigr => n _.
+      rewrite coefZ coefXn mulr_natr mulrb.
+      have ->: (m ord0 == n ord_max) = (n == m).
+        rewrite [RHS]eq_sym; case: m => m/=; case: n => n/=.
+        apply/eqP/eqP => [mn|->]; last first.
+          by congr (_ _); apply/val_inj.
+        suff ->: m = n by [].
+        apply/eq_from_tnth; case; case=> [|//] lt01.
+        have {1}->: (Ordinal lt01) = ord0 by apply/val_inj.
+        by rewrite [LHS]mn; congr tnth; apply/val_inj.
+      over.
+    rewrite -big_mkcond/= big_pred1_seq ?msupp_uniq//.
+    case/boolP: (m \in _) => mp; last by rewrite mcoeff_eq0 mp.
+    rewrite mcoeffZ mcoeffX/=.
+    have ->: [multinom [tuple m (widen_ord (leqnSn 0) i)  | i < 0]] == 0%MM.
+      by apply/(@eqP (_.-tuple _))/eq_from_tnth; case.
+    by rewrite mulr1 => /eqP.
+  rewrite rootE -[x 0 0](mpolyCK 0) horner_map/= muniE horner_sum.
+  rewrite raddf_sum {1}(mpolyE p) raddf_sum/=; congr (_ == 0).
+  apply/eq_bigr => m _.
+  rewrite mevalZ mevalX big_ord_recl big_ord0 mulr1.
+  rewrite hornerZ hornerXn -rmorphXn/= [in RHS]mulrC mcoeffCM.
+  rewrite mcoeffZ mcoeffX.
+  have ->: [multinom [tuple m (widen_ord (leqnSn 0) i)  | i < 0]] == 0%MM.
+    by apply/(@eqP (_.-tuple _))/eq_from_tnth; case.
+  by rewrite mulr1 mulrC; congr (_ ^+ (m _) * _); apply/val_inj.
+apply/has_nfI => {nf r}p.
+
+  
+  
+
+
 Section SAorder.
 Variables (F : rcfType) (n : nat).
 Implicit Types (s : {SAset F^n}).
-
-Definition SAset_itv (I : interval F) :=
-  let 'Interval l u := I in
-  (match l with
-   | BSide false lb => [set | lb%:T <% 'X_0]
-   | BSide true lb => [set | lb%:T <=% 'X_0]
-   | BInfty false => SAset0 F 1
-   | BInfty true => SAsetT F 1
-   end) :&: (
-   match u with
-   | BSide false ub => [set | 'X_0 <=% ub%:T]
-   | BSide true ub => [set | 'X_0 <% ub%:T]
-   | BInfty false => SAsetT F 1
-   | BInfty true => SAset0 F 1
-   end).
-
-Lemma inSAset_itv (I : interval F) (x : 'rV[F]_1) :
-  (x \in SAset_itv I) = (x 0 0 \in I).
-Proof.
-rewrite in_itv; case: I => l u.
-rewrite inSAsetI; congr andb.
-  case: l => [+ t|]; case=> /=; last first.
-  - exact/inSAset0.
-  - exact/inSAsetT.
-  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
-  - by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
-case: u => [+ t|]; case=> /=; last first.
-- exact/inSAsetT.
-- exact/inSAset0.
-- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
-- by apply/SAin_setP/idP => /=; rewrite enum_ordSl/=.
-Qed.
 
 Definition SAsetUB (s : {SAset F^1}) : {SAset F^1} :=
   [set | 'forall 'X_1, (subst_formula [:: 1%N] s ==> ('X_1 <=% 'X_0))%oT].
@@ -2970,8 +3988,6 @@ elim: r => [|i r IHr]; first by rewrite !big_nil SAsetLB0.
 by rewrite !big_cons; case: (P i) => //; rewrite SAsetLBU IHr.
 Qed.
 
-From mathcomp Require Import polyrcf mpoly.
-
 Lemma mmulti_is_additive [R : ringType] :
   additive (@mmulti n R).
 Proof.
@@ -2998,12 +4014,6 @@ have ifE (x : {poly {mpoly R[n]}}): (if (i < size x)%N then x`_i else 0) = x`_i.
   by case: (ltnP i (size x)) => // ix; rewrite nth_default.
 by rewrite 3!ifE coefB mwidenB mulrBl.
 Qed.
-
-(* Lemma muniK [R : comRingType] : cancel (@muni n R) (@mmulti n R).
-Proof.
-move=> p.
-rewrite muniE.
-Search muni .
 
 Lemma SAset_supP (s : {SAset F^1}) :
   s != SAset0 F 1 -> SAsetUB s != SAset0 F 1
@@ -3046,7 +4056,8 @@ have [->|p0] := eqVneq p 0.
   have memr x : x \in r = has (fun q => q.@[fun=> x] == 0) q.
     apply/flattenP/hasP => [[]t /mapP[] u uq ->|[]a aq a0].
       rewrite in_rootsR => /andP[] u0 /rootP.
-      rewrite -[x](mpolyCK 0) (horner_map (mcoeff 0)).
+      rewrite -[x](mpolyCK 0) (horner_map (mcoeff 0)) => ux0.
+      exists u => //.
       Search horner meval.
     Search mcoeff "C".
     Search horner map_poly.
@@ -3061,7 +4072,6 @@ have: SApreimset (SAmpoly p) [ set 0]
           SApreimset (SAmpoly q0) (SAset_pos F) =
       SAset_seq r.
 Check SAset_nf.
- *)
   
 
-End SAorder. *)
+End SAorder. 

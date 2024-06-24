@@ -1,4 +1,4 @@
-From mathcomp Require Import freeg ssreflect ssrfun ssrbool eqtype choice seq ssrnat bigop tuple order fintype finfun path ssralg ssrnum ssrint poly matrix finmap mpoly complex.
+From mathcomp Require Import freeg ssreflect ssrfun ssrbool eqtype choice seq ssrnat prime binomial bigop tuple order fintype finfun path ssralg ssrnum ssrint poly matrix finmap mpoly complex.
 From mathcomp Require Import polydiv polyrcf polyorder qe_rcf qe_rcf_th.
 
 (* TODO: the following imports should not be needed after cleanup. *)
@@ -15,11 +15,11 @@ Import numFieldTopology.Exports.
 
 Require Import auxresults formula subresultant semialgebraic topology continuity_roots.
 
+Local Open Scope type_scope.
 Local Open Scope classical_set_scope.
-Local Open Scope ring_scope.
 Local Open Scope fset_scope.
 Local Open Scope fmap_scope.
-Local Open Scope type_scope.
+Local Open Scope ring_scope.
 Local Open Scope sa_scope.
 
 Section CylindricalDecomposition.
@@ -40,9 +40,6 @@ Fixpoint isCylindricalDecomposition n (S : {fset {SAset R^n}}) :=
 Print isCylindricalDecomposition.
 
 Local Notation isCD := isCylindricalDecomposition.
-
-Lemma bool_eq_arrow {b b' : bool} : b = b' -> b -> b'.
-Proof. by case: b' => // /negP. Qed.
 
 Lemma isCylindricalDecomposition_restrict n m S (mn : (m <= n)%N) : @isCD n S -> isCD [fset SAset_cast m s | s in S].
 Proof.
@@ -97,14 +94,6 @@ Proof.
 apply/eqP/idP => [<-|/minn_idPl pd].
   exact/(leq_trans (size_poly _ _) (geq_minl _ _)).
 by rewrite -[p]truncate_size truncate_trans pd.
-Qed.
-
-Lemma imfset1 (T U : choiceType) (f : T -> U) (x : T) :
-  [fset f x | x in [fset x]] = [fset f x].
-Proof.
-apply/fsetP => y; rewrite inE; apply/imfsetP/eqP => [[z]|yE].
-  by rewrite inE => /eqP ->.
-by exists x; rewrite // inE.
 Qed.
 
 Lemma truncationsE n (p : {poly {mpoly R[n]}}) :
@@ -199,61 +188,12 @@ apply/negP => /msize_poly1P [c] /eqP c0 pE.
 by rewrite pE mevalC in pi0.
 Qed.
 
-(*Definition elim_subdef0 n (P : {fset {poly {mpoly R[n]}}}) :=
-  \big[fsetU/fset0]_(p : P) \big[fsetU/fset0]_(r : truncations (val p))
-    (lead_coef (val r) |` [fset subresultant (val j) (val r) (val r)^`() | j in 'I_(size (val r)).-2]).
-
-Definition elim_subdef1 n (P : {fset {poly {mpoly R[n]}}}) :=
-    \big[fsetU/fset0]_(p : P) \big[fsetU/fset0]_(r : truncations (val p))
-      \big[fsetU/fset0]_(q : P) (\big[fsetU/fset0]_(s : truncations (val q) | (size (val s) < size (val r))%N)
-        (([fset subresultant (val j) (val r) (val s) | j in 'I_((size (val s)).-1)] `|` [fset subresultant (val j) (val s) (val r) | j in 'I_((size (val s)).-1)]))
-        `|` \big[fsetU/fset0]_(s : truncations (val q) | size (val s) == size (val r))
-          (let rs := ((lead_coef (val s)) *: (val r) - (lead_coef (val r)) *: (val s))%R in
-          [fset subresultant (val j) (val s) (val rs) | j in 'I_((size rs).-1)])).
-
-Definition elim n (P : {fset {poly {mpoly R[n]}}}) :=
-  [fset x in elim_subdef0 P `|` elim_subdef1 P | mdeg (mlead x) != 0].
-
- *)
-
 Ltac mp := 
   match goal with
   | |- (?x -> _) -> _ => have /[swap]/[apply]: x
   end.
 
-Lemma set_of_SAset0 n :
-  [set` SAset0 R n] = set0.
-Proof.
-by rewrite classical_sets.eqEsubset; split; apply/subsetP => /= x; rewrite !inE mksetE inSAset0.
-Qed.
-
 Import ordered_qelim.ord.
-
-Lemma rcf_sat_take [n : nat] (f : {formula_n R}) (e : seq R) :
-  rcf_sat (take n e) f = rcf_sat e f.
-Proof. by apply/rcf_satP/rcf_satP => /holds_take. Qed.
-
-Lemma rootsRPE d (p : {poly R}) (z : d.-tuple R) :
-  (forall i, root p (tnth z i))
-  -> (forall x, root p x -> x \in z)
-  -> sorted <%R z
-  -> (z : seq R) = rootsR p.
-Proof.
-have [-> _ z0P _|p0] := eqVneq p 0.
-  rewrite rootsR0.
-  move: z0P => /(_ (1 + \big[Order.max/0]_(x <- z) x)%R (root0 _)) /tnthP-[] i ziE.
-  suff: tnth z i <= tnth z i - 1.
-    by rewrite -subr_ge0 addrAC subrr add0r oppr_ge0 ler10.
-  rewrite -{2}ziE addrAC subrr add0r le_bigmax; apply/orP; right.
-  apply/hasP; exists (tnth z i); first exact/mem_tnth.
-  exact/lexx.
-move=> z0 z0P zsort.
-apply/(irr_sorted_eq_in (leT:=<%R : rel R)) => //.
-- move=> a b c _ _ _; exact/lt_trans.
-- exact/sorted_roots.
-move=> u; rewrite in_rootsR p0/=.
-by apply/idP/idP => [|/z0P//] /tnthP -[] i ->.
-Qed.
 
 Theorem roots2_on n (P : {poly {mpoly R[n]}}) (d : nat) (s : {SAset R^n}) :
   {in s, forall x, size (rootsR (evalpmp x P)) = d}
@@ -414,595 +354,297 @@ rewrite (nth_map (@SAfun_const R n 1 0)) ?size_tuple//.
 by rewrite -[ i ]/(nat_of_ord (Ordinal id)) nth_mktuple GE mxE ys.
 Qed.
 
-Lemma jump_derivp (p : {poly R}) (x : R) : jump p^`() p x = root p x *+ (p != 0).
+Lemma normcR (z : R) : `|z%:C%C| = `|z|%:C%C.
+Proof. by rewrite normc_def/= expr0n/= addr0 sqrtr_sqr. Qed.
+
+Lemma rootsR_continuous n (p : {poly {mpoly R[n]}}) (s : {SAset R^n}) (x : 'rV[R]_n) i :
+  x \in s ->
+  {in s, forall y, size (evalpmp y p) = size (evalpmp x p)} ->
+  {in s, forall y, size (gcdp (evalpmp y p) (evalpmp y p)^`()) = size (gcdp (evalpmp x p) (evalpmp x p)^`())} ->
+  {in s, forall y, size (rootsR (evalpmp y p)) = size (rootsR (evalpmp x p))} ->
+  {within [set` s], continuous (fun y => (rootsR (evalpmp y p))`_i)}.
 Proof.
-rewrite /jump.
-have [->|p0] := eqVneq p 0.
-  by rewrite deriv0 mulr0 sgp_right0 ltxx expr0 eqxx.
-rewrite mulr1n; move: (size_deriv p); have [-> /eqP|p'0 _] := eqVneq p^`() 0.
-  rewrite size_poly0 -eqSS prednK ?size_poly_gt0// => /eqP p1.
-  move: p0; have/size1_polyC -> : (size p <= 1)%N by rewrite -p1.
-  by rewrite polyC_eq0 mul0r sgp_right0 ltxx expr0 rootC => /negPf ->.
-case/boolP: (root p x) => px; last by rewrite muNroot.
-rewrite (mu_deriv px) subn1 -subSS prednK ?mu_gt0// subSnn mulr1n.
-by rewrite sgp_right_mul -sgp_right_deriv// -expr2 ltNge sqr_ge0 expr0.
-Qed.
-
-Lemma cindexR_derivp (p : {poly R}) : cindexR p^`() p = size (rootsR p).
-Proof.
-rewrite -sum1_size /cindexR rmorph_sum big_seq [RHS]big_seq.
-by apply/eq_bigr => i; rewrite in_rootsR jump_derivp => /andP[] -> ->.
-Qed.
-
-Lemma SAset_castXl n m (s : {SAset R^n}) (t : {SAset R^m}) :
-  t != SAset0 R m -> SAset_cast n (s :*: t) = s.
-Proof.
-have [->|[] x0 xt _] := set0Vmem t; first by rewrite eqxx.
-apply/eqP/SAsetP => x.
-  apply/inSAset_castDn/idP => [[y [+ ->]]|xs].
-  by rewrite inSAsetX => /andP[+ _].
-by exists (row_mx x x0); rewrite inSAsetX row_mxKl row_mxKr xs.
-Qed.
-
-Lemma imfset0 [T U : choiceType] (f : T -> U) :
-  [fset f x | x in fset0] = fset0.
-Proof.
-have [-> //|[x]] := fset_0Vmem [fset f x | x in fset0].
-by move=> /imfsetP[y] /=; rewrite inE.
-Qed.
-
-Lemma imfsetU [T U : choiceType] (f : T -> U) (s t : {fset T}) :
-  [fset f x | x in s `|` t] = [fset f x | x in s] `|` [fset f x | x in t].
-Proof.
-apply/fsetP => x; rewrite in_fsetU; apply/imfsetP/orP => [[y] /= + ->|].
-  by rewrite in_fsetU => /orP [ys|yt]; [left|right]; apply/imfsetP; exists y.
-by case=> /imfsetP [y] /= ys ->; exists y => //; rewrite in_fsetU ys// orbT.
-Qed.
-
-Lemma imfset_bigfcup [I T U : choiceType] (r : seq I) (P : pred I)
-  (F : I -> {fset T}) (f : T -> U) :
-  [fset f x | x in \bigcup_(i <- r | P i) F i] =
-    \bigcup_(i <- r | P i) [fset f x | x in F i].
-Proof.
-elim: r => [|i r IHr]; first by rewrite !big_nil imfset0.
-by rewrite !big_cons; case: (P i) => //; rewrite imfsetU IHr.
-Qed.
-
-Lemma SAset_cast_partition_of_graphs_above n (s : {SAset R^n})
-  (xi : seq (SAfunltType R n)) t :
-  sorted <%O xi ->
-  t \in partition_of_graphs_above s xi -> SAset_cast n t = s.
-Proof.
-move=> xisort /imfsetP[] /= u uxi ->.
-apply/eqP/SAsetP => x; apply/inSAset_castDn/idP => [|xs].
-  by move=> [y] [+] ->; rewrite inSAsetI inSAsetX => /andP[_] /andP[].
-move: uxi => /(nthP (SAset0 R _)) [] i.
-rewrite size_map size_iota => ilt <-.
-set xi' := [seq (f : {SAfun R^n -> R^1}) x ord0 ord0 | f <- xi].
-have: sorted <%O xi' by apply/(homo_sorted _ _ xisort) => f g /SAfun_ltP /(_ x).
-move=> /SAset_partition_of_pts.
-set S := [fset x0 | x0 in _] => /andP[] /andP[] + _ _.
-have [<-|[y] yi _] := set0Vmem (nth (SAset0 R _) (partition_of_pts xi') i).
-  move=> /negP; elim; apply/imfsetP.
-  exists (nth (SAset0 R 1) (partition_of_pts xi') i) => //=.
-  by apply/mem_nth; rewrite 2!size_map size_iota.
-exists (row_mx x y); split; last by rewrite row_mxKl.
-move: yi; rewrite -SAset_fiber_partition_of_graphs.
-rewrite (nth_map (SAset0 R _)) ?size_map ?size_iota// inSAset_fiber inSAsetI => ->.
-by rewrite inSAsetX row_mxKl row_mxKr xs inSAsetT.
-Qed.
-
-Lemma SAset_partition_cast n m (S : {fset {SAset R^n}}) :
-  n = m -> SAset_partition [fset SAset_cast m x | x in S] = SAset_partition S.
-Proof.
-move=> nm; move: S; rewrite nm => S; congr SAset_partition.
-apply/fsetP => /= x; apply/imfsetP/idP => [|xS].
-  by move=> /= [y] yS ->; rewrite SAset_cast_id.
-by exists x => //; rewrite SAset_cast_id.
-Qed.
-
-Definition SAselect_graph n m (x : m.-tuple nat) : {SAset R^(n + m)} :=
-  [set| \big[And/True]_(i : 'I_m)
-      ('X_(n + i) == 'X_(if (n <= x`_i)%N then (x`_i + m)%N else x`_i))].
-
-Lemma SAselect_graphP n m (x : m.-tuple nat) (u : 'rV[R]_n) (v : 'rV[R]_m) :
-  (row_mx u v \in SAselect_graph n x) = (v == \row_i (ngraph u)`_(tnth x i))%R.
-Proof.
-apply/SAin_setP/eqP => /= [|->].
-  move=> /holdsAnd vE; apply/rowP => i.
-  move: vE => /(_ i (mem_index_enum _) isT)/=.
-  rewrite enum_ordD map_cat nth_catr 2?size_map ?size_enum_ord//.
-  rewrite -map_comp (nth_map i) ?size_enum_ord// nth_ord_enum/= !mxE.
-  rewrite (unsplitK (inr i)) (tnth_nth 0) nth_cat 2!size_map size_enum_ord.
-  case: (ltnP x`_i n) => ni ->.
-    rewrite ni -map_comp (nth_map (Ordinal ni)) ?size_enum_ord//.
-    rewrite (nth_map (Ordinal ni)) ?size_enum_ord//.
-    rewrite -[x`_i]/(nat_of_ord (Ordinal ni)) nth_ord_enum/= mxE.
-    by rewrite (unsplitK (inl (Ordinal ni))).
-  rewrite ltnNge (leq_trans ni (leq_addr _ _))/= nth_default.
-    by rewrite nth_default// size_map size_enum_ord.
-  by rewrite size_map size_enum_ord -addnBAC// leq_addl.
-apply/holdsAnd => i _ _ /=.
-rewrite enum_ordD map_cat nth_catr 2?size_map ?size_enum_ord//.
-rewrite -map_comp (nth_map i) ?size_enum_ord// nth_ord_enum/= !mxE.
-rewrite (unsplitK (inr i)) mxE (tnth_nth 0) nth_cat 2!size_map size_enum_ord.
-case: (ltnP x`_i n) => ni.
-  rewrite ni -map_comp (nth_map (Ordinal ni)) ?size_enum_ord//.
-  rewrite (nth_map (Ordinal ni)) ?size_enum_ord//.
-  rewrite -[x`_i]/(nat_of_ord (Ordinal ni)) nth_ord_enum/= mxE.
-  by rewrite (unsplitK (inl (Ordinal ni))).
-rewrite ltnNge (leq_trans ni (leq_addr _ _))/= nth_default; last first.
-  by rewrite size_map size_enum_ord.
-by rewrite nth_default// size_map size_enum_ord -addnBAC// leq_addl.
-Qed.
-
-Fact SAfun_SAselect n m (x : m.-tuple nat) :
-  (SAselect_graph n x \in @SAfunc _ n m) && (SAselect_graph n x \in @SAtot _ n m).
-Proof.
-apply/andP; split.
-  by apply/inSAfunc => u y1 y2; rewrite !SAselect_graphP => /eqP -> /eqP.
-apply/inSAtot => u; exists (\row_i (ngraph u)`_(tnth x i))%R.
-by rewrite SAselect_graphP eqxx.
-Qed.
-
-Definition SAselect n m (x : m.-tuple nat) := MkSAfun (SAfun_SAselect n x).
-
-Lemma SAselectE n m (x : m.-tuple nat) (u : 'rV[R]_n) :
-  SAselect n x u = \row_i (ngraph u)`_(tnth x i).
-Proof. by apply/eqP; rewrite inSAfun SAselect_graphP. Qed.
-
-Fixpoint SAsum n : {SAfun R^n -> R^1}.
-Proof.
-case: n => [|n]; first exact: (SAfun_const 0 0).
-apply/(SAcomp (SAadd R 1) (SAjoin _ (SAselect _ (in_tuple [:: n])))).
-apply/(SAcomp (SAsum n) _).
-apply/SAselect/mktuple => i.
-exact/i.
-Defined.
+  (*
+case: (ltnP i (size (rootsR (evalpmp x p)))) => ir; last first.
+  move=> _ _ _ r_const.
+  apply(@subspace_eq_continuous _ _ R (fun=> 0)); last exact/cst_continuous.
+  move=> /= u; rewrite mem_setE => us.
+  by apply/esym/nth_default; rewrite (r_const u us).
+case: n p s x ir => [|n] p s x ir xs s_const s'_const r_const/=; apply/continuousP => /= A;
+  rewrite openE/= => /subsetP Aopen;
+  apply/open_subspace_ballP => /= y;
+  rewrite in_setI mem_setE => /andP[] {}/Aopen;
+  rewrite /interior inE => /nbhs_ballP[] e/= e0 yeA ys.
+  exists 1; split=> // z _; apply/yeA.
+  suff ->: z = y by apply/ballxx.
+  by apply/rowP => -[].
+have [p0|px0] := eqVneq (size (evalpmp x p)) 0.
+  exists 1; split=> // z [_] zs /=; apply/yeA.
+  have {}p0 u : u \in s -> evalpmp u p = 0.
+    by move=> us; apply/eqP; rewrite -size_poly_eq0 s_const// p0.
+  by rewrite p0// p0//; apply/ballxx.
+pose q z := map_poly (real_complex R) (evalpmp z p).
+have q0 z : z \in s -> q z != 0.
+  by move=> zs; rewrite map_poly_eq0 -size_poly_eq0 s_const.
+set e' := \big[Order.min/e]_(u <- dec_roots (q y)) \big[Order.min/e]_(v <- dec_roots (q y) | u != v) (complex.Re `|u - v| / 2).
+have e'0: 0 < e'%:C%C.
+  rewrite ltcR lt_bigmin e0/=; apply/allP => u _.
+  rewrite lt_bigmin e0/=; apply/allP => v _.
+  apply/implyP => uv; apply/divr_gt0; last exact/ltr0Sn.
+  by rewrite -ltcR (normr_gt0 (u - v)) subr_eq0.
+have: exists d : R, 0 < d /\ forall z, z \in s -> `|z - y| < d -> alignp e'%:C%C (q y) (q z).
+  case: (aligned_deformed (q y) e'0) => /= [[]] a aI [].
+  rewrite ltcE/= => /andP[/eqP ->] a0; rewrite complexr0 => ad.
+  have /fin_all_exists /=: forall i : 'I_(size (val p)).+1, exists delta, 0 < delta /\ forall (z : 'rV[R]_n.+1), y \in s -> `|y - z| < delta -> `|(q y)`_i - (q z)`_i| < a%:C%C.
+    move=> j.
+    move: (@meval_continuous _ _ (val p)`_j y).
+    rewrite /= /continuous_at.
+    move=> /(@cvgr_dist_lt _ (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod R)).
+    move=> /(_ _ a0) /nbhs_ballP[] d'/= d'0 /subsetP xd'.
+    exists d'; split=> // z zs yz.
+    move: xd' => /(_ z); mp; first by rewrite -ball_normE inE/=.
+    rewrite inE/= !coef_map/= -rmorphB/= normc_def/= expr0n/= addr0 sqrtr_sqr ltcR.
+    by congr (normr (_ - _) < a); apply/meval_eq => k; rewrite tnth_mktuple.
+  move=> [d'] d'P; exists (\big[minr/1]_i d' i).
+  split; first by rewrite lt_bigmin ltr01; apply/allP => j _ /=; case: (d'P j).
+  move=> z zs; rewrite lt_bigmin => /andP[_] /allP xz; apply/ad.
+  split=> [|j]; first by rewrite !size_map_poly s_const// (s_const _ ys).
+  move: (ltn_ord j); rewrite [X in (j < X)%N]size_map_poly => jlt.
+  have {}jlt := leq_trans (leq_trans jlt (size_poly _ _)) (leqnSn _).
+  case: (d'P (Ordinal jlt)) => _ /=; apply=> //.
+  by rewrite -opprB normrN; apply/xz/mem_index_enum.
+move=> [] d [] d0 dP.
+exists d; split=> // z/=.
+rewrite -ball_normE/= -opprB normrN => -[] yz zs; apply/yeA.
+move: dP => /(_ z zs yz) yze.
+rewrite -(@ball_normE R (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod R))/=.
+have: exists (fyz : [fset x in dec_roots (q y)] -> [fset x in dec_roots (q z)]),
+    forall u, `|val u - val (fyz u)| < e'%:C%C.
+  apply/(fin_all_exists (P:=fun u v => `|val u - val v| < e'%:C%C)).
+  case=> /= u; rewrite mem_imfset//= mem_dec_roots => /andP[_] pu.
+  move: yze => /(_ u pu).
+  rewrite -big_filter; case rsy: (seq.filter _ _) => [|v l].  
+    by rewrite big_nil leqn0 mu_eq0 ?pu// map_poly_eq0 -size_poly_eq0 s_const.
+  move: (mem_head v l); rewrite -rsy mem_filter -normrN opprB => /andP[] uv pv _.
+  suff vP: v \in [fset x in dec_roots (q z)]. 
+    by exists [` vP].
+  by rewrite mem_imfset.
+move=> [/=] fyz fyze.
+have eP (u v : [fset x | x in dec_roots (q y)]) :
+    `|val u - val v| < 2 * e'%:C%C -> u = v.
+  move=> uve; apply/eqP/negP => /negP uv; move: uve.
+  rewrite -(RRe_real (normr_real _)) mulrC mulr_natr -rmorphMn/= ltcR -mulr_natr.
+  rewrite -ltr_pdivrMr; last exact/ltr0Sn.
+  rewrite lt_bigmin => /andP[_] /allP-/(_ (val u))/=.
+  move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))/= => /[swap]/[apply].
+  rewrite lt_bigmin => /andP[_] /allP-/(_ (val v))/=.
+  move: (fsvalP v); rewrite (mem_imfset _ _ (@inj_id _))/= => /[swap]/[apply].
+  by rewrite (inj_eq val_inj) ltxx => /implyP-/(_ uv).
+have R0: [char R[i]] =i pred0 by exact/char_num.
+have fyzb: bijective fyz.
+  apply/inj_card_bij.
+    move=> u v fuv; apply/eP.
+    rewrite -(subrBB (val (fyz u))); apply/(le_lt_trans (ler_normB _ _)).
+    rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/fyze.
+    by rewrite fuv; apply/fyze.
+  rewrite -2!cardfE card_imfset//= card_imfset//=.
+  do 2 rewrite undup_id ?uniq_dec_roots//.
+  rewrite (size_dec_roots (q z) R0) (size_dec_roots (q y) R0).
+  rewrite size_divp; last by rewrite gcdp_eq0 negb_and q0.
+  rewrite size_divp; last by rewrite gcdp_eq0 negb_and q0.
+  rewrite ![(q _)^`()]deriv_map -!gcdp_map !size_map_poly -!/(evalpmp _ _).
+  by rewrite s_const// s_const// s'_const// s'_const.
+have pyrP j: (j < size (rootsR (evalpmp y p)))%N -> ((rootsR (evalpmp y p))`_j)%:C%C \in [fset x | x in dec_roots (q y)].
+  rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots q0//=.
+  move=> /(mem_nth 0); rewrite in_rootsR => /andP[_] jr.
+  exact/rmorph_root.
+rewrite -ltcR.
+apply/(le_lt_trans (normc_ge_Re (_%:C%C))) => /=.
+rewrite rmorphB/=.
+rewrite -(r_const y ys) in ir.
+suff ->: ((rootsR (evalpmp z p))`_i)%:C%C = val (fyz [` pyrP i ir]).
+  move: (fyze [` pyrP i ir]) => /= pye.
+  apply/(lt_le_trans pye).
+  by rewrite lecR; apply/bigmin_le_id.
+have perm_eqC a: perm_eq [seq u <- dec_roots (q a) | u \is Num.real] [seq x%:C%C | x <- rootsR (evalpmp a p)].
+  apply/uniq_perm.
+  - exact/filter_uniq/uniq_dec_roots.
+  - by rewrite map_inj_uniq ?uniq_roots//; apply/complexI.
+  move=> u; rewrite mem_filter mem_dec_roots map_poly_eq0 .
+  apply/andP/mapP => [[] uR /andP[] pa0 qu|[] v + ->].
+    exists (complex.Re u); last by rewrite (RRe_real uR).
+    rewrite in_rootsR pa0.
+    by rewrite -(RRe_real uR) fmorph_root in qu.
+  rewrite in_rootsR => /andP[] pa0 pv; split.
+    by apply/complex_realP; exists v.
+  by rewrite pa0/=; apply/rmorph_root.
+have ne20: 2 != 0 :> R[i] by rewrite pnatr_eq0.
+have fyzr (u : [fset x | x in dec_roots (q y)]) :
+    ((val (fyz u)) \is Num.real) -> (val u) \is Num.real.
+  move=> fur.
+  suff ->: \val u = 'Re (\val u) by apply/Creal_Re.
+  apply/(mulfI ne20).
+  rewrite -complexRe -addcJ mulr2n mulrDl mul1r; congr (_ + _)%R.
+  have uP: ((\val u)^* )%C \in [fset x | x in dec_roots (q y)].
+    rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots q0//=.
+    rewrite -complex_root_conj/= map_poly_id => [|a].
+      move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      by rewrite mem_dec_roots => /andP[_].
+    move=> /[dup] /(nth_index 0)/=.
+    rewrite -index_mem size_map_poly => + alt.
+    by rewrite coef_poly alt => <-; rewrite conjc_real.
+  rewrite -[((val u)^* )%C]/(val [` uP]).
+  rewrite [in LHS](eP u [` uP])//.
+  rewrite -(subrBB (val (fyz u))).
+  apply/(le_lt_trans (ler_normB _ _)).
+  rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/fyze.
+  rewrite /= -(RRe_real fur) -conjc_real -rmorphB/= norm_conjC (RRe_real fur).
+  exact/fyze.
+have {}fyzr (u : [fset x | x in dec_roots (q y)]) :
+    (val u) \is Num.real = ((val (fyz u)) \is Num.real).
+  apply/idP/idP; last exact/fyzr.
+  move=> ur; apply/negP => /negP fur.
+  pose sr y := [fset x : [fset x in dec_roots (q y)] | val x \is Num.real].
+  have srE a: [fset val x | x in sr a] = [fset x | x in dec_roots (q a) & x \is Num.real].
+    apply/eqP; rewrite eqEfsubset; apply/andP; split; apply/fsubsetP => b;
+    rewrite (mem_imfset _ _ (@inj_id _))/=.
+      move=> /imfsetP[/=] c /imfsetP[/=] c' cr -> ->.
+      apply/andP; split=> //=.
+      by move: (fsvalP c'); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    move=> /andP[] qb br; apply/imfsetP => /=.
+    have bP: b \in [fset x0 | x0 in dec_roots (q a)].
+      by rewrite mem_imfset.
+    exists [` bP] => //.
+    by rewrite (mem_imfset _ _ (@inj_id _))/=.
+  suff: (#|` [fset x | x in dec_roots (q z) & x \is Num.real]| < #|` [fset x | x in dec_roots (q y) & x \is Num.real]|)%N.
+    rewrite [X in (X < _)%N]card_imfset//= [X in (_ < X)%N]card_imfset//=.
+    do 2 rewrite undup_id ?uniq_dec_roots//.
+    rewrite (@perm_size _ _ [seq x%:C%C | x <- rootsR (evalpmp z p)]); last exact/perm_eqC.
+    rewrite [X in (_ < X)%N](@perm_size _ _ [seq x%:C%C | x <- rootsR (evalpmp y p)]); last exact/perm_eqC.
+    by rewrite !size_map r_const// r_const// ltnn.
+  rewrite -2!srE [X in (X < _)%N](card_imfset _ _ val_inj)/=.
+  rewrite [X in (_ < X)%N](card_imfset _ _ val_inj)/=.
+  suff /fsubset_leq_card zy: sr z `<=` [fset fyz x | x in (sr y `\ u)].
+    apply/(leq_ltn_trans zy).
+    rewrite [X in (X < _)%N]card_imfset/=; last exact/bij_inj.
+    rewrite -add1n.
+    have/(congr1 nat_of_bool) /= <-: u \in sr y by rewrite mem_imfset.
+    by rewrite -cardfsD1 leqnn.
+  apply/fsubsetP => /= a.
+  rewrite [X in _ X -> _](mem_imfset _ _ (@inj_id _))/= => ar.
+  case: (fyzb) => fzy fyzK fzyK.
+  apply/imfsetP; exists (fzy a) => /=; last by rewrite [RHS]fzyK.
+  rewrite in_fsetD1 -(bij_eq fyzb) fzyK; apply/andP; split.
+    apply/eqP; move: ar => /[swap] ->.
+    by move/negP: fur.
+  rewrite (mem_imfset _ _ (@inj_id _))/=.
+  by apply/fyzr; rewrite fzyK.
+have fir: val (fyz.[pyrP i ir])%fmap \is Num.real.
+  by rewrite -fyzr/=; apply/complex_realP; exists (rootsR (evalpmp y p))`_i.
+have fiR: complex.Re (val (fyz [` pyrP i ir])) \in rootsR (evalpmp z p).
+  rewrite in_rootsR.
+  move: (q0 z zs); rewrite map_poly_eq0 => -> /=.
+  move: (fsvalP (fyz [` pyrP i ir])).
+  rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots => /andP[_].
+  by rewrite -{1}[val _]RRe_real// fmorph_root.
+rewrite -(RRe_real fir); congr (_%:C%C).
+rewrite -(nth_index 0 fiR); congr (_`__).
+rewrite -[LHS](count_lt_nth 0 (sorted_roots _ _ _) ir).
+move: (fiR); rewrite -index_mem => fiRs.
+rewrite -[RHS](count_lt_nth 0 (sorted_roots _ _ _) fiRs) -!/(rootsR _).
+rewrite (nth_index 0 fiR).
+pose sr y z := [fset x : [fset x in dec_roots (q y)] | val x < z].
+have srE a b: [fset val x | x in sr a b] = [fset x | x in dec_roots (q a) & x < b].
+  apply/eqP; rewrite eqEfsubset; apply/andP; split; apply/fsubsetP => b';
+  rewrite (mem_imfset _ _ (@inj_id _))/=.
+    move=> /imfsetP[/=] c /imfsetP[/=] c' cr -> ->.
+    apply/andP; split=> //=.
+    by move: (fsvalP c'); rewrite (mem_imfset _ _ (@inj_id _))/=.
+  move=> /andP[] qb br; apply/imfsetP => /=.
+  have bP: b' \in [fset x0 | x0 in dec_roots (q a)].
+    by rewrite mem_imfset.
+  exists [` bP] => //.
+  by rewrite (mem_imfset _ _ (@inj_id _))/=.
+have {}perm_eqC a b: perm_eq
+    [seq x0 <- dec_roots (q a) | (x0 < b%:C%C)%R]
+    [seq x%:C%C | x <- [seq x <- rootsR (evalpmp a p) | (x < b)%R]].
+  apply/uniq_perm.
+  - exact/filter_uniq/uniq_dec_roots.
+  - rewrite map_inj_uniq; last exact/complexI.
+    exact/filter_uniq/uniq_roots.
+  move=> u; rewrite mem_filter mem_dec_roots map_poly_eq0.
+  apply/andP/mapP => [[] ub /andP[] pa0|[] v + ->].
+    move: ub; rewrite ltcE/= => /andP[] /eqP u0 ub.
+    rewrite (complexE u) -u0 mulr0 addr0 fmorph_root => pu.
+    exists (complex.Re u) => //.
+    by rewrite mem_filter ub/= in_rootsR pa0.
+  rewrite mem_filter in_rootsR => /andP[] vb /andP[] pa0 pv; split.
+    by rewrite ltcR.
+  by rewrite pa0/=; apply/rmorph_root.
+suff: (#|` [fset x | x in dec_roots (q y) & (x < ((rootsR (evalpmp y p))`_i)%:C%C)%R]| = #|` [fset x | x in dec_roots (q z) & (x < val (fyz [` pyrP i ir]))%R]|)%N.
+  rewrite [LHS]card_imfset//= [RHS]card_imfset//=.
+  do 2 rewrite undup_id ?uniq_dec_roots//.
+  rewrite (@perm_size _ _ [seq x%:C%C | x <- [seq x <- rootsR (evalpmp y p) | (x < (rootsR (evalpmp y p))`_i)%R]]); last exact/perm_eqC.
+  rewrite -{1}(RRe_real fir).
+  rewrite [RHS](@perm_size _ _ [seq x%:C%C | x <- [seq x <- rootsR (evalpmp z p) | (x < complex.Re (val (fyz [` pyrP i ir])))%R]]); last exact/perm_eqC.
+  by rewrite !size_map !size_filter.
+rewrite -2!srE [LHS](card_imfset _ _ val_inj)/= [RHS](card_imfset _ _ val_inj)/=.
+suff ->: sr z (val (fyz [` pyrP i ir])) = [fset fyz x | x in sr y (((rootsR (evalpmp y p))`_i)%:C)%C].
+  by rewrite [RHS](card_imfset _ _ (bij_inj fyzb)).
+apply/eqP; rewrite eqEfsubset; apply/andP; split; apply/fsubsetP => /= u.
+  rewrite [X in _ X -> _](mem_imfset _ _ (@inj_id _))/= => ui.
+  case: (fyzb) => fzy fyzK fzyK.
+  apply/imfsetP; exists (fzy u) => /=; last by rewrite fzyK.
+  rewrite (mem_imfset _ _ (@inj_id _))/=.
+  have {}ui: val u < val (fyz [` pyrP i ir]) by [].
+  have ur: val u \is Num.real by apply/negP => /negP/(Nreal_ltF fir)/negP.
+  have fur: val (fzy u) \is Num.real by rewrite fyzr fzyK.
+  suff: val (fzy u) < ((rootsR (evalpmp y p))`_i)%:C%C by [].
+  rewrite -(RRe_real fur) ltcR ltNge; apply/negP => iu.
+  suff: [` pyrP i ir] = fzy u by move=> iuE; move: ui; rewrite iuE fzyK ltxx.
+  apply/eP; rewrite /= -(RRe_real fur) -rmorphB/= normcR mulrC mulr_natr -rmorphMn/= ltcR.
+  apply/ltr_normlP; split; last first.
+    rewrite -subr_le0 in iu; apply/(le_lt_trans iu).
+    by rewrite pmulrn_lgt0// -ltcR.
+  rewrite opprB -(subrBB (complex.Re (val u))) opprB mulr2n; apply/ltrD.
+    apply/ltr_normlW; rewrite -ltcR -normcR rmorphB/= (RRe_real fur) (RRe_real ur).
+    by rewrite -{2}(fzyK u); apply/fyze.
+  rewrite -(subrBB (complex.Re (val (fyz [` pyrP i ir])))) opprB -(add0r e').
+  apply/ltrD; first by rewrite subr_lt0; move: ui; rewrite ltcE => /andP[_].
+  apply/ltr_normlW; rewrite -ltcR -normcR rmorphB/= [X in X - _]RRe_real.
+    by rewrite -normrN opprB; apply/(fyze [` pyrP i ir]).
+  by rewrite -fyzr/=; apply/complex_realP; exists (rootsR (evalpmp y p))`_i.
+move=> /imfsetP[/=] v + ->.
+rewrite (mem_imfset _ _ (@inj_id _))/= => vi.
+have {}vi: val v < ((rootsR (evalpmp y p))`_i)%:C%C by [].
+have vr: val v \is Num.real.
+  apply/negP => /negP vr; move: vi; rewrite Nreal_ltF//.
+  by apply/complex_realP; exists (rootsR (evalpmp y p))`_i.
+rewrite (mem_imfset _ _ (@inj_id _))/=.
+suff: val (fyz v) < val (fyz [` pyrP i ir]) by [].
+have fvr: val (fyz v) \is Num.real by rewrite -fyzr.
+rewrite -(RRe_real fvr) -(RRe_real fir) ltcR ltNge; apply/negP => iv.
+suff vE: v = [` pyrP i ir] by rewrite vE/= ltxx in vi.
+apply/eP; rewrite /= -(RRe_real vr) -rmorphB/= normcR mulrC mulr_natr -rmorphMn/= ltcR.
+apply/ltr_normlP; split; last first.
+  rewrite -(RRe_real vr) ltcR -subr_lt0 in vi; apply/(lt_trans vi).
+  by rewrite pmulrn_lgt0// -ltcR.
+rewrite opprB -(subrBB (complex.Re (val (fyz [`pyrP i ir])))) opprB mulr2n; apply/ltrD.
+  apply/ltr_normlW; rewrite -ltcR -normcR rmorphB/= (RRe_real fir).
+  exact/(fyze [` pyrP i ir]).
+rewrite -(subrBB (complex.Re (val (fyz v)))) opprB -(add0r e').
+apply/ler_ltD; first by rewrite subr_le0.
+apply/ltr_normlW; rewrite -ltcR -normcR rmorphB/= (RRe_real fvr) (RRe_real vr).
+rewrite -normrN opprB; apply/fyze.
+Qed. *)
+admit.
+Admitted.
   
-Lemma SAsumE n (u : 'rV[R]_n) :
-  SAsum n u = \row__ \sum_i (u ord0 i)%R.
-Proof.
-apply/eqP; rewrite rowPE forall_ord1 mxE; apply/eqP.
-elim: n u => [|n IHn] u; first by rewrite /SAsum SAfun_constE big_ord0 mxE.
-rewrite /= SAcompE/= SAjoinE SAaddE SAcompE/= !SAselectE !mxE IHn.
-rewrite (tnth_nth 0)/= (nth_map ord0) ?size_enum_ord//.
-rewrite -[X in nth _ _ X]/(nat_of_ord (@ord_max n)) nth_ord_enum big_ord_recr/=.
-congr (_ + _)%R; apply/eq_bigr => i _.
-rewrite mxE tnth_mktuple (nth_map ord0); last first.
-  by rewrite size_enum_ord ltnS ltnW.
-congr (u _ _).
-have ->: i = lift ord_max i :> nat by rewrite /= /bump leqNgt (ltn_ord i).
-rewrite nth_ord_enum; apply/val_inj => /=.
-by rewrite /bump leqNgt (ltn_ord i).
-Qed.
 
-Definition ifthenelse (P Q R : formula R) :=
-  ((P ==> Q) /\ ((~ P) ==> R))%oT.
+  
 
-Definition SAchanges_graph n : {SAset R^(n + n.-1)} :=
-  [set| \big[And/True]_(i : 'I_n.-1) (ifthenelse ('X_i * 'X_i.+1 <% 0) ('X_(n + i) == 1) ('X_(n + i) == 0))].
 
-Lemma ltn_neq (n m : nat) : (n < m)%N -> n != m.
-Proof. by rewrite ltn_neqAle => /andP[]. Qed.
 
-Lemma forallb_all [n : nat] (a : pred 'I_n) :
-  [forall i, a i] = all a (enum 'I_n).
-Proof.
-apply/forallP/allP => /= aT i //.
-by apply/aT; rewrite mem_enum.
-Qed.
-
-Lemma nth_map_ord (T : Type) (x : T) n (f : 'I_n -> T) (i : 'I_n) :
-  nth x [seq f i | i <- enum 'I_n] i = f i.
-Proof. by rewrite (nth_map i) ?nth_enum_ord// size_enum_ord. Qed.
-
-Lemma SAchanges_graphP n (u : 'rV[R]_n) (v : 'rV[R]_n.-1) :
-  (row_mx u v \in SAchanges_graph n) = (v == \row_i ((ngraph u)`_i * (ngraph u)`_i.+1 < 0)%R%:R).
-Proof.
-case: n u v => /= [|n] u v.
-  rewrite rowPE forallb_all enum_ord0/=.
-  by apply/SAin_setP/holdsAnd; case.
-apply/SAin_setP/eqP => /= [|->].
-  move=> /holdsAnd vE; apply/rowP => i.
-  move: vE => /(_ i (mem_index_enum _) isT) /= []; rewrite !mxE.
-  have {1 4 7}->: i = lshift n (lift ord_max i) :> nat.
-    by rewrite /= /bump leqNgt ltn_ord.
-  have ->: i.+1 = lshift n (lift ord0 i) :> nat by [].
-  have ->: (n.+1 + i)%N = rshift n.+1 i :> nat by [].
-  rewrite !nth_map_ord !mxE !(unsplitK (inl _)) !(unsplitK (inr _)).
-  by case: (_ < 0)%R => [+ _|_]; apply.
-apply/holdsAnd => i _ _ /=.
-have {1 4}->: i = lshift n (lift ord_max i) :> nat.
-  by rewrite /= /bump leqNgt ltn_ord.
-have ->: i.+1 = lshift n (lift ord0 i) :> nat by [].
-have ->: (n.+1 + i)%N = rshift n.+1 i :> nat by [].
-rewrite !nth_map_ord !mxE !(unsplitK (inl _)) !(unsplitK (inr _)) !mxE.
-have {1 3}->: i = lshift n (lift ord_max i) :> nat.
-  by rewrite /= /bump leqNgt ltn_ord.
-have ->: i.+1 = lshift n (lift ord0 i) :> nat by [].
-rewrite !nth_map_ord.
-by split=> [|/negP/negPf] ->.
-Qed.
-
-Fact SAfun_SAchanges n :
-  (SAchanges_graph n \in @SAfunc _ n n.-1) && (SAchanges_graph n \in @SAtot _ n n.-1).
-Proof.
-apply/andP; split.
-  by apply/inSAfunc => u y1 y2; rewrite !SAchanges_graphP => /eqP -> /eqP.
-apply/inSAtot => u; exists (\row_i ((ngraph u)`_i * (ngraph u)`_i.+1 < 0)%R%:R).
-by rewrite SAchanges_graphP eqxx.
-Qed.
-
-Definition SAchanges n := SAcomp (SAsum n.-1) (MkSAfun (SAfun_SAchanges n)).
-
-Lemma changes_rcons (x : R) (s : seq R) : changes (rcons s x) = ((last 0 s * x < 0)%R + changes s)%N.
-Proof.
-elim: s => [|y s IHs]; first by rewrite /= mulrC.
-rewrite /= {}IHs; case: s => [|z s] /=; first by rewrite mul0r mulr0.
-by rewrite !addnA [((y * z < 0)%R + _)%N]addnC.
-Qed.
-
-Lemma changes_rev (s : seq R) : changes (rev s) = changes s.
-Proof.
-move nE: (size s) => n.
-elim: n s nE => [|n IHn] s nE; first by rewrite (size0nil nE).
-case: s nE => [//|] x s/= /eqP; rewrite eqSS => /eqP sn.
-by rewrite rev_cons changes_rcons last_rev mulrC IHn.
-Qed.
-
-Lemma big_ordD (T : Type) (idx : T) (op : Monoid.law idx) (n m : nat) (P : pred 'I_(n + m)) (F : 'I_(n + m) -> T) :
-  \big[op/idx]_(i < n + m | P i) F i = op (\big[op/idx]_(i < n | P (lshift m i)) F (lshift m i)) (\big[op/idx]_(i < m | P (rshift n i)) F (rshift n i)).
-Proof.
-pose G i :=
-  match ltnP i (n + m) with
-  | LtnNotGeq inm => F (Ordinal inm)
-  | _ => idx
-  end.
-pose Q i :=
-  match ltnP i (n + m) with
-  | LtnNotGeq inm => P (Ordinal inm)
-  | _ => false
-  end.
-have FG i : F i = G i.
-  rewrite /G; move: (ltn_ord i); case: ltnP => // j _.
-  by congr F; apply/val_inj.
-have PQ i : P i = Q i.
-  rewrite /Q; move: (ltn_ord i); case: ltnP => // j _.
-  by congr P; apply/val_inj.
-under eq_bigr do rewrite FG.
-under eq_bigl do rewrite PQ.
-rewrite big_ord_iota iotaD big_cat add0n -big_ord_iota.
-congr (op _ _); first exact/eq_big.
-rewrite iotaE0 big_map -big_ord_iota.
-by apply/eq_big => /= i; rewrite ?PQ ?HQ.
-Qed.
-
-Lemma changesE (s : seq R) :
-  changes s = \sum_(i < (size s).-1) ((s`_i * s`_i.+1 < 0)%R : nat).
-Proof.
-elim: s => /= [|x + ->]; first by rewrite big_ord0.
-case=> /= [|y s]; first by rewrite !big_ord0 mulr0 ltxx.
-by rewrite big_ord_recl/=.
-Qed.
-
-Lemma SAchangesE n (u : 'rV[R]_n) :
-  SAchanges n u = \row__ (changes (ngraph u))%:R.
-Proof.
-apply/eqP; rewrite SAcompE/= SAsumE rowPE forall_ord1 !mxE.
-rewrite changesE size_map size_enum_ord natr_sum.
-apply/eqP/eq_bigr => /= i _.
-move: (inSAfun (MkSAfun (SAfun_SAchanges n)) u
-  (\row_i ((ngraph u)`_i * (ngraph u)`_i.+1 < 0)%R%:R)).
-rewrite SAchanges_graphP eqxx => /eqP ->.
-case: n u i => [|n] u; first by case.
-by move=> /= i; rewrite mxE.
-Qed.
-
-(* Evaluates a polynomial represented in big-endian in R^n at a point in R. *)
-Definition SAhorner_graph n : {SAset R^(n + 1 + 1)} :=
-  [set| nquantify n.+2 n Exists (
-  subst_formula (rcons (iota n.+2 n) n.+1) (SAsum n) /\
-  \big[And/True]_(i < n) ('X_(n.+2 + i) == ('X_i * 'X_n ^+ i)))].
-
-Lemma SAhorner_graphP n (u : 'rV[R]_(n + 1)) (v : 'rV[R]_1) :
-  (row_mx u v \in SAhorner_graph n) = (v == \row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
-Proof.
-rewrite /SAhorner_graph.
-rewrite -2![X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
-apply/SAin_setP/eqP => [/nexistsP[x]/= []|vE].
-  move=> /holds_subst + /holdsAnd/= xE.
-  rewrite -cats1 subst_env_cat/= subst_env_iota_catr; first last.
-  - exact/size_tuple.
-  - by rewrite size_map size_enum_ord !addn1.
-  rewrite nth_cat size_map size_enum_ord 2!{1}addn1 leqnn.
-  have nsE: n.+1 = rshift (n + 1)%N (@ord0 0) by rewrite /= addn0 addn1.
-  rewrite [X in _`_X]nsE nth_map_ord mxE (unsplitK (inr _)) => xv.
-  have {xv} <-: SAsum _ (\row_(i < n) tnth x i) = v.
-    apply/eqP; rewrite inSAfun.
-    apply/rcf_satP; rewrite ngraph_cat ngraph_tnth.
-    suff ->: ngraph v = [:: v ord0 ord0] :> seq _ by [].
-    apply/(@eq_from_nth _ 0); first exact/size_ngraph.
-    rewrite size_ngraph; case=> // ltn01.
-    by rewrite -[X in _`_X]/(nat_of_ord (@ord0 0)) nth_mktuple.
-  rewrite SAsumE; apply/eqP; rewrite rowPE forall_ord1 !mxE horner_poly. 
-  apply/eqP/eq_bigr => /= i _.
-  have {1}->: i = lshift 1 (lshift 1 i) :> nat by [].
-  rewrite mxE nth_map_ord.
-  move: xE => /(_ i (mem_index_enum _) isT).
-  rewrite nth_cat size_map size_enum_ord 2!{1}addn1 ltnNge (leq_addr _)/=.
-  rewrite 2!{1}addn1 subDnCA// subnn addn0.
-  rewrite nth_cat size_map size_enum_ord 2!{1}addn1.
-  rewrite (ltn_trans (ltn_ord i) (leqnSn n.+1)).
-  rewrite nth_cat size_map size_enum_ord [X in (_ < X + 1)%N]addn1 leq_addr.
-  have nE: n = lshift 1 (rshift n (@ord0 0)) by rewrite /= addn0.
-  have {2}->: i = lshift 1 (lshift 1 i) :> nat by [].
-  by rewrite [X in _`_X ^+ _]nE !nth_map_ord !mxE !(unsplitK (inl _)) -tnth_nth.
-apply/nexistsP; exists ([tuple ((ngraph u)`_i * u ord0 (rshift n ord0) ^+ i)%R | i < n]).
-move=> /=; split.
-  apply/holds_subst.
-  rewrite -cats1 subst_env_cat/= subst_env_iota_catr; first last.
-  - by rewrite size_map size_enum_ord.
-  - by rewrite size_map size_enum_ord !addn1.
-  rewrite nth_cat size_map size_enum_ord 2![in X in (_ < X)%N]addn1 leqnn.
-  have nsE: n.+1 = rshift (n + 1) (@ord0 0) by rewrite /= addn0 addn1.
-  rewrite [X in _`_X]nsE nth_map_ord mxE (unsplitK (inr _)).
-  suff: SAsum _ (\row_(i < n) ((ngraph u)`_i * u ord0 (rshift n ord0) ^+ i)%R) = v.
-    move=> /eqP; rewrite inSAfun => /rcf_satP.
-    rewrite ngraph_cat; congr holds; congr cat; last first.
-      by rewrite /= enum_ordSl enum_ord0/=.
-    apply/(@eq_from_nth _ 0).
-      by rewrite size_ngraph size_map size_enum_ord.
-    rewrite size_ngraph => i ilt.
-    by rewrite -/(nat_of_ord (Ordinal ilt)) nth_mktuple nth_map_ord mxE.
-  rewrite SAsumE; apply/eqP; rewrite rowPE forall_ord1 vE horner_poly !mxE. 
-  apply/eqP/eq_bigr => /= i _; rewrite mxE.
-  have {1 3}->: i = lshift 1 (lshift 1 i) :> nat by [].
-  by rewrite nth_map_ord.
-apply/holdsAnd => i _ _ /=.
-rewrite nth_cat size_map size_enum_ord 2!{1}addn1 ltnNge (leq_addr _)/=.
-rewrite 2![in X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-rewrite nth_cat size_map size_enum_ord 2![in X in (_ - X)%N]addn1.
-rewrite -[X in (_ < X)%N]addnA (leq_trans (ltn_ord i) (leq_addr _ _)).
-rewrite nth_cat size_map size_enum_ord [X in (_ < X + 1)%N]addn1 leq_addr nth_map_ord.
-have nE: n = lshift 1 (rshift n (@ord0 0)) by rewrite /= addn0.
-have {1 3}->: i = lshift 1 (lshift 1 i) :> nat by [].
-by rewrite [X in _`_X ^+ _]nE !nth_map_ord !mxE !(unsplitK (inl _)).
-Qed.
-
-Fact SAfun_SAhorner n :
-  (SAhorner_graph n \in @SAfunc _ (n + 1) 1) && (SAhorner_graph n \in @SAtot _ (n + 1) 1).
-Proof.
-apply/andP; split.
-  by apply/inSAfunc => u y1 y2; rewrite !SAhorner_graphP => /eqP -> /eqP.
-apply/inSAtot => u; exists (\row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
-by rewrite SAhorner_graphP eqxx.
-Qed.
-
-Definition SAhorner n := MkSAfun (SAfun_SAhorner n).
-
-Lemma SAhornerE n (u : 'rV[R]_(n + 1)) :
-  SAhorner n u = (\row__ (\poly_(i < n) (ngraph u)`_i).[u ord0 (rshift n ord0)])%R.
-Proof. by apply/eqP; rewrite inSAfun SAhorner_graphP. Qed.
-
-(* Function giving the number of roots of a polynomial of degree at most n.-1
-   encoded in big endian in R^n *)
-Definition SAnbroots_graph n : {SAset R^(n + 1)} :=
-  [set| (\big[And/True]_(i < n.+1) ('X_i == 0)) \/ \big[Or/False]_(i < n) (('X_n == Const i%:R%R) /\
-    nquantify n.+1 i Exists (
-      \big[And/True]_(j < i) subst_formula (iota 0 n ++ [:: n.+1 + j; n.+1 + i]%N)
-        (SAhorner n) /\
-        \big[And/True]_(j < i.-1) ('X_(n.+1 + j) <% 'X_(n.+1 + j.+1)) /\
-      'forall 'X_(n.+1 + i), subst_formula (iota 0 n ++ [:: n.+1 + i; (n.+1 + i).+1]%N)
-        (SAhorner n) ==> \big[Or/False]_(j < i) ('X_(n.+1 + i) == 'X_(n.+1 + j))))].
-
-Lemma SAnbroots_graphP n (u : 'rV[R]_n) (v : 'rV[R]_1) :
-  (row_mx u v \in SAnbroots_graph n) = (v == \row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R).
-Proof.
-  have subst_env0 (u' : 'rV[R]_n) (i : 'I_n) (r : i.-tuple R) (x : R):
-    (subst_env (iota 0 n ++ [:: (n.+1 + i)%N; (n.+1 + i).+1])
-      (set_nth 0 ([seq row_mx u' v ord0 i0 | i0 <- enum 'I_(n + 1)] ++ r)
-        (n.+1 + i) x)) =
-    ([seq row_mx u' v ord0 i0 | i0 <- [seq lshift 1 i | i <- enum 'I_n]] ++
-        [:: x; 0]).
-  rewrite subst_env_cat {1}set_nth_catr; last first.
-    by rewrite size_map size_enum_ord addn1 leq_addr.
-  rewrite {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
-    by rewrite -map_comp size_map size_enum_ord.
-  rewrite nth_set_nth/= eqxx nth_set_nth/= -[X in (X == _)]addn1.
-  rewrite -[X in (_ == X)]addn0 eqn_add2l/= -addnS nth_cat.
-  rewrite size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
-  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-  by rewrite [r`_i.+1]nth_default// size_tuple.
-have [->|u0] := eqVneq u 0.
-  have ->: \poly_(i < n) (@ngraph R n 0)`_i = 0.
-    apply/polyP => i; rewrite coef_poly coef0.
-    case: (ltnP i n) => [ilt|//].
-    by rewrite -/(nat_of_ord (Ordinal ilt)) nth_map_ord mxE.
-  rewrite rootsR0/=; apply/SAin_setP/eqP => [/= [/holdsAnd|/holdsOr-[] i]| ->].
-  - move=> /(_ ord_max (mem_index_enum _) isT) /=.
-    have nE: n = rshift n (@ord0 0) by rewrite /= addn0.
-    rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) => v0.
-    by apply/eqP; rewrite rowPE forall_ord1 mxE; apply/eqP.
-  - move=> [_][_]/= [_].
-    rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx 0 v)).
-    move=> /nexistsP[r]/= [_][_] /(_ (1 + \big[Order.max/0]_(x <- r) x))%R; mp.
-      apply/holds_subst; rewrite subst_env0 -map_comp.
-      have /eqP: SAhorner n (row_mx 0 (\row__ (1 + \big[maxr/0]_(x <- r) x)%R)) = 0.
-        apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
-        apply/eqP; rewrite -[in RHS](horner0 (1 + \big[maxr/0]_(x <- r) x)%R).
-        rewrite mxE; congr (_.[_])%R.
-        apply/polyP => j; rewrite coef0 coef_poly.
-        case: (ltnP j n) => [jn|//]; rewrite ngraph_cat nth_cat size_ngraph jn.
-        by rewrite -/(nat_of_ord (Ordinal jn)) nth_map_ord mxE.
-      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
-      congr (holds (_ ++ _) _); last by rewrite /= enum_ordSl enum_ord0/= !mxE.
-      apply/(@eq_from_nth _ 0) => [|k]; rewrite size_ngraph.
-        by rewrite size_map size_enum_ord.
-      move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
-      by rewrite [in RHS]mxE (unsplitK (inl _)).
-    move=> /holdsOr[j] [_][_]/= .
-    rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
-    move: (ltn_ord j); rewrite ltn_neqAle => /andP[] /negPf -> _.
-    rewrite nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
-    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0 => jE.
-    have: r`_j <= \big[maxr/0]_(x <- r) x.
-      rewrite le_bigmax; apply/orP; right; apply/hasP; exists r`_j.
-        by apply/mem_nth; rewrite size_tuple.
-      exact/lexx.
-    by rewrite -jE; rewrite -subr_ge0 opprD addrCA subrr addr0 oppr_ge0 ler10.
-  left; apply/holdsAnd; case=> i /= ilt _ _ /=.
-  rewrite enum_ordD map_cat -2!map_comp nth_cat size_map size_enum_ord.
-  case: (ltnP i n) => iltn.
-    by rewrite -/(nat_of_ord (Ordinal iltn)) nth_map_ord mxE (unsplitK (inl _)) mxE.
-  have ->: i = n by apply/le_anti/andP.
-  rewrite subnn -[X in _`_X]/(nat_of_ord (@ord0 0)) nth_map_ord mxE.
-  by rewrite (unsplitK (inr _)) mxE.
-apply/SAin_setP/eqP => [[/holdsAnd|/holdsOr/=[] i [_][_]]|].
-  - move=> uv0; suff: u = 0 by move/eqP: u0.
-  apply/rowP => i; rewrite mxE.
-  move: uv0 => /(_ (lift ord_max i) (mem_index_enum _) isT)/=.
-  rewrite /bump leqNgt (ltn_ord i)/= add0n.
-  rewrite -[X in _`_X]/(nat_of_ord (lshift 1 i)) nth_map_ord mxE.
-  by rewrite (unsplitK (inl _)).
-  - have nE: n = @rshift n 1 ord0 by rewrite /= addn0.
-  rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) => -[] vE.
-  rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
-  move=> /nexistsP[r]/= [] /holdsAnd/= rroot [] rsort rall. 
-  apply/eqP; rewrite rowPE forall_ord1 vE mxE eqr_nat -(size_tuple r); apply/eqP.
-  congr size; apply/rootsRPE => [j|x x0|].
-  - move: rroot => /(_ j (mem_index_enum _) isT) /holds_subst.
-    rewrite subst_env_cat {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
-      by rewrite -map_comp size_map size_enum_ord.
-    rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
-    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-    rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
-    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-    rewrite [r`_i]nth_default; last by rewrite size_tuple.
-    move=> r0; suff {}r0': SAhorner n (row_mx u (\row__ r`_j)) = 0.
-      move: r0' => /eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
-      rewrite !mxE -tnth_nth /root; congr (_.[_]%R == 0).
-      by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
-    apply/eqP; rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
-    move: r0; congr (holds (_ ++ _) _); last first.
-      by rewrite /= enum_ordSl enum_ord0/= !mxE.
-    rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
-        rewrite size_map size_enum_ord.
-      by rewrite size_ngraph.
-    move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
-    by rewrite mxE (unsplitK (inl _)).
-  - move: rall => /(_ x); mp.
-      apply/holds_subst; rewrite subst_env0.
-      have /eqP: SAhorner n (row_mx u (\row__ x)) = 0.
-        apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
-        move: x0; rewrite !mxE /root; congr (_.[_]%R == 0).
-        by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
-      rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
-      congr (holds (_ ++ _) _); last by rewrite /= enum_ordSl enum_ord0/= !mxE.
-      rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k]; rewrite size_ngraph.
-        by rewrite size_map size_enum_ord.
-      move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
-      by rewrite mxE (unsplitK (inl _)).
-    move=> /holdsOr /= [j] [_][_].
-    rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
-    move: (ltn_ord j); rewrite ltn_neqAle => /andP[] /negPf -> _.
-    rewrite nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1 ltnNge leq_addr/=.
-    rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0 => ->.
-    by apply/mem_nth; rewrite size_tuple.
-  - apply/(sortedP 0) => j; rewrite size_tuple -ltn_predRL => ji.
-    move: rsort => /holdsAnd /(_ (Ordinal ji) (mem_index_enum _) isT)/=.
-    rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
-    rewrite {1}addn1 subDnCA// subnn addn0.
-    rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
-    by rewrite {1}addn1 subDnCA// subnn addn0.
-set r := (rootsR (\poly_(i < n) (ngraph u)`_i)) => vE.
-right; apply/holdsOr => /=.
-have rn: (size r < n)%N.
-  rewrite ltnNge; apply/negP.
-  move=> /(leq_trans (size_poly _ (fun i => (ngraph u)`_i)))/poly_ltsp_roots.
-  move=> /(_ (uniq_roots _ _ _)); mp.
-    by apply/allP => x; rewrite in_rootsR => /andP[_].
-  move=> /polyP => u0'; move/eqP: u0; apply.
-  apply/rowP => i; move: u0' => /(_ i).
-  by rewrite coef_poly ltn_ord nth_map_ord mxE coef0.
-exists (Ordinal rn); split; first exact/mem_index_enum.
-split=> //=.
-split.
-  have nE: n = rshift n (@ord0 0) by rewrite /= addn0.
-  by rewrite [X in _`_X]nE nth_map_ord mxE (unsplitK (inr _)) vE mxE.
-rewrite -[X in nquantify X]addn1 -[X in nquantify X](size_ngraph (row_mx u v)).
-apply/nexistsP; exists (in_tuple r).
-split.
-  apply/holdsAnd => /= i _ _; apply/holds_subst.
-  rewrite subst_env_cat {1}enum_ordD map_cat -catA subst_env_iota_catl/=; last first.
-    by rewrite -map_comp size_map size_enum_ord.
-  rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
-  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-  rewrite nth_cat size_map size_enum_ord ltnNge [X in (X <= _)%N]addn1 leq_addr/=.
-  rewrite [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-  rewrite [r`_(size r)]nth_default//.
-  have: r`_i \in r by apply/mem_nth.
-  rewrite in_rootsR => /andP[_] r0.
-  have {}r0: SAhorner n (row_mx u (\row__ r`_i)) = 0.
-    apply/eqP; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
-    move: r0; rewrite !mxE /root; congr (_.[_]%R == 0).
-    by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
-  move/eqP : r0; rewrite inSAfun => /rcf_satP; rewrite !ngraph_cat -catA.
-  congr (holds (_ ++ _) _); last first.
-    by rewrite /= enum_ordSl enum_ord0/= !mxE.
-  rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
-      rewrite size_ngraph.
-    by rewrite size_map size_enum_ord.
-  move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
-  by rewrite mxE (unsplitK (inl _)).
-split=> /= [|x /holds_subst].
-  apply/holdsAnd => /= i _ _.
-  rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
-  rewrite {1}addn1 subDnCA// subnn addn0.
-  rewrite nth_cat size_map size_enum_ord {1}addn1 ltnNge leq_addr/=.
-  rewrite {1}addn1 subDnCA// subnn addn0.
-  have /(sortedP 0)/(_ i) : sorted <%R r by apply/sorted_roots.
-  by rewrite -ltn_predRL => /(_ (ltn_ord i)).
-rewrite -/(nat_of_ord (Ordinal rn)) -[r]/(tval (in_tuple r)) subst_env0 => x0.
-have /(nthP 0) []: x \in r.
-  rewrite in_rootsR; apply/andP; split.
-    apply/eqP => /polyP u0'; move/eqP: u0; apply.
-    apply/rowP => i; move: u0' => /(_ i).
-    by rewrite coef_poly ltn_ord nth_map_ord mxE coef0.
-  suff {}r0: SAhorner n (row_mx u (\row__ x)) = 0.
-    move/eqP : r0; rewrite SAhornerE rowPE forall_ord1 !mxE (unsplitK (inr _)).
-    rewrite !mxE /root; congr (_.[_]%R == 0).
-    by apply/eq_poly => k kn; rewrite ngraph_cat nth_cat size_ngraph kn.
-  apply/eqP; rewrite inSAfun; apply/rcf_satP; rewrite !ngraph_cat -catA.
-  move: x0; congr (holds (_ ++ _) _); last first.
-    by rewrite /= enum_ordSl enum_ord0/= !mxE.
-  rewrite -map_comp; apply/(@eq_from_nth _ 0) => [|k];
-      rewrite size_map size_enum_ord.
-    by rewrite size_ngraph.
-  move=> kn; rewrite /= -[k]/(nat_of_ord (Ordinal kn)) !nth_map_ord.
-  by rewrite mxE (unsplitK (inl _)).
-move=> i ir <-; apply/holdsOr; exists (Ordinal ir).
-split; first exact/mem_index_enum.
-split=> //=.
-rewrite nth_set_nth/= eqxx nth_set_nth/= eqn_add2l.
-rewrite (ltn_eqF ir) nth_cat size_map size_enum_ord [X in (_ < X)%N]addn1.
-by rewrite ltnNge leq_addr/= [X in (_ - X)%N]addn1 subDnCA// subnn addn0.
-Qed.
-
-Fact SAfun_SAnbroots n :
-  (SAnbroots_graph n \in @SAfunc _ n 1) && (SAnbroots_graph n \in @SAtot _ n 1).
-Proof.
-apply/andP; split.
-  by apply/inSAfunc => u y1 y2; rewrite !SAnbroots_graphP => /eqP -> /eqP.
-apply/inSAtot => u; exists (\row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R)%R.
-by rewrite SAnbroots_graphP eqxx.
-Qed.
-
-Definition SAnbroots n := MkSAfun (SAfun_SAnbroots n).
-
-Lemma SAnbrootsE n (u : 'rV[R]_n) :
-  SAnbroots n u = (\row__ (size (rootsR (\poly_(i < n) (ngraph u)`_i)))%:R)%R.
-Proof. by apply/eqP; rewrite inSAfun SAnbroots_graphP. Qed.
 
 Definition SAevalpmp_graph n (p : {poly {mpoly R[n]}}) : {SAset R^(n + (size p))} :=
   [set| \big[And/True]_(i < size p)
@@ -1050,40 +692,6 @@ Lemma SAevalpmpE n (p : {poly {mpoly R[n]}}) (u : 'rV[R]_n) :
   SAevalpmp p u = (\row_i (evalpmp u p)`_i)%R.
 Proof. by apply/eqP; rewrite inSAfun SAevalpmp_graphP. Qed.
 
-Lemma id_continuous {T : topologicalType} : continuous (@id T).
-Proof. by apply/continuousP => A; rewrite preimage_id. Qed.
-
-Lemma horner_continuous {K : numFieldType} (p : {poly K}) :
-  continuous (horner p)%R.
-Proof.
-apply/(eq_continuous (f:=fun x : K => \sum_(i < size p) p`_i * x ^+ i)) => x.
-  by rewrite -[p in RHS]coefK horner_poly.
-apply/(@continuous_sum K (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod K)).
-move=> /= i _.
-apply/continuousM; first exact/cst_continuous.
-exact/continuousX/id_continuous.
-Qed.
-
-Lemma meval_continuous n {K : numFieldType} (p : {mpoly K[n]}) :
-  continuous (fun x : 'rV[K]_n => p.@[x ord0])%R.
-Proof.
-apply/(eq_continuous (f:=fun x : 'rV[K]_n => \sum_(m <- msupp p) p@_m * \prod_i x ord0 i ^+ m i)) => x.
-  exact/mevalE.
-apply/(@continuous_sum K (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod K)).
-move=> /= i _.
-apply/continuousM; first exact/cst_continuous.
-apply/continuous_prod => j _.
-exact/continuousX/coord_continuous.
-Qed.
-
-Lemma meval_sum [I : Type] {n : nat} {K : ringType} (v : 'I_n -> K) (r : seq I) (F : I -> {mpoly K[n]}) (P : pred I) :
-  (\sum_(i <- r | P i) F i).@[v] = \sum_(i <- r | P i) (F i).@[v].
-Proof.
-elim: r => [|i r IHr]; first by rewrite !big_nil meval0.
-rewrite !big_cons; case: (P i) => [|//].
-by rewrite mevalD IHr.
-Qed.
-
 Lemma evalpmpM n (p q : {poly {mpoly R[n]}}) (x : 'rV_n) :
   (evalpmp x (p * q) = (evalpmp x p) * (evalpmp x q))%R.
 Proof.
@@ -1093,6 +701,7 @@ apply/eq_bigr => /= j _.
 by rewrite mevalM !coef_map.
 Qed.
 
+(* TODO: subsumed by `rmorph_prod` (with occurence) *)
 Lemma evalpmp_prod [I : Type] n (x : 'rV_n) (r : seq I) (F : I -> {poly {mpoly R[n]}}) (P : pred I) :
   evalpmp x (\prod_(i <- r | P i) F i) = \prod_(i <- r | P i) evalpmp x (F i).
 Proof.
@@ -1102,266 +711,88 @@ rewrite !big_cons; case: (P i) => [|//].
 by rewrite evalpmpM IHr.
 Qed.
 
-(* mu_eq0 is stated with rcfType in real_closed.qe_rcf_th *)
-Lemma mu_eq0 (F : idomainType) (p : {poly F}) (x : F) :
-  p != 0 -> (\mu_x p == 0%N) = ~~ root p x.
-Proof. by move=> /mu_gt0 <-; rewrite lt0n negbK. Qed.
-
-Lemma big_hasE (T I J : Type) (idx : T) (op : Monoid.com_law idx)
-  (r : seq I) (P : pred I) (F : I -> T) (s : seq J) (a : I -> pred J) :
-  (forall i, P i -> (count (a i) s <= 1)%N) ->
-  \big[op/idx]_(i <- r | P i && has (a i) s) F i = \big[op/idx]_(j <- s) \big[op/idx]_(i <- r | P i && a i j) F i.
-Proof.
-move=> s1.
-elim: r => [|i r IHr].
-  under [in RHS]eq_bigr do rewrite big_nil.
-  rewrite big_nil big_const_idem//.
-  exact/Monoid.mulm1.
-under [in RHS]eq_bigr do rewrite big_cons.
-rewrite big_cons; case /boolP: (P i) => //= Pi.
-case/boolP: (has (a i) s) => [si|]; last first. 
-  rewrite -all_predC.
-  rewrite {}IHr; elim: s s1 => /= [|j s IHs] s1 si; first by rewrite !big_nil.
-  rewrite !big_cons.
-  move/andP: si => [] /negPf -> /IHs -> // k /s1.
-  by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
-rewrite {}IHr; elim: s s1 si => /= [//|] j s IHs s1.
-rewrite !big_cons Monoid.mulmA.
-case: (a i j) (s1 i Pi) => /= [|_].
-  rewrite add1n ltnS leqNgt -has_count => ais _; congr (op _ _).
-  elim: s ais {IHs s1} => [_|k s IHs] /=.
-    by rewrite !big_nil.
-  by rewrite negb_or !big_cons => /andP[] /negPf -> /IHs ->.
-move=> /IHs <-.
-  by rewrite Monoid.mulmCA Monoid.mulmA.
-move=> k /s1.
-by case: (a k j) => //=; rewrite add1n ltnS leqn0 => /eqP ->.
-Qed.
-
-Lemma big_pred1_seq [T : Type] [idx : T] (op : Monoid.law idx) 
-    [I : eqType] (r : seq I) (i : I) (F : I -> T) :
-  uniq r ->
-  \big[op/idx]_(j <- r | j == i) F j = if i \in r then F i else idx.
-Proof.
-elim: r => [_|j r IHr /= /andP[] jr runiq]; first by rewrite big_nil.
-rewrite big_cons in_cons eq_sym.
-move: jr; have [<- /= /negP jr|ij _ /=] := eqVneq i j; last exact/IHr.
-rewrite big_seq_cond big_mkcond big1_idem; first exact/Monoid.mulm1.
-  exact/Monoid.mulm1.
-by move=> k _; case: ifP => [/andP[] /[swap] /eqP ->|//].
-Qed.
-
-Lemma dvdp_mu (F : closedFieldType) (p q : {poly F}) :
-  p != 0 -> q != 0 ->
-  (p %| q) = all (fun x => \mu_x p <= \mu_x q)%N (dec_roots p).
-Proof.
-move: (dec_roots p) (uniq_dec_roots p) (dec_roots_closedP p)
-    (dec_roots_closedP q) => r.
-rewrite -!lead_coefE -lead_coef_eq0.
-elim: r p => [p _ pE _ p0 _|x r IHr p /= /andP[] xr runiq pE qE p0 q0].
-  by rewrite pE/= big_nil alg_polyC /dvdp modpC ?eqxx// lead_coef_eq0.
-rewrite {1}pE big_cons dvdpZl// Gauss_dvdp; last first.
-  rewrite /coprimep (eqp_size (gcdpC _ _)) -/(coprimep _ _).
-  apply/coprimep_expr; rewrite coprimep_XsubC root_bigmul -all_predC.
-  apply/allP => y yr/=.
-  case: (\mu_y p) => [|n]; first by rewrite expr0 root1.
-  rewrite root_exp_XsubC; apply/eqP => xy.
-  by move/negP: xr; rewrite xy.
-rewrite root_le_mu//; congr andb.
-rewrite -(dvdpZl _ _ p0) IHr//.
-- apply/eq_in_all => y yr; congr (_ <= _)%N.
-  rewrite mu_mulC// mu_prod; last first.
-    rewrite prodf_seq_neq0; apply/allP => z _ /=.
-    by rewrite expf_eq0 polyXsubC_eq0 andbF.
-  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
-  by rewrite -big_mkcond/= big_pred1_seq// yr.
-- rewrite lead_coefZ lead_coef_prod.
-  under [in RHS]eq_bigr do rewrite lead_coef_exp lead_coefXsubC expr1n.
-  rewrite [in RHS]big1_idem//= ?mulr1//; congr (_ *: _).
-  apply/eq_big_seq => y yr.
-  rewrite mu_mulC// mu_prod; last first.
-    rewrite prodf_seq_neq0; apply/allP => z _ /=.
-    by rewrite expf_eq0 polyXsubC_eq0 andbF.
-  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym.
-  by rewrite -big_mkcond/= big_pred1_seq// yr.
-- rewrite lead_coef_eq0 scaler_eq0 (negPf p0)/= prodf_seq_neq0.
-  by apply/allP => y _ /=; rewrite expf_eq0 polyXsubC_eq0 andbF.
-Qed.
-
-Lemma mu_eqp (F : closedFieldType) (p q : {poly F}) (x : F) :
-  p %= q -> \mu_x p = \mu_x q.
-Proof.
-have [->|p0] := eqVneq p 0; first by rewrite eqp_sym eqp0 => /eqP ->.
-have [->|q0] := eqVneq q 0; first by rewrite eqp0 => /eqP <-.
-move=> /andP[]; rewrite !dvdp_mu// => /allP/(_ x) pq /allP/(_ x) qp.
-apply/le_anti/andP; split.
-  case/boolP: (x \in dec_roots p) pq => [_ //|+ _]; first by apply.
-  by rewrite mem_dec_roots p0/= => /muNroot ->.
-case/boolP: (x \in dec_roots q) qp => [_ //|+ _]; first by apply.
-by rewrite mem_dec_roots q0/= => /muNroot ->.
-Qed.
-
-Lemma mu_gcdp (F : closedFieldType) (p q : {poly F}) (x : F) :
-  p != 0 -> q != 0 ->
-  \mu_x (gcdp p q) = minn (\mu_x p) (\mu_x q).
-Proof.
-wlog: p q / (\mu_x p <= \mu_x q)%N => pq.
-  case/orP: (leq_total (\mu_x p) (\mu_x q)).
-    exact/pq.
-  by rewrite minnC (mu_eqp _ (gcdpC _ _)) => + /[swap]; apply/pq.
-rewrite (minn_idPl pq) => p0 q0.
-apply/esym/eqP; rewrite -muP//; last first.
-  by rewrite gcdp_eq0 (negPf p0).
-by rewrite !dvdp_gcd root_mu root_muN// root_le_mu// pq.
-Qed.
-
-Lemma gcdp_mul (F : closedFieldType) (p q : {poly F}) :
-  p != 0 -> q != 0 ->
-  gcdp p q %= \prod_(x <- dec_roots p) ('X - x%:P) ^+ (minn (\mu_x p) (\mu_x q)).
-Proof.
-move=> p0 q0.
-have pq0 : gcdp p q != 0 by rewrite gcdp_eq0 (negPf p0).
-have pq0' : \prod_(x <- dec_roots p) ('X - x%:P) ^+ minn (\mu_x p) (\mu_x q) != 0.
-  rewrite prodf_seq_neq0; apply/allP => x _ /=.
-  by rewrite expf_eq0 polyXsubC_eq0 andbF.
-by apply/andP; split; rewrite dvdp_mu//; apply/allP => x _;
-  rewrite mu_gcdp// mu_prod//;
-  under eq_bigr do rewrite mu_exp mu_XsubC mulnbl eq_sym;
-  rewrite -big_mkcond/= big_pred1_seq// ?uniq_dec_roots//;
-  case: ifP => //; rewrite mem_dec_roots p0 => /= /negP/negP /muNroot ->;
-  rewrite min0n.
-Qed.
-
-Lemma mu_deriv (F : idomainType) x (p : {poly F}) :
-  (((\mu_x p)%:R : F) != 0)%R -> \mu_x (p^`()) = (\mu_x p).-1.
-Proof.
-move=> px0; have [-> | nz_p] := eqVneq p 0; first by rewrite derivC mu0.
-have [q nz_qx Dp] := mu_spec x nz_p.
-case Dm: (\mu_x p) => [|m]; first by rewrite Dm eqxx in px0.
-rewrite Dp Dm !derivCE exprS mul1r mulrnAr -mulrnAl mulrA -mulrDl.
-rewrite cofactor_XsubC_mu // rootE !(hornerE, hornerMn) subrr mulr0 add0r.
-by rewrite -mulr_natr mulf_neq0// -Dm.
-Qed.
-
-Lemma leq_predn n m : (n <= m)%N -> (n.-1 <= m.-1)%N.
-Proof.
-case: n => [//|n]; case: m => [//|m].
-by rewrite !succnK ltnS.
-Qed.
-
-Lemma size_deriv [F : idomainType] (p : {poly F}) :
-  [char F] =i pred0 -> size p^`() = (size p).-1.
-Proof.
-move=> /charf0P F0.
-have [->|p0] := eqVneq p 0; first by rewrite deriv0 size_poly0.
-apply/le_anti/andP; split.
-  by rewrite -[X in (X <= _)%O]succnK; apply/leq_predn/lt_size_deriv.
-case: (posnP (size p).-1) => [-> //|] p0'.
-rewrite -(prednK p0'); apply/gt_size; rewrite coef_poly.
-rewrite (prednK p0') leqnn -mulr_natr mulf_eq0 negb_or.
-by rewrite -lead_coefE lead_coef_eq0 p0 F0 -lt0n.
-Qed.
-
-Lemma dvdp_prod (A : idomainType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
-  (forall i, P i -> F i %| G i) ->
-  \prod_(i <- r | P i) F i %| \prod_(i <- r | P i) G i.
-Proof.
-move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil dvd1p.
-rewrite !big_cons; case/boolP: (P i) => [Pi|//].
-by apply/dvdp_mul => //; apply/FG.
-Qed.
-
-Lemma divp_prod_dvdp (A : fieldType) (I : Type) (r : seq I) (P : pred I) (F G : I -> {poly A}) :
-  (forall i, P i -> G i %| F i) ->
-  \prod_(i <- r | P i) F i %/ \prod_(i <- r | P i) G i = \prod_(i <- r | P i) (F i %/ G i).
-Proof.
-move=> FG; elim: r => [|i r IHr]; first by rewrite !big_nil divp1.
-rewrite !big_cons; case/boolP: (P i) => [Pi|//].
-rewrite -divp_divl mulrC -divp_mulA ?FG// mulrC -divp_mulA ?IHr//.
-exact/dvdp_prod.
-Qed.
-
-Lemma subn_pred n m : (0 < m)%N -> (m <= n)%N -> (n - m.-1)%N = (n - m).+1.
-Proof.
-case: m => [//|m _]; case: n => [//|n].
-by rewrite ltnS succnK subSS => /subSn.
-Qed.
-
-Lemma size_dec_roots (F : closedFieldType) (p : {poly F}) :
-  [char F] =i pred0 ->
-  size (dec_roots p) = (size (p %/ gcdp p p^`())).-1.
-Proof.
-move=> F0.
-have /= [->|p0] := eqVneq p 0.
-  rewrite div0p size_poly0/=.
-  case rE : (dec_roots 0) => [//|x r].
-  have: x \in (dec_roots 0) by rewrite rE mem_head.
-  by rewrite mem_dec_roots eqxx.
-have [p'0|p'0] := eqVneq p^`() 0.
-  rewrite p'0 gcdp0 divpp// size_polyC oner_neq0/=.
-  have /size1_polyC ->: (size p <= 1)%N.
-    move: (size_deriv p F0); rewrite p'0 size_poly0.
-    by case: (size p) => [//|]; case.
-  case rE: (dec_roots _) => [//|x r].
-  by move: (mem_head x r); rewrite -rE mem_dec_roots rootC polyC_eq0 andNb.
-rewrite (eqp_size (eqp_divr p (gcdp_mul p0 p'0))).
-move: (dec_roots_closedP p) => pE.
-rewrite {2}pE -lead_coefE divpZl size_scale ?lead_coef_eq0//.
-rewrite divp_prod_dvdp; last first.
-  move=> x _.
-  rewrite root_le_mu; last by rewrite expf_eq0 polyXsubC_eq0 andbF.
-  by rewrite mu_exp mu_XsubC eqxx mul1n geq_minl.
-rewrite big_seq_cond.
-under eq_bigr => x.
-  rewrite andbT mem_dec_roots => /andP[_] px.
-  rewrite -expp_sub ?polyXsubC_eq0// ?geq_minl//.
-  rewrite mu_deriv; last first.
-    rewrite (proj1 (charf0P _) F0) mu_eq0// px//.
-  rewrite (minn_idPr (leq_pred _)) subn_pred// ?mu_gt0// subnn expr1.
-over.
-rewrite -big_seq_cond size_prod_seq; last first.
-  by move=> x _; rewrite polyXsubC_eq0.
-under eq_bigr do rewrite size_XsubC.
-rewrite big_const_seq count_predT iter_addn_0 subSKn.
-by rewrite mul2n subDnAC// subnn.
-Qed.
-
-Lemma dec_roots0 (F : decFieldType) : (@dec_roots F 0) = [::].
-Proof.
-case rE: (dec_roots 0) => [//|x r].
-by move: (mem_head x r); rewrite -rE mem_dec_roots eqxx.
-Qed.
-
-Lemma const_roots n (P : {fset {poly {mpoly R[n]}}}) (s : {SAset R^n}) :
+Lemma evalpmp_prod_const n (P : {fset {poly {mpoly R[n]}}}) (s : {SAset R^n}) :
   SAconnected s ->
   {in P, forall p, {in s &, forall x y, size (evalpmp x p) = size (evalpmp y p)}} ->
   {in P, forall p, {in s &, forall x y, size (gcdp (evalpmp x p) (evalpmp x p)^`()) = size (gcdp (evalpmp y p) (evalpmp y p)^`())}} ->
   {in P &, forall p q, {in s &, forall x y, size (gcdp (evalpmp x p) (evalpmp x q)) = size (gcdp (evalpmp y p) (evalpmp y q))}} ->
+  {in s &, forall x y, size (gcdp (evalpmp x (\prod_(p : P) (val p))) (evalpmp x (\prod_(p : P) (val p)))^`()) = size (gcdp (evalpmp y (\prod_(p : P) (val p))) (evalpmp y (\prod_(p : P) (val p)))^`())} /\
   {in s &, forall x y, size (rootsR (evalpmp x (\prod_(p : P) (val p)))) = size (rootsR (evalpmp y (\prod_(p : P) (val p))))}.
 Proof.
-case: n P s => [|n] P s Scon psize proots pqsize x y xS yS.
+  (*move=> Scon psize proots pqsize.
+apply/all_and2 => x; apply/all_and2 => y; apply/all_and2 => xs; apply/all_and2.
+case: n P s Scon psize proots pqsize x y xs => [|n] P s Scon psize proots pqsize x y xS yS.
   by have ->: x = y by apply/rowP => -[].
 case: (eqVneq (evalpmp x (\prod_(p : P) val p)) 0) => px0.
-  rewrite px0; congr (size (rootsR _)).
+  rewrite px0.
   move: px0; rewrite !evalpmp_prod => /eqP/prodf_eq0/= [p] _.
-  rewrite -size_poly_eq0 => px0.
-  apply/esym/eqP/prodf_eq0; exists p => //.
-  by rewrite -size_poly_eq0 (psize _ (fsvalP p) y x yS).
+  rewrite -size_poly_eq0 (psize (val p) (fsvalP p) x y xS yS) size_poly_eq0 => py0.
+  suff ->: \prod_(p : P) evalpmp y (val p) = 0 by [].
+  by apply/eqP/prodf_eq0; exists p.
 have p0: {in P, forall p, {in s, forall x, size (evalpmp x p) != 0}}.
   move=> p pP z zS; rewrite (psize _ pP z x zS xS) size_poly_eq0.
   by move: px0; rewrite evalpmp_prod => /prodf_neq0/(_ [` pP] isT).
-apply/(mulrIn (@oner_neq0 R)) => {px0}.
+have R0: [char R[i]] =i pred0 by apply/char_num.
+have pmsize: {in s &, forall x y, size (evalpmp x (\prod_(p : P) \val p)) = size (evalpmp y (\prod_(p : P) \val p))}.
+  move=> {px0} {}x {}y {}xS {}yS.
+  rewrite !evalpmp_prod size_prod; last first.
+    by move=> /= p _; rewrite -size_poly_eq0 (p0 _ (fsvalP p) x xS).
+  rewrite size_prod; last first.
+    by move=> /= p _; rewrite -size_poly_eq0 (p0 _ (fsvalP p) y yS).
+  under eq_bigr => /= p _.
+    rewrite (psize _ (fsvalP p) x y xS yS).
+  over.
+  by [].
 have rE (u : 'rV[R]_n.+1) :
-  (size (rootsR (evalpmp u (\prod_(p : P) \val p))))%:R = SAcomp (SAnbroots _) (SAevalpmp (\prod_(p : P) \val p)) u ord0 ord0.
+      (size (rootsR (evalpmp u (\prod_(p : P) \val p))))%:R = SAcomp (SAnbroots _ _) (SAevalpmp (\prod_(p : P) \val p)) u ord0 ord0.
   rewrite SAcompE/= SAevalpmpE SAnbrootsE mxE.
   congr (size (rootsR _))%:R.
   apply/polyP => i; rewrite coef_poly.
   case: ltnP => ilt; last first.
     exact/nth_default/(leq_trans (size_poly _ _) ilt).
   by rewrite -/(nat_of_ord (Ordinal ilt)) nth_map_ord mxE.
-rewrite !rE; congr (_ _ ord0 ord0).
-move: x y xS yS; apply/SAconnected_locally_constant_constant => // x.
-rewrite inE/= => xs.
+have cE (u : 'rV[R]_n.+1) :
+    (size (dec_roots (map_poly (real_complex R) (evalpmp u (\prod_(p : P) \val p)))))%:R = SAcomp (SAnbrootsC _ _) (SAevalpmp (\prod_(p : P) \val p)) u ord0 ord0.
+  rewrite SAcompE/= SAevalpmpE SAnbrootsCE mxE.
+  congr (size (dec_roots _))%:R.
+  apply/polyP => i; rewrite !coef_poly.
+  case: ltnP => ilt; last first.
+    case: ltnP => [|//] ilt'.
+    by rewrite (nth_mktuple _ _ (Ordinal ilt')) mxE nth_default.
+  case: ltnP => [|//] ilt'.
+  by rewrite (nth_mktuple _ _ (Ordinal ilt')) mxE coef_map/=.
+suff: locally_constant_on (SAcomp (SAnbroots _ _) (SAevalpmp (\prod_(p : P) \val p))) [set` s] /\
+  locally_constant_on (SAcomp (SAnbrootsC _ _) (SAevalpmp (\prod_(p : P) \val p))) [set` s].
+  move=> [] rc cc; split; last first.
+    apply/(mulrIn (@oner_neq0 R)).
+    rewrite !rE; congr (_ _ ord0 ord0).
+    by move: {px0} x y xS yS; apply/SAconnected_locally_constant_constant.
+  move: cc => /(SAconnected_locally_constant_constant Scon)-/(_ x y xS yS).
+  move=> /(congr1 (fun x : 'rV_1 => x ord0 ord0)).
+  rewrite -!cE => /(mulrIn (@oner_neq0 R)).
+  rewrite size_dec_roots// [in RHS]size_dec_roots//.
+  rewrite size_divp; last by rewrite gcdp_eq0 map_poly_eq0 negb_and px0.
+  rewrite size_divp; last first.
+    rewrite gcdp_eq0 map_poly_eq0 -size_poly_eq0 (pmsize y x yS xS) negb_and.
+    by rewrite size_poly_eq0 px0.
+  rewrite !deriv_map/= -!gcdp_map !size_map_poly.
+  rewrite subn_pred ?leq_gcdpl//; last first.
+    by rewrite lt0n size_poly_eq0 gcdp_eq0 negb_and px0.
+  rewrite subn_pred ?leq_gcdpl//; last first.
+  - by rewrite -size_poly_eq0 (pmsize y x yS xS) size_poly_eq0 px0.
+  - rewrite lt0n size_poly_eq0 gcdp_eq0 negb_and.
+    by rewrite -size_poly_eq0 (pmsize y x yS xS) size_poly_eq0 px0.
+  rewrite !succnK (pmsize x y xS yS) => /eqP.
+  rewrite eqn_sub2lE; first by move=> /eqP.
+    by rewrite (pmsize y x yS xS) leq_gcdpl.
+  by rewrite leq_gcdpl// -size_poly_eq0 (pmsize y x yS xS) size_poly_eq0 px0.
+move=> {x y xS yS px0}.
+apply/all_and2 => x; apply/all_and2; rewrite inE/= => xs.
+have ex_and: forall T (P Q : T -> Prop),
+  (exists x, P x /\ Q x) -> (exists x, P x) /\ (exists x, Q x).
+  move=> T P0 Q [] a [] Pa Qa.
+  by split; exists a.
+apply/ex_and.
 pose pc := fun (p : P) (x : 'rV[R]_n.+1) => map_poly (real_complex R) (evalpmp x (\val p)).
 pose rx := dec_roots (\prod_(p : P) pc p x).
 pose d := (\big[Order.min/1]_(x <- rx) \big[Order.min/1]_(y <- rx | y != x) (complex.Re `|x - y| / 2))%:C%C.
@@ -1407,15 +838,16 @@ have d'0: 0 < \big[minr/1]_(p : P) d' p.
   rewrite lt_bigmin ltr01; apply/allP => p _ /=.
   by case: (xd' p).
 exists (ball x (\big[Order.min/1]_(p : P) d' p)).
-split; first exact/open_subspaceW/ball_open.
-split; first by rewrite inE; apply ballxx.
-move=> y; rewrite in_setI => /andP[]; rewrite inE/= => ys.
+have andxx (a b c : Prop) : a /\ b /\ c -> (a /\ b) /\ (a /\ c).
+  by move=> [] ? [] ? ?.
+apply/andxx; split; first exact/open_subspaceW/ball_open.
+apply/andxx; split; first by rewrite inE; apply ballxx.
+apply/all_and2 => y; rewrite in_setI.
+apply/all_and2 => /andP[]; rewrite inE/= => ys.
 rewrite -ball_normE inE/= lt_bigmin => /andP[_] /allP/= xy.
-apply/eqP; rewrite rowPE forall_ord1 -!rE eqr_nat; apply/eqP.
 pose rs := fun x => [fset x in (rootsR (evalpmp x (\prod_(p : P) \val p)))].
 have card_rs : forall x, #|` rs x | = size (rootsR (evalpmp x (\prod_(p : P) \val p))).
   by move=> z; rewrite /rs card_imfset//= undup_id// uniq_roots.
-rewrite -!card_rs.
 have pc0 p z: z \in s -> pc p z != 0.
   by rewrite map_poly_eq0 -size_poly_eq0; apply/p0 => //; apply/fsvalP.
 have pcM0 z: z \in s -> \prod_(p : P) pc p z != 0.
@@ -1435,7 +867,6 @@ have: exists (fxy : forall p,
     by exists [` vP].
   by rewrite mem_imfset//= mem_dec_roots pc0.
 move=> [/=] fxy fxyd.
-have R0: [char R[i]] =i pred0 by apply/charf0P => i; rewrite pnatr_eq0.
 have fxy_bij: forall p, bijective (fxy p).
   move=> p; apply/inj_card_bij; last first.
     rewrite -2!cardfE card_imfset//= card_imfset//=.
@@ -1455,10 +886,8 @@ have fxy_bij: forall p, bijective (fxy p).
     rewrite mem_dec_roots => /andP[_] pv.
     rewrite /rx mem_dec_roots pcM0//= root_bigmul/=.
     by apply/hasP; exists p => //; apply/mem_index_enum.
-  suff: (`|(val u - val (fxy p u)) - (val v - val (fxy p v))| < 2 * d)%R.
-    by rewrite opprB addrC addrCA addrAC uv subrr add0r.
-  apply/(le_lt_trans (ler_normB _ _)).
-  by rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
+  - rewrite -(subrBB (val (fxy p u))) {2}uv; apply/(le_lt_trans (ler_normB _ _)).
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
 have: exists (fyx : forall p,
       [fset x in dec_roots (pc p y)] -> [fset x in dec_roots (pc p x)]),
     forall p, cancel (fxy p) (fyx p) /\ cancel (fyx p) (fxy p).
@@ -1494,10 +923,9 @@ move=> []gyx gyxd.
 have gyxE p (u : [fset x in dec_roots (pc p y)]) :
     gyx [` lift p y u ys] = [` lift p x (fyx p u) xs].
   apply/val_inj/dP => /=.
-  - by move: (fsvalP gyx.[lift p y u ys]); rewrite (mem_imfset _ _ (@inj_id _))/=.
+  - by move: (fsvalP (gyx [`lift p y u ys])); rewrite (mem_imfset _ _ (@inj_id _))/=.
   - by move: (lift p x (fyx p u) xs); rewrite (mem_imfset _ _ (@inj_id _))/=.
-  suff: `|(val u - val gyx.[lift p y u ys]) - (val u - val (fyx p u))| < (2 * d)%R.
-    by rewrite opprB addrCA addrAC subrr add0r -normrN opprB.
+  rewrite -(subrBB (val u)) opprB -normrN opprD opprB.
   apply/(le_lt_trans (ler_normB _ _)).
   rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/gyxd.
   exact/fyxd.
@@ -1519,86 +947,112 @@ have dP' p u: (count (fun v => (`|u - v| < d)%R) (dec_roots (pc p x)) <= 1)%N.
   have: b \in [:: a, b & rsd] by rewrite in_cons mem_head orbT.
   rewrite -rsdE !mem_filter !mem_dec_roots.
   move=> /andP[] wbd /andP[_] bx /andP[] wba /andP[_] ax.
-  have: (`|(u - a) - (u - b)| < 2 * d)%R.
-    apply/(le_lt_trans (ler_normB _ _)).
-    by rewrite mulr2n mulrDl mul1r; apply/ltrD.
-  rewrite opprB addrAC addrCA subrr addr0 => /dP -> //.
-    rewrite mem_dec_roots pcM0//= root_bigmul.
+  elim; apply/dP.
+  - rewrite mem_dec_roots pcM0//= root_bigmul.
     apply/hasP; exists p => //; apply/mem_index_enum.
-  rewrite mem_dec_roots pcM0//= root_bigmul.
-  by apply/hasP; exists p => //; apply/mem_index_enum.
-have mu_gyx p (u : [fset x | x in dec_roots (\prod_p pc p y)]) :
-    \mu_(val (gyx u)) (pc p x) = \mu_(val u) (pc p y).
-  move: (psize (val p) (fsvalP p) x y xs ys).
-  move: (size_pc (pc p x)) (size_pc (pc p y)).
-  rewrite !size_map_poly => -> ->.
-  rewrite pc0.
-
-
+  - rewrite mem_dec_roots pcM0//= root_bigmul.
+    by apply/hasP; exists p => //; apply/mem_index_enum.
+  rewrite -(subrBB u) opprB -normrN opprD opprB.
+  apply/(le_lt_trans (ler_normB _ _)).
+  by rewrite mulr2n mulrDl mul1r; apply/ltrD.
+have ball_root1 (p : P) (u : [fset x | x in dec_roots (\prod_p pc p y)]) :
+  root (pc p y) (val u) ->
+  [seq v <- dec_roots (pc p y) | `|v - val (gyx u)| < d] = [:: val u].
+  move=> pu.
+  have: all (fun v => v == val u) [seq v <- dec_roots (pc p y) | `|v - val (gyx u)| < d].
+    apply/allP => v; rewrite mem_filter => /andP[] vu vp.
+    have uP: val u \in [fset x | x in dec_roots (pc p y)].
+      by rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots pc0.
+    have vP: v \in [fset x | x in dec_roots (pc p y)] by rewrite mem_imfset.
+    apply/eqP; rewrite -[val u]/(val [` uP]) -[v]/(val [` vP]) ; congr val.
+    apply/(can_inj (fyxK p))/val_inj/dP.
+    - by move: (fsvalP [` lift p x (fyx p [` vP]) xs]); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    - by move: (fsvalP [` lift p x (fyx p [` uP]) xs]); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite -(subrBB v) opprB -normrN opprD opprB.
+    apply/(le_lt_trans (ler_normB _ _)).
+    rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/fyxd.
+    move: vu; congr (`|_ - _| < d).
+    rewrite -[RHS]/(val [` lift p x (fyx p [` uP]) xs]) -gyxE.
+    by congr (val (gyx _)); apply/val_inj.
+  have: uniq [seq v <- dec_roots (pc p y) | `|v - val (gyx u)| < d].
+    exact/filter_uniq/uniq_dec_roots.
+  have: val u \in [seq v <- dec_roots (pc p y) | `|v - val (gyx u)| < d].
+    by rewrite mem_filter gyxd mem_dec_roots pc0.
+  case: (seq.filter _ _) => [|/= a l]; first by rewrite in_nil.
+  move=> _ /[swap] /andP[] /eqP ->.
+  by case: l => [//|b l] /= /andP[] /eqP -> _; rewrite mem_head.
 have gxyK: cancel gxy gyx.
   move=> u; apply/val_inj/dP.
   - by move: (fsvalP (gyx (gxy u))); rewrite (mem_imfset _ _ (@inj_id _))//.
   - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))//.
-    suff: (`|(val u - val (gxy u)) + (val (gxy u) - val (gyx (gxy u)))| < 2 * d)%R.
-      rewrite -[(`|_ - _|)%R]normrN opprB; congr (normr _ < _).
-      by rewrite addrC addrCA addrAC subrr add0r.
+  rewrite -(subrBB (val (gxy u))) -normrN !opprB.
   apply/(le_lt_trans (ler_normD _ _)).
   rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/gxyd.
   exact/gyxd.
+have gyx_root p (u : [fset x | x in dec_roots (\prod_p pc p y)]) :
+  root (pc p y) (val u) -> root (pc p x) (val (gyx u)).
+  move=> pu.
+  have uP: val u \in [fset x | x in dec_roots (pc p y)].
+    by rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots pc0.
+  move: (fsvalP (fyx p [` uP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+  rewrite mem_dec_roots pc0 //=; congr root.
+  rewrite -[LHS]/(val [` lift p x (fyx p [` uP]) xs]) -gyxE.
+  by congr (val (gyx _)); apply/val_inj.
+have ltnn_ne (a b : nat) : (a < b)%N -> a <> b.
+  by move=> /[swap] ->; rewrite ltnn.
+have mu_gyx p (u : [fset x | x in dec_roots (\prod_p pc p y)]) :
+    root (pc p y) (val u) ->
+    \mu_(val (gyx u)) (pc p x) = \mu_(val u) (pc p y).
+  move=> pu.
+  apply/le_anti/andP; split.
+    case: (xd' p) => _ /(_ y ys (xy p (mem_index_enum _)))/(_ (val (gyx u))).
+    move=> /(_ (gyx_root p u pu)).
+    by rewrite -[X in (_ <= X)%N]big_filter ball_root1 ?big_seq1.
+  rewrite /Order.le/= leqNgt; apply/negP => mpu.
+  move: (psize (val p) (fsvalP p) x y xs ys).
+  move: (size_pc (pc p x)) (size_pc (pc p y)).
+  rewrite !size_map_poly => -> -> /eqP.
+  rewrite !pc0// !addn1 eqSS => /eqP.
+  rewrite -[RHS](big_rmcond_in (fun u => has (fun v => `|u - v| < d) (dec_roots (pc p x))))/=; last first.
+    move=> v pv.
+    have vP : v \in [fset x | x in dec_roots (pc p y)] by rewrite mem_imfset//=.
+    rewrite -all_predC => /allP.
+    move: (fsvalP (fyx p [` vP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    by move=> /[swap]/[apply]; rewrite fyxd.
+  rewrite (@big_hasE _ _ _ _ _ _ xpredT)/= => [|v _]; last exact/dP'.
+  apply/ltnn_ne; rewrite big_seq_cond [X in (_ < X)%N]big_seq_cond.
+  rewrite ltn_sum//= => [v|].
+    rewrite andbT mem_dec_roots => /andP[_] pv.
+    by case: (xd' p) => _ /(_ y ys (xy p (mem_index_enum _)))/(_ v pv).
+  apply/hasP; exists (val (gyx u)).
+    by rewrite mem_dec_roots pc0//=; apply/gyx_root.
+  rewrite mem_dec_roots pc0//= gyx_root//=.
+  apply/(leq_trans mpu).
+  rewrite [X in (_ <= X)%N]big_mkcond (bigD1_seq (val u))/=; first last.
+  - exact/uniq_dec_roots.
+  - by rewrite mem_dec_roots pc0.
+  by rewrite gyxd leq_addr.
 have gyxK: cancel gyx gxy.
   move=> v; apply/val_inj; move: (gyx v) (gyxd v) => u vud.
   case: (unlift y v) (gxy u) (gxyd u) => p pv w uw.
   case: (unlift y w) => q qw.
-  case: u v vud => /= u.
-  rewrite mem_imfset/= => pu; last by [].
-  case=> /= v; rewrite mem_imfset/=; last by [].
-  rewrite mem_dec_roots root_bigmul => /andP[_] /hasP/= [] p _ pv vu.
-  case=> /= w; rewrite mem_imfset/=; last by [].
-  rewrite mem_dec_roots root_bigmul => /andP[_] /hasP/= [] q _ qw uw.
-  case: (fxy_bij p) => gp fpK gpK.
-  case: (fxy_bij q) => gq fqK gqK.
-  apply/eqP; rewrite -[_ == _]negbK; apply/negP => wv.
+  apply/eqP; rewrite -[_ == _]negbK; apply/negP => /eqP wv. 
   move: (pqsize (val p) (val q) (fsvalP p) (fsvalP q) x y xs ys).
   move: (size_pc (gcdp (pc p x) (pc q x))) (size_pc (gcdp (pc p y) (pc q y))).
   rewrite !gcdp_eq0 !negb_and !pc0//= !addn1 -!gcdp_map !size_map_poly => -> -> /eqP.
-  rewrite eqSS !gcdp_map -!/(pc _ _) => /eqP.
+  rewrite eqSS !gcdp_map -!/(pc _ _) => /eqP/esym.
   under eq_bigr do rewrite mu_gcdp ?pc0//.
   under [in RHS]eq_bigr do rewrite mu_gcdp ?pc0//.
-  move=> pq.
-  suff: ((\sum_(i <- dec_roots (gcdp (pc p y) (pc q y)))
-      minn (\mu_i (pc p y)) (\mu_i (pc q y))) <
-    (\sum_(i <- dec_roots (gcdp (pc p x) (pc q x)))
-      minn (\mu_i (pc p x)) (\mu_i (pc q x))))%N.
-    by rewrite -pq ltnn.
+  apply/ltnn_ne.
   rewrite -(big_rmcond_in (fun u => has (fun v => `|u - v| < d) (dec_roots (gcdp (pc p x) (pc q x)))))/=; last first.
     move=> a; rewrite mem_dec_roots root_gcd => /andP[_] /andP[] pa qa.
-    rewrite -all_predC => /allP.
-    have apP: a \in [fset x in dec_roots (pc p y)].
-      by rewrite mem_imfset//= mem_dec_roots pc0.
-    move=> /(_ (val (gp [` apP]))).
-    rewrite mem_dec_roots gcdp_eq0 negb_and !pc0//= root_gcd.
-    move: (fsvalP (gp [` apP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
-    rewrite mem_dec_roots => /andP[_] -> /=.
-    have aqP: a \in [fset x in dec_roots (pc q y)].
-      by rewrite mem_imfset//= mem_dec_roots pc0.
-    suff ->: val (gp [` apP]) = val (gq [` aqP]).
-      move: (fsvalP (gq [` aqP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
-      rewrite mem_dec_roots => /andP[_] /[swap]/[apply].
-      move: (gqK [` aqP]) => /(congr1 val)/= aE.
-      by rewrite -{1}aE -normrN opprB fxyd.
-    apply/dP.
-    - move: (fsvalP (gp [` apP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
-      rewrite mem_dec_roots => /andP[_] pga.
-      rewrite mem_dec_roots pcM0//= root_bigmul.
-      apply/hasP => /=; exists p => //; apply/mem_index_enum.
-    - move: (fsvalP (gq [` aqP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
-      rewrite mem_dec_roots => /andP[_] qga.
-      rewrite mem_dec_roots pcM0//= root_bigmul.
-      apply/hasP => /=; exists q => //; apply/mem_index_enum.
-    suff: (`|(val (gp [` apP]) - val (fxy p (gp [` apP]))) - (val (gq [` aqP]) - val (fxy q (gq [` aqP])))| < 2 * d)%R.
-      by rewrite gpK/= gqK/= opprB addrC addrCA addrAC subrr add0r.
-    apply/(le_lt_trans (ler_normB _ _)).
-    rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
+    rewrite -all_predC => /allP/=.
+    have aP: a \in [fset x in dec_roots (\prod_(p : P) pc p y)].
+      rewrite mem_imfset//= mem_dec_roots pcM0//= root_bigmul.
+      by apply/hasP; exists p => //; apply/mem_index_enum.
+    suff /[swap]/[apply]: val (gyx [` aP]) \in dec_roots (gcdp (pc p x) (pc q x)).
+      by rewrite gyxd.
+    by rewrite mem_dec_roots gcdp_eq0 negb_and !pc0//= root_gcd !gyx_root//.
   rewrite (@big_hasE _ _ _ _ _ _ xpredT)/=; last first.
     move=> a _; rewrite -size_filter.
     move: (filter_uniq (fun v => `|a - v| < d) (uniq_dec_roots (gcdp (pc p x) (pc q x)))).
@@ -1609,129 +1063,222 @@ have gyxK: cancel gyx gxy.
     have: c \in [:: b, c & rsd] by rewrite in_cons mem_head orbT.
     rewrite -rsdE !mem_filter !mem_dec_roots !root_gcd.
     move=> /andP[] wcd /andP[_] /andP[_] cx /andP[] wcb /andP[_] /andP[_] bx.
-    have: (`|(a - b) - (a - c)| < 2 * d)%R.
-      apply/(le_lt_trans (ler_normB _ _)).
-      by rewrite mulr2n mulrDl mul1r; apply/ltrD.
-    rewrite opprB addrAC addrCA subrr addr0 => /dP -> //.
-      rewrite mem_dec_roots pcM0//= root_bigmul.
+    elim; apply/dP.
+    - rewrite mem_dec_roots pcM0//= root_bigmul.
       apply/hasP; exists q => //; apply/mem_index_enum.
-    rewrite mem_dec_roots pcM0//= root_bigmul.
-    by apply/hasP; exists q => //; apply/mem_index_enum.
-  rewrite (bigD1_seq u)/=; first last.
-  - exact/uniq_dec_roots.
-  - rewrite mem_dec_roots gcdp_eq0 negb_and pc0//= root_gcd.
-
-    rewrite vP -[X in (X <= _)%N]addn0; apply/leq_add => //.
-      by rewrite mu_gt0// pc0.
-      by move=> w _; apply/dP'.
-    apply/leq_sum => v _.
-    case/boolP: (root (pc p x) v) => [vx|/muNroot -> //].
-    by move: (xd' p) => [_]; apply=> //; apply/xy/mem_index_enum.
-
-    
-
-
-  Search multiplicity gcdp.
-  rewrite -(gcdp_map (meval (tnth (ngraph x)) : {rmorphism {mpoly R[n.+1]} -> R})).
-  rewrite /evalpmp. -gcdp_map.
-  Check gcdp_map.
-  have [pq|pq] := eqVneq q p.
-    move: qw pv; rewrite {}pq => {q} pw pv.
-    
-
-
-have fxybij : bijective fxy.
-  apply/inj_card_bij => [u v fuv|].
-    apply/val_inj/dP.
-    - by move: (fsvalP u); rewrite -[fsval u]/(id _) mem_imfset//.
-    - by move: (fsvalP v); rewrite -[fsval v]/(id _) mem_imfset//.
-    suff: (`|(val u - val (fxy u)) - (val v - val (fxy v))| < 2 * d)%R.
-      by congr (normr _ < _); rewrite fuv addrC opprB addrCA addrAC subrr add0r.
+    - rewrite mem_dec_roots pcM0//= root_bigmul.
+      apply/hasP; exists q => //; apply/mem_index_enum.
+    rewrite -(subrBB a) opprB -normrN opprD opprB.
     apply/(le_lt_trans (ler_normB _ _)).
-    by rewrite mulr2n mulrDl mul1r; apply/ltrD; apply/fxyd.
-  rewrite -2!cardfE card_imfset//= card_imfset//=.
-  do 2 rewrite undup_id ?uniq_dec_roots//.
-  move: (size_dec_roots (pc p x) R0).
-  rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
-  rewrite deriv_map -gcdp_map/= !size_map_poly.
-  rewrite (proots (val p) (fsvalP p) x y xs ys).
-  rewrite (psize (val p) (fsvalP p) x y xs ys).
-  move: (size_dec_roots (pc p y) R0).
-  rewrite size_divp; last by rewrite gcdp_eq0 negb_and pc0.
-  rewrite deriv_map -gcdp_map/= !size_map_poly => <- pxy.
-  rewrite card_finset.
-  Search card Imfset.imfset.
-have roots_uniq u v (ux : root (\prod_(p : P) pc p x) u) : root (\prod_(p : P) pc p y) v -> `|u - v| < d ->
-    v = sval (has_roots u ux).
-  case: (has_roots _ _) => /= w [].
-  rewrite !root_bigmul => /hasP/sig2W /= [] p _ wp wu /hasP/sig2W /= [] q _ vq vu.
-  
-    
-    Search bijective card.
-    Check bij_eq_card.
-
-    rewrite /pc.
-    Search gcdp "morph".
-    Search size gcdp (_ %/ _).
-    Search size dec_roots.
-    
-  move=> vy uv; case: (has_roots _ _) => /= w [].
-  move: rewrite root_bigmul. wy uw.
-
-
-
-    
-    Check root_bigmul.
-    Search (_ < _ * _)%R (_ / _)%R.
-        
-
-    -/(size [:: w.
-    Search (count _ _ <= _)%N.
-
-
-
-    Search seq.filter has.
-  Search bigop orb.
-  rewrite size_map_poly => ->.
-
-  rewrite -(size_map_poly (
-  rewrite size_scale; last first.
-    by rewrite -lead_coefE lead_coef_eq0 map_poly_eq0 -size_poly_eq0; apply/p0 => //; apply/fsvalP.
-  rewrite size_prod_seq => /= [| w _]; last first.
-    by rewrite expf_eq0 polyXsubC_eq0 andbF.
-    Search (size (_ ^+ _)).
-  under eq_bigr do rewrite size_
-  Search multiplicity bigop size.
-have size_pc p z : z \in s -> size (pc p z) = (\sum_(u <- dec_roots (\prod_(p : P) pc p z)) \mu_u (pc p z)).+1.
-  move=> zs.
-  rewrite (bigID (fun u => root (pc p z) u))/= -[LHS]addn0 -addSn.
-  congr (_ + _)%N; last first.
-    apply/esym; rewrite big_mkcond/=; apply/big1_idem => //= u _.
-    by case /boolP: (root (pc p z) u) => //= /muNroot ->.
-  rewrite -big_filter.
-  rewrite (perm_big (dec_roots (pc p z)))/=.
-    move: (dec_roots_closedP (pc p z)) => /(congr1 (fun p : {poly _} => size p)).
-    rewrite size_scale; last by rewrite -lead_coefE lead_coef_eq0 pc0.
-    rewrite size_prod_seq => /= [| w _]; last first.
-      by rewrite expf_eq0 polyXsubC_eq0 andbF.
-    under eq_bigr do rewrite my_size_exp ?polyXsubC_eq0// size_XsubC/= mul1n -addn1.
-    by rewrite big_split/= sum1_size -addSn subDnAC// subnn.
-  apply/uniq_perm; first exact/filter_uniq/uniq_dec_roots.
-    exact/uniq_dec_roots.
-  move=> u; rewrite mem_filter !mem_dec_roots.
-  apply/andP/andP => [[] zu _|[] _ zu].
-    by split=> //; apply/pc0.
-  split=> //; apply/andP; split.
-    by apply/prodf_neq0 => /= q _; apply/pc0.
-  rewrite root_bigmul/=; apply/hasP => /=.
-  by exists p => //; apply/mem_index_enum.
-
-apply/(bij_eq_card (f:=fun u => [arg min_(v < 
-Print Order.arg_min.
-Search "arg_min".
-
-Check    bij_eq_card.
-
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD.
+  rewrite big_seq_cond [X in (_ < X)%N]big_seq_cond.
+  apply/ltn_sum => [a|].
+    rewrite andbT mem_dec_roots root_gcd => /andP[_] /andP[] pa qa.
+    rewrite -big_filter.
+    have aP: a \in [fset x | x in dec_roots (pc p x)].
+      by rewrite mem_imfset//= mem_dec_roots pc0.
+    have aQ: a \in [fset x | x in dec_roots (pc q x)].
+      by rewrite mem_imfset//= mem_dec_roots pc0.
+    have: uniq [seq i <- dec_roots (gcdp (pc p y) (pc q y)) | normr (i - a) < d].
+      exact/filter_uniq/uniq_dec_roots.
+    have: all (fun b => b == val (fxy p [` aP]))
+        [seq i <- dec_roots (gcdp (pc p y) (pc q y)) | (normr (i - a) < d)%R].
+      apply/allP => b; rewrite mem_filter mem_dec_roots root_gcd.
+      move=> /andP[] ba /andP[_] /andP[] pb _.
+      have bP: b \in [fset x | x in dec_roots (pc p y)].
+        by rewrite mem_imfset//= mem_dec_roots pc0.
+      rewrite -[b]/(val [` bP]); apply/eqP; congr fsval.
+      apply/(can_inj (fyxK p)); rewrite (fxyK p); apply/val_inj/dP.
+      - move: (fsvalP (fyx p [` bP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+        rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pbx.
+        apply/hasP; exists p => //; apply/mem_index_enum.
+      - move: (fsvalP [` aP]); rewrite (mem_imfset _ _ (@inj_id _))/=.
+        rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pax.
+        apply/hasP; exists p => //; apply/mem_index_enum.
+      rewrite -(subrBB b)/= opprB -normrN opprD opprB.
+      apply/(le_lt_trans (ler_normB _ _)).
+      by rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/fyxd.
+    case: (seq.filter _ _) => /= [_ _|b + /andP[] /eqP ->].
+      by rewrite big_nil.
+    case=> /= [_ _|c l /andP[] /eqP -> _]; last by rewrite mem_head.
+    rewrite big_seq1/=.
+    have aE: a = val (gyx [` lift p y (fxy p [` aP]) ys]).
+      by rewrite gyxE/= (fxyK p).
+    rewrite [in X in (_ <= X)%N]aE mu_gyx/=; last first.
+      move: (fsvalP (fxy p [` aP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      by rewrite mem_dec_roots => /andP[_].
+    rewrite leq_min [ X in X && _]geq_minl/= geq_min; apply/orP; right.
+    case/boolP: (root (pc q y) (val (fxy p [` aP]))) => [qfa|/muNroot -> //].
+    by rewrite mu_gyx.
+  have upE: u = gyx v.
+    apply/val_inj/dP.
+    - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    - by move: (fsvalP (gyx v)); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite -(subrBB (val v)) opprB -normrN opprD opprB.
+    apply/(le_lt_trans (ler_normB _ _)).
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD; last exact/gyxd.
+  have uqE: u = gyx w.
+    apply/val_inj/dP.
+    - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    - by move: (fsvalP (gyx w)); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite -(subrBB (val w)) opprB.
+    apply/(le_lt_trans (ler_normD _ _)).
+    by rewrite mulr2n mulrDl mul1r; apply/ltrD; last exact/gyxd.
+  have pv': root (pc p y) (val v).
+    move: pv; rewrite (mem_imfset _ _ (@inj_id _))/=.
+    by rewrite mem_dec_roots => /andP[_].
+  have qw': root (pc q y) (val w).
+    move: qw; rewrite (mem_imfset _ _ (@inj_id _))/=.
+    by rewrite mem_dec_roots => /andP[_].
+  have pqu: \val u \in dec_roots (gcdp (pc p x) (pc q x)).
+    rewrite mem_dec_roots gcdp_eq0 negb_and !pc0//= root_gcd.
+    rewrite {1}upE gyx_root// uqE gyx_root//.
+  apply/hasP; exists (val u) => //=.
+  rewrite pqu/= -big_filter.
+  suff ->: [seq i <- dec_roots (gcdp (pc p y) (pc q y))
+      | (normr (i - fsval u) < d)%R] = [::].
+    rewrite big_nil {1}upE uqE (mu_gyx p v pv') (mu_gyx q w qw') leq_min.
+    by apply/andP; split; rewrite mu_gt0// pc0.
+  apply/eqP/eq_mem_nil => a; rewrite in_nil mem_filter mem_dec_roots.
+  rewrite gcdp_eq0 negb_and !pc0//= root_gcd.
+  apply/negP => /andP[] au /andP[] pa qa.
+  have aP: a \in [fset x | x in dec_roots (pc p y)].
+    by rewrite mem_imfset//= mem_dec_roots pc0.
+  have aQ: a \in [fset x | x in dec_roots (pc q y)].
+    by rewrite mem_imfset//= mem_dec_roots pc0.
+  apply/wv; transitivity a.
+    rewrite -[a]/(val [` aQ]) -[LHS]/(val [` qw]); congr fsval.
+    apply/(can_inj (fyxK q)); apply/val_inj/dP.
+    - move: (fsvalP (fyx q [` qw])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pbx.
+      apply/hasP; exists q => //; apply/mem_index_enum.
+    - move: (fsvalP (fyx q [` aQ])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+      rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pax.
+      apply/hasP; exists q => //; apply/mem_index_enum.
+    rewrite -(subrBB a)/= opprB -normrN opprD opprB.
+    apply/(le_lt_trans (ler_normB _ _)).
+    rewrite mulr2n mulrDl mul1r; apply/ltrD; last exact/fyxd.
+    rewrite -[X in _ - X]/(val [` lift q x (fyx q [` qw]) xs]) -gyxE/=.
+    move: au; congr (`|_ - _| < d).
+    by rewrite uqE; congr (val (gyx _)); apply/val_inj.
+  rewrite -[a]/(val [` aP]) -[RHS]/(val [` pv]); congr fsval.
+  apply/(can_inj (fyxK p)); apply/val_inj/dP.
+  - move: (fsvalP (fyx p [` aP])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pax.
+    apply/hasP; exists p => //; apply/mem_index_enum.
+  - move: (fsvalP (fyx p [` pv])); rewrite (mem_imfset _ _ (@inj_id _))/=.
+    rewrite !mem_dec_roots pcM0//= root_bigmul => /andP[_] pbx.
+    apply/hasP; exists p => //; apply/mem_index_enum.
+  rewrite -(subrBB a)/= opprB -normrN opprD opprB.
+  apply/(le_lt_trans (ler_normB _ _)).
+  rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/fyxd.
+  rewrite -[X in _ - X]/(val [` lift p x (fyx p [` pv]) xs]) -gyxE/=.
+  move: au; congr (`|_ - _| < d).
+  by rewrite upE; congr (val (gyx _)); apply/val_inj.
+have gR (u : [fset x | x in dec_roots (\prod_p pc p x)]) :
+    (val u \is Num.real) = (val (gxy u) \is Num.real).
+  have ucP z (v : [fset x | x in dec_roots (\prod_(p : P) pc p z)]) :
+      z \in s ->
+      ((val v)^* )%C \in [fset x | x in dec_roots (\prod_(p : P) pc p z)].
+    move=> zs; move: (unlift z v) => [] p pv.
+    rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots pcM0//= root_bigmul.
+    apply/hasP; exists p; first exact/mem_index_enum.
+    rewrite -complex_root_conj/= map_poly_id => [|a].
+      move: pv; rewrite (mem_imfset _ _ (@inj_id _))/=.
+      by rewrite mem_dec_roots => /andP[_].
+    move=> /[dup] /(nth_index 0)/=.
+    rewrite -index_mem size_map_poly => + alt.
+    by rewrite coef_poly alt => <-; rewrite conjc_real.
+  have ne20: 2 != 0 :> R[i] by rewrite pnatr_eq0.
+  apply/idP/idP => uR.
+    suff ->: \val (gxy u) = 'Re (\val (gxy u)) by apply/Creal_Re.
+    apply/(mulfI ne20).
+    rewrite -complexRe -addcJ mulr2n mulrDl mul1r; congr (_ + _)%R.
+    rewrite -[RHS]/(val [` ucP y (gxy u) ys]); congr val.
+    apply/(can_inj gyxK); rewrite gxyK; apply/val_inj/dP.
+    - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _)).
+    - move: (fsvalP (gyx [` ucP y (gxy u) ys])).
+      by rewrite (mem_imfset _ _ (@inj_id _)).
+    rewrite -(subrBB (val [` ucP y (gxy u) ys])) opprB.
+    apply/(le_lt_trans (ler_normD _ _)).
+    rewrite mulr2n mulrDl mul1r; apply/ltrD; last exact/gyxd.
+    rewrite /= -(RRe_real uR) -conjc_real -rmorphB/= norm_conjC (RRe_real uR).
+    exact/gxyd.
+  suff ->: \val u = 'Re (\val u) by apply/Creal_Re.
+  apply/(mulfI ne20).
+  rewrite -complexRe -addcJ mulr2n mulrDl mul1r; congr (_ + _)%R.
+  apply/dP.
+  - by move: (fsvalP u); rewrite (mem_imfset _ _ (@inj_id _)).
+  - by move: (fsvalP ([` ucP x u xs])); rewrite (mem_imfset _ _ (@inj_id _)).
+  rewrite -(subrBB (val (gxy u))).
+  apply/(le_lt_trans (ler_normB _ _)).
+  rewrite mulr2n mulrDl mul1r; apply/ltrD; first exact/gxyd.
+  rewrite /= -(RRe_real uR) -conjc_real -rmorphB/= norm_conjC (RRe_real uR).
+  exact/gxyd.
+split; last first; apply/eqP; rewrite rowPE forall_ord1.
+  rewrite -!cE eqr_nat; apply/eqP.
+  pose cs (z : 'rV[R]_n.+1) := dec_roots (map_poly (real_complex R) (evalpmp z (\prod_(p : P) val p))).
+  have card_cs z: #|` [fset x in cs z]| = size (cs z).
+    by rewrite /rs card_imfset//= undup_id// uniq_dec_roots.
+  rewrite -(card_cs x) -(card_cs y).
+  have /bij_eq_card: bijective gxy by exists gyx.
+  by rewrite /cs /= !cardfE !evalpmp_prod !rmorph_prod.
+rewrite -!rE eqr_nat -(card_rs x) -(card_rs y); apply/eqP.
+have liftRP: forall z, z \in s ->
+    forall (u : [fset x | x in rootsR (\prod_(p : P) (evalpmp z (val p)))]),
+    exists (v : [fset x | x in dec_roots (\prod_p pc p z)]),
+    val v = (val u)%:C%C.
+  move=> z zs; case=> /= u; rewrite mem_imfset//= in_rootsR => /andP[_] pu.
+  suff uP: u%:C%C \in [fset x0 | x0 in dec_roots (\prod_p pc p z)].
+    by exists [` uP].
+  rewrite (mem_imfset _ _ (@inj_id _))/= mem_dec_roots pcM0//=.
+  by rewrite -rmorph_prod/= fmorph_root.
+move: (fun z zs => fin_all_exists (liftRP z zs)) => {}liftRP.
+case: (liftRP x xs) => liftxR liftxRE.
+case: (liftRP y ys) => liftyR liftyRE {liftRP}.
+have /fin_all_exists: forall (u : [fset x | x in rootsR (\prod_(p : P) (evalpmp x (val p)))]),
+    exists (v : [fset x | x in rootsR (\prod_(p : P) (evalpmp y (val p)))]),
+    (val v)%:C%C = val (gxy (liftxR u)).
+  move=> u.
+  have: val (liftxR u) \is Num.real.
+    by apply/complex_realP; exists (val u); apply/liftxRE.
+  rewrite gR => /Creal_ReP; rewrite -complexRe => uE.
+  suff uP: complex.Re (val (gxy (liftxR u)))
+      \in [fset x0 | x0 in rootsR (\prod_(p : P) evalpmp y (\val p))].
+    by exists [` uP] => /=; apply/uE.
+  rewrite (mem_imfset _ _ (@inj_id _))/= in_rootsR. 
+  move: (fsvalP (gxy (liftxR u))).
+  rewrite -uE (mem_imfset _ _ (@inj_id _))/= mem_dec_roots. 
+  by rewrite -{1 2}rmorph_prod/= fmorph_root map_poly_eq0.
+move=> [] hxy hxyE.
+have /fin_all_exists: forall (u : [fset x | x in rootsR (\prod_(p : P) (evalpmp y (val p)))]),
+    exists (v : [fset x | x in rootsR (\prod_(p : P) (evalpmp x (val p)))]),
+    (val v)%:C%C = val (gyx (liftyR u)).
+  move=> u.
+  have: val (liftyR u) \is Num.real.
+    by apply/complex_realP; exists (val u); apply/liftyRE.
+  rewrite -{1}[liftyR u]gyxK -gR => /Creal_ReP; rewrite -complexRe => uE.
+  suff uP: complex.Re (val (gyx (liftyR u)))
+      \in [fset x0 | x0 in rootsR (\prod_(p : P) evalpmp x (\val p))].
+    by exists [` uP] => /=; apply/uE.
+  rewrite (mem_imfset _ _ (@inj_id _))/= in_rootsR. 
+  move: (fsvalP (gyx (liftyR u))).
+  rewrite -uE (mem_imfset _ _ (@inj_id _))/= mem_dec_roots. 
+  by rewrite -{1 2}rmorph_prod/= fmorph_root map_poly_eq0.
+move=> [] hyx hyxE.
+suff /bij_eq_card: bijective hxy by rewrite /rs /= !evalpmp_prod !cardfE.
+exists hyx => u; apply/val_inj/complexI.
+  rewrite hyxE.
+  have ->: liftyR (hxy u) = gxy (liftxR u).
+    by apply/val_inj; rewrite liftyRE hxyE.
+  by rewrite gxyK liftxRE.
+rewrite hxyE.
+have ->: liftxR (hyx u) = gyx (liftyR u).
+  by apply/val_inj; rewrite liftxRE hyxE.
+by rewrite gyxK liftyRE.
+Qed. *)
+admit.
+Admitted.
 
 Definition elimp_subdef1 n (P : {fset {mpoly R[n.+1]}}) :=
   \big[fsetU/fset0]_(p : P) truncations (muni (val p)).
@@ -1742,21 +1289,166 @@ Definition elimp_subdef2 n (P : {fset {mpoly R[n.+1]}}) :=
 
 Definition elimp_subdef3 n (P : {fset {mpoly R[n.+1]}}) :=
   \big[fsetU/fset0]_(p : elimp_subdef1 P)
-    \big[fsetU/fset0]_(q : elimp_subdef1 P | (size (val q) < size (val p))%N)
+    \big[fsetU/fset0]_(q : elimp_subdef1 P | (size (val q) <= size (val p))%N)
       [fset subresultant (val j) (val p) (val q) | j : 'I_(size (val q)).-1].
 
+(* Is that an optimization?
 Definition elimp_subdef4 n (P : {fset {mpoly R[n.+1]}}) :=
   \big[fsetU/fset0]_(p : elimp_subdef1 P)
     \big[fsetU/fset0]_(q : elimp_subdef1 P | (size (val q) == size (val p))%N)
       let q := lead_coef (val p) *: (val q) - lead_coef (val q) *: (val p) in
       [fset subresultant (val j) (val p) (val q)  | j : 'I_(size (val q)).-1].
+ *)
 
 Definition elimp_subdef5 n (P : {fset {mpoly R[n.+1]}}) :=
   [fset lead_coef (val p) | p : elimp_subdef1 P].
 
 Definition elimp n (P : {fset {mpoly R[n.+1]}}) :=
-  [fset p : elimp_subdef2 P `|` elimp_subdef3 P `|` elimp_subdef4 P `|` elimp_subdef5 P | msize (val p) != 0].
+  [fset p in elimp_subdef2 P `|` elimp_subdef3 P (* `|` elimp_subdef4 P *) `|` elimp_subdef5 P | (1 < msize (val p))%N].
+
+Lemma map_poly_truncate (A B : ringType) (f : {rmorphism A -> B}) d (p : {poly A}) :
+  map_poly f (truncate p d) = truncate (map_poly f p) d.
+Proof.
+apply/polyP => i.
+rewrite coef_map !coef_poly [LHS]fun_if [in RHS]ltn_min andbC.
+case: (ltnP i (size (map_poly f p))) => ifp /=.
+  by rewrite -if_and ltn_min rmorph0.
+case: ifP => _; last exact/rmorph0.
+rewrite -coef_map.
+by move/leq_sizeP: ifp; apply.
+Qed.
+
+Lemma mx_continuous (T : topologicalType) (K : realFieldType) m n (f : T -> 'M[K]_(m.+1, n.+1)) :
+  (forall i j, continuous (fun x => f x i j)) ->
+  continuous f.
+Proof.
+move=> fc x; apply/cvg_ballP => e e0.
+near=> y.
+rewrite -[X in X (f x)]ball_normE/= [X in X < _]mx_normrE bigmax_lt//= => -[] i j _.
+rewrite !mxE/=.
+suff: ball (f x i j) e (f y i j).
+  by rewrite -(@ball_normE _ (GRing_regular__canonical__normedtype_PseudoMetricNormedZmod K)).
+move: i j.
+near: y.
+apply: filter_forall => i.
+apply: filter_forall => j.
+move: (fc i j x) => /cvg_ballP-/(_ e e0).
+exact/filterS.
+Unshelve. all: end_near.
+Qed.
+
+Lemma subseq_drop_index (T : eqType) (x : T) (s1 s2 : seq T) :
+  subseq (x :: s1) s2 = subseq (x :: s1) (drop (index x s2) s2).
+Proof.
+move nE: (index _ _) => n.
+elim: n s2 nE => [|n IHn] s2 nE; first by rewrite drop0.
+case: s2 nE => [//|y s2].
+have [->|/negPf /=] := eqVneq y x; first by rewrite /= eqxx.
+by rewrite eq_sym => -> /succn_inj; apply/IHn.
+Qed.
+
+Lemma index_iota n m i :
+  index i (iota n m) = if (i < n)%N then m else minn (i - n)%N m.
+Proof.
+elim: m i n => /= [|m IHm] i n; first by rewrite minn0 if_same.
+have [->|/negPf ni] := eqVneq n i; first by rewrite ltnn subnn min0n.
+rewrite IHm ltnS leq_eqVlt eq_sym ni/=.
+case: (ltnP i n) => [//|] ni'.
+by rewrite -minnSS subnS prednK// subn_gt0 ltn_neqAle ni.
+Qed.
+
+Lemma subseq_nth_iota (T : eqType) (x : T) (s1 s2 : seq T) :
+  reflect (exists t, subseq t (iota 0 (size s2)) /\ s1 = [seq nth x s2 i | i <- t])
+      (subseq s1 s2).
+Proof.
+elim: s1 s2 => [|x1 s1 IHs1] s2/=.
+  rewrite sub0seq; apply/Bool.ReflectT.
+  by exists [::]; split=> //; apply/sub0seq.
+apply/(iffP idP) => [|[]].
+  move=> /[dup] /mem_subseq/(_ x1 (mem_head _ _)) x12.
+  rewrite subseq_drop_index drop_index//= eqxx => /IHs1[/=] t [].
+  rewrite size_drop => tsub ->.
+  exists ((index x1 s2) :: [seq (index x1 s2).+1 + i | i <- t]); split=> /=.
+    rewrite -[size s2](@subnKC (index x1 s2).+1) ?index_mem// -cat1s iotaD.
+    apply/cat_subseq; first by rewrite sub1seq mem_iota/=.
+    by rewrite iotaE0; apply/map_subseq.
+  rewrite nth_index//; congr cons.
+  rewrite -map_comp; apply/eq_map => k.
+  by rewrite nth_drop/=.
+case=> [[] //|i t] [] /[dup] /mem_subseq/(_ i (mem_head _ _)).
+rewrite mem_iota/= => /[dup] ilt /ltnW/minn_idPl is2.
+rewrite [subseq (i :: t) _]subseq_drop_index index_iota/= subn0.
+rewrite is2 drop_iota.
+case jE: (size s2 - i)%N => [//|j] /=.
+rewrite eqxx => tsub [] -> s12.
+rewrite -[s2](cat_take_drop i) nth_cat size_take is2 ltnn subnn.
+apply/(subseq_trans _ (suffix_subseq _ _)).
+case s2E: (drop i s2) => /= [|y s3].
+  by move: ilt; rewrite -[s2](cat_take_drop i) s2E cats0 size_take is2 ltnn.
+rewrite eqxx; apply/IHs1; exists [seq (j - i.+1)%N | j <- t].
+move: jE; rewrite -size_drop s2E/= => /succn_inj jE.
+rewrite jE; split.
+move: tsub; rewrite iotaE0 => /(map_subseq (fun x => x - i.+1)%N).
+congr subseq; rewrite -map_comp -[RHS]map_id; apply/eq_map => k /=.
+  by rewrite subDnCA// subnn addn0.
+rewrite s12 -map_comp; apply/eq_in_map => k /= /(mem_subseq tsub).
+rewrite mem_iota => /andP[] ik _.
+rewrite -[s2](cat_take_drop i) nth_cat size_take is2 ltnNge (ltnW ik)/=.
+by rewrite s2E -[(k - i)%N]prednK ?subn_gt0//= subnS.
+Qed.
+
+Lemma muniK (n : nat) (A : ringType) : cancel (@muni n A) (@mmulti n A).
+Proof.
+move=> p.
+apply/mpolyP => m.
+rewrite raddf_sum/=.
+under eq_bigr => i _.
+  have ->: (mwiden (muni p)`_i * 'X_ord_max ^+ i)@_m = (mwiden (muni p)`_i * 'X_ord_max ^+ i)@_m *+ (val i == m ord_max).
+    have [_|im] := eqVneq (val i) (m ord_max); first by rewrite mulr1n.
+  rewrite mulr0n mcoeffM.
+  under eq_bigr => /= j mE.
+    have ->: (mwiden (muni p)`_i)@_(j.1)%PAIR * ('X_ord_max ^+ i)@_(j.2)%PAIR = 0.
+      move: mE => /eqP /(congr1 (fun x : 'X_{1.. n.+1} => x ord_max)).
+      rewrite mnmE mcoeffXn => mE.
+      case/boolP: (_ == _) => /eqP j2; last by rewrite mulr0.
+      rewrite mulr1.
+      move: mE; rewrite -j2 mulmnE mnmE eqxx mul1n => mE.
+      rewrite (mwidenE (leqnn _)) raddf_sum/=.
+      under eq_bigr => k _.
+        rewrite mcoeffZ mcoeffX.
+        have /negPf ->: mnmwiden k != (j.1)%PAIR.
+          apply/eqP => /(congr1 (fun x : 'X_{1.. n.+1} => x ord_max)).
+          rewrite mnmwiden_ordmax => j1.
+          by rewrite mE -j1 eqxx in im.
+        rewrite mulr0.
+        over.
+      by rewrite big_const_idem//= addr0.
+      over.
+    by rewrite big_const_idem//= addr0.
+  rewrite mulrb.
+  over.
+rewrite -big_mkcond/=.
+case: (ltnP (m ord_max) (size (muni p))) => mlt; last first.
+  under eq_bigl => i.
+    have /negPf ->: i != m ord_max :> nat.
+      apply/eqP => iE.
+      by move: (ltn_ord i); rewrite iE ltnNge mlt.
+    over.
+  rewrite big_pred0_eq.
+  apply/esym/eqP; rewrite mcoeff_eq0.
+  Search Measure.type.
+  Check (@mmeasure_mnm_ge _ _ (fun m : 'X_{1.. n.+1} => m ord_max)).
+  Search msupp.
+  
+  
+
+Search bigop "0".
+  under eq_bigr => i iE.
     
+  Check big_pred0.
+rewrite (big_pred1 (m ord_max)).
+Search bigop pred1.
+
 
 Theorem cylindrical_decomposition n (P : {fset {mpoly R[n]}}) :
   { S | isCD S /\ forall p : P, poly_adapted (val p) S}.
@@ -1773,85 +1465,340 @@ elim: n P => [|n IHn] P.
     by rewrite inSAset0 inSAsetT.
   do 2 (apply/forallP; case => i /= /fset1P -> {i}).
   by rewrite eqxx.
-pose p := \prod_(p : P) muni (val p).
-pose pT := truncations p.
-pose elimp := [fset p in
-    \big[fsetU/fset0]_(p : pT)
-      (lead_coef (val p)
-      |` [fset subresultant (val j) (val p) (val p)^`()
-          | j in 'I_(size (val p)).-2])
-  | mdeg (mlead p) != 0].
-move: IHn => /(_ elimp) [S'][S'CD] S'p.
+move: IHn => /(_ (elimp P)) [S'][S'CD] S'p.
 have S'part : SAset_partition S' by case: (n) S' S'CD {S'p} => [|m] S' [].
 have pick (s' : S') : {x | x \in val s'}.
   case: (set0Vmem (val s')) => [s'0|//].
   move: S'part => /andP[] /andP[] /negP S'0 _ _.
   by exfalso; apply/S'0; rewrite -s'0 -in_fsub fsubT finset.in_setT.
-have S'size (s' : S') :
-    {in val s', forall x, size (evalpmp x p) = size (evalpmp (proj1_sig (pick s')) p)}.
-  suff: {in val s' &, forall x y, (size (evalpmp x p) <= size (evalpmp y p))%N}.
-    move=> S'size x xS; apply/anti_leq/andP.
-    split; apply/S'size => //; exact/(proj2_sig (pick s')).
-  move=> x y xS yS; apply/leq_sizeP => i yi.
-  have [p0|p0] := eqVneq p`_i 0; first by rewrite coefE p0 meval0 if_same.
-  move: (truncations_witness (leq_trans yi (leqnSn _))) => itrunc.
-  have ip: (i < (size p))%N.
-    rewrite ltnNge; apply/negP => /leq_sizeP/(_ _ (leqnn _)) pi0.
-    by rewrite pi0 eqxx in p0.
-  have si: size (truncate p i.+1) = i.+1.
+have nth_const (s' : S') (p : P) x y :
+    x \in val s' -> y \in val s' ->
+    forall i, ((size (evalpmp x (muni (val p)))).-1 <= i)%N ->
+      sgz (evalpmp x (muni (val p)))`_i = sgz (evalpmp y (muni (val p)))`_i.
+  move=> xs ys i xi.
+  have iE: forall z, (evalpmp z (muni (\val p)))`_i = (truncate (evalpmp z (muni (\val p))) i.+1)`_i.
+    move=> z; rewrite [RHS]coef_poly ltn_min leqnn/=.
+    case: ifP => [//|] /negP/negP; rewrite -leqNgt => {}zi.
+    by rewrite nth_default.
+  rewrite !iE -!map_poly_truncate/= !coef_map/=.
+  case: (ltnP 1 (msize ((truncate (muni (val p)) i.+1)`_i))) => [pi1|]; last first.
+    by move=> /msize1_polyC ->; rewrite !mevalC.
+  move: xi; rewrite -ltnS => /(leq_trans (leqSpred _)) xi.
+  suff iP: (truncate (muni (fsval p)) i.+1)`_i \in elimp P.
+    exact: (S'p [` iP] s' x y xs ys).
+  have si: size (truncate (muni (val p)) i.+1) = i.+1.
     apply/anti_leq/andP; split.
       exact/(leq_trans (size_poly _ _))/geq_minl.
-    rewrite ltnNge; apply/negP => /leq_sizeP/(_ _ (leqnn _)).
-    rewrite coefE ltn_min leqnn/= ip => pi0.
-    by rewrite pi0 eqxx in p0.
-  move/leq_sizeP: yi => /(_ _ (leqnn _)).
-  case/boolP: (mdeg (mlead p`_i) == 0) => [|psi].
-    rewrite -eqSS mlead_deg//= => /msize_poly1P [c] /eqP c0 piE.
-    by rewrite coefE ip piE mevalC => /c0.
-  have pielim: p`_i \in elimp.
-    apply/imfsetP => /=; exists p`_i => //=.
-    rewrite inE psi andbT; apply/bigfcupP.
-    exists [` itrunc]; first by rewrite mem_index_enum.
-    by rewrite /= in_fset1U lead_coefE si -pred_Sn [X in _ == X]coefE ltn_min
-      leqnn ip/= eqxx.
-  move: (S'p [` pielim]) => /(_ s' x y xS yS) /= /[swap].
-  by rewrite coefE ip => -> /eqP; rewrite sgz0 sgz_eq0 [X in X = 0]coefE ip => /eqP.
-have S'const (s' : S') :
-    {in val s', forall x, size (rootsR (evalpmp x p)) = size (rootsR (evalpmp (proj1_sig (pick s')) p))}.
-  move=> x xs; set x' := proj1_sig (pick s').
-  have [p0|x'0] := eqVneq (evalpmp x' p) 0.
-    rewrite p0; suff ->: evalpmp x p = 0 by [].
+    by apply/gt_size/eqP => pi0; rewrite pi0 msize0 in pi1.
+  rewrite inE/= inE/=; apply/andP; split=> //.
+  rewrite in_fsetU; apply/orP; right.
+  move: si => /(congr1 predn); rewrite succnK => si.
+  rewrite -[X in _`_X]si -lead_coefE.
+  suff iP: truncate (muni (fsval p)) i.+1 \in elimp_subdef1 P.
+    by apply/imfsetP; exists [` iP].
+  apply/bigfcupP; exists p; first by rewrite mem_index_enum.
+  exact/(truncations_witness xi).
+have S'size (s' : S') (p : P) :
+    {in val s', forall x, size (evalpmp x (muni (val p))) = size (evalpmp (proj1_sig (pick s')) (muni (val p)))}.
+  suff: {in val s' &, forall x y, (size (evalpmp x (muni (val p))) <= size (evalpmp y (muni (val p))))%N}.
+    move=> S'size x xS; apply/anti_leq/andP.
+    split; apply/S'size => //; exact/(proj2_sig (pick s')).
+  move=> x y xs ys; apply/leq_sizeP => i yi.
+  apply/eqP; rewrite -sgz_eq0 -(nth_const s' p y x ys xs).
+    by rewrite sgz_eq0 nth_default.
+  exact/(leq_trans (leq_pred _) yi).
+have R0: [char R] =i pred0 by apply/char_num.
+have Rn_char: [char mpoly_mpoly__canonical__GRing_IntegralDomain n R] =i pred0.
+  move=> a; rewrite !inE; apply/negP => /andP[] /prime_gt0.
+  by rewrite -mpolyC_nat mpolyC_eq0 pnatr_eq0 lt0n => /negP.
+have res_const (s' : S') (p q : P) (x y : 'rV_n):
+    x \in \val s' ->
+    y \in \val s' ->
+    forall i,
+    (i <= (size (evalpmp (val (pick s')) (muni (val p)))).-1)%N ->
+    (i <= (size (evalpmp (val (pick s')) (muni (val q)))).-1)%N ->
+      sgz (subresultant i (evalpmp x (muni (\val p))) (evalpmp x (muni (\val q)))) =
+      sgz (subresultant i (evalpmp y (muni (\val p))) (evalpmp y (muni (\val q)))).
+  move=> xs ys i; rewrite {1}leq_eqVlt => /orP[/eqP -> _|ip].
+    rewrite -{1}(S'size s' p x xs) -(S'size s' p y ys).
+    rewrite !subresultant_last !sgzX; congr (_ ^+ (_.-1 - _.-1)); last first.
+    - by rewrite (S'size s' p x xs) (S'size s' p y ys).
+    - by rewrite (S'size s' q x xs) (S'size s' q y ys).
+    rewrite !lead_coefE (S'size s' p y ys) -(S'size s' p x xs).
+    by apply/(nth_const s'); last exact/leqnn.
+  rewrite leq_eqVlt => /orP[/eqP ->|iq].
+    rewrite subresultantC [in RHS]subresultantC sgzM [in RHS]sgzM.
+    congr (_ * _).
+      congr (sgz ((-1) ^+ _)); congr 'C(_, 2).
+      congr ((_.-1 - _) + (_.-1 - _))%N.
+        by rewrite (S'size s' p x xs) (S'size s' p y ys).
+      by rewrite (S'size s' q x xs) (S'size s' q y ys).
+    rewrite -{1}(S'size s' q x xs) -(S'size s' q y ys).
+    rewrite !subresultant_last !sgzX; congr (_ ^+ (_.-1 - _.-1)); last first.
+    - by rewrite (S'size s' q x xs) (S'size s' q y ys).
+    - by rewrite (S'size s' p x xs) (S'size s' p y ys).
+    rewrite !lead_coefE (S'size s' q y ys) -(S'size s' q x xs).
+    by apply/(nth_const s'); last exact/leqnn. 
+  pose Q (r : P) := truncate (muni (\val r)) (size (evalpmp (val (pick s')) (muni (\val r)))).
+  wlog: p q ip iq / (size (Q q) <= size (Q p))%N => qp.
+    move/orP: (leq_total (size (Q q)) (size (Q p))).
+    case=> [/(qp p q ip iq)//|] /(qp q p iq ip) {}qp.
+    rewrite subresultantC [in RHS]subresultantC sgzM [in RHS]sgzM.
+    congr (_ * _); last exact: qp.
+    congr (sgz ((-1) ^+ _)); congr 'C(_, 2).
+    congr ((_.-1 - _) + (_.-1 - _))%N.
+      by rewrite (S'size s' p x xs) (S'size s' p y ys).
+    by rewrite (S'size s' q x xs) (S'size s' q y ys).
+  have QE r z : z \in val s' -> (evalpmp z (muni (val r))) = evalpmp z (Q r).
+    move=> zs.
+    by rewrite [RHS]map_poly_truncate/= -(S'size s' r z zs) truncate_size.
+  have Qsize r z : z \in val s' -> size (evalpmp z (Q r)) = size (Q r).
+    move=> zs; rewrite -(QE r z zs) (S'size s' r z zs).
+    apply/le_anti/andP; split; last first.
+      exact/(leq_trans (size_poly _ _))/geq_minl.
+    case: (posnP (size (evalpmp (sval (pick s')) (muni (\val r))))).
+      by move=> ->; apply/leq0n.
+    move=> s0; rewrite -(prednK s0); apply/gt_size.
+    rewrite coef_poly (prednK s0) leq_min leqnn/= size_poly.
+    apply/eqP => r0.
+    have/eqP {}r0 : evalpmp (sval (pick s')) (muni (fsval r)) == 0.
+      by rewrite -lead_coef_eq0 lead_coefE coef_map/= r0 meval0.
+    by move: s0; rewrite r0 size_poly0 ltnn.
+  (* N.B. Why does Coq stop responding if I do not give the location? *)
+  rewrite [X in subresultant i X](QE p x xs) [X in _ = sgz (subresultant i X _)](QE p y ys).
+  rewrite [X in subresultant i _ X](QE q x xs) [X in _ = sgz (subresultant i _ X)](QE q y ys).
+  have Q0 (r : P) z : z \in val s' ->
+      (i < (size (evalpmp (\val (pick s')) (muni (\val r)))).-1)%N ->
+      (lead_coef (Q r)).@[tnth (ngraph z)] != 0.
+    move=> zs ir.
+    rewrite lead_coefE -coef_map -(Qsize r z zs) -lead_coefE lead_coef_eq0.
+    rewrite -size_poly_eq0 (Qsize r z zs) -(Qsize r _ (proj2_sig (pick s'))) -(QE _ _ (proj2_sig (pick s'))).
+    by apply/eqP => s0; rewrite s0 in ir.
+  rewrite !subresultant_map_poly/=; first last.
+  - exact/Q0.
+  - exact/Q0.
+  - exact/Q0.
+  - exact/Q0.
+  case: (ltnP 1 (msize (subresultant i (Q p) (Q q)))) => [pq1|]; last first.
+    by move=> /msize1_polyC ->; rewrite !mevalC.
+  suff pqP: subresultant i (Q p) (Q q) \in elimp P.
+    exact: (S'p [` pqP] s' x y xs ys).
+  rewrite inE/= inE; apply/andP; split=> //.
+  rewrite 2!inE orbAC; apply/orP; right.
+  have pP: Q p \in elimp_subdef1 P.
+    apply/bigfcupP; exists p; first by rewrite mem_index_enum.
+    exact/truncations_witness.
+  apply/bigfcupP; exists [` pP]; first by rewrite mem_index_enum/=.
+  have qP: Q q \in elimp_subdef1 P.
+    apply/bigfcupP; exists q; first by rewrite mem_index_enum.
+    exact/truncations_witness.
+  apply/bigfcupP; exists [` qP]; first by rewrite mem_index_enum/=.
+  move: iq; rewrite -(S'size s' q x xs) (QE q x xs) (Qsize q x xs) => iq.
+  by apply/imfsetP => /=; exists (Ordinal iq).
+have res'_const (s' : S') (p : P) (x y : 'rV_n):
+    x \in \val s' ->
+    y \in \val s' ->
+    forall i,
+    (i <= (size (evalpmp (val (pick s')) (muni (val p)))).-2)%N ->
+      sgz (subresultant i (evalpmp x (muni (\val p))) (evalpmp x (muni (\val p)))^`()) =
+      sgz (subresultant i (evalpmp y (muni (\val p))) (evalpmp y (muni (\val p)))^`()).
+  move=> xs ys i.
+  rewrite leq_eqVlt => /orP[/eqP ->|ilt].
+    rewrite -{1}(S'size s' p x xs) -(S'size s' p y ys) -(size_deriv _ R0).
+    rewrite -[in RHS](size_deriv _ R0).
+    rewrite subresultantC subresultant_last (size_deriv _ R0) (S'size s' p x xs).
+    rewrite subresultantC subresultant_last (size_deriv _ R0) (S'size s' p y ys).
+    rewrite !sgzM; congr (_ * _).
+    case: (_.-1) => [|j]; first by rewrite !expr0.
+    rewrite succnK subSn; last by [].
+    rewrite subnn !expr1 !(lead_coef_deriv _ R0).
+    rewrite -mulr_natr -[in RHS]mulr_natr !lead_coefE !sgzM.
+    rewrite (S'size s' p y ys) -(S'size s' p x xs); congr (_ * _).
+    exact/(nth_const s').
+  set q := truncate (muni (\val p)) (size (evalpmp (val (pick s')) (muni (\val p)))).
+  rewrite -!/(evalpmp _ _).
+  have qE z : z \in val s' -> (evalpmp z (muni (val p))) = evalpmp z q.
+    move=> zs.
+    by rewrite [RHS]map_poly_truncate/= -(S'size s' p z zs) truncate_size.
+  have qsize z : z \in val s' -> size (evalpmp z q) = size q.
+    move=> zs; rewrite -(qE z zs) (S'size s' p z zs).
+    apply/le_anti/andP; split; last first.
+      exact/(leq_trans (size_poly _ _))/geq_minl.
+    case: (posnP (size (evalpmp (sval (pick s')) (muni (\val p))))) => [-> //|].
+    move=> s0; rewrite -(prednK s0); apply/gt_size.
+    rewrite coef_poly (prednK s0) leq_min leqnn/= size_poly.
+    apply/eqP => p0.
+    have/eqP {}p0 : evalpmp (sval (pick s')) (muni (fsval p)) == 0.
+      by rewrite -lead_coef_eq0 lead_coefE coef_map/= p0 meval0.
+    by move: s0; rewrite p0 size_poly0 ltnn.
+  rewrite (qE x xs) (qE y ys).
+  have iq: (i < (size q).-2)%N.
+    apply/(leq_trans ilt); rewrite (qE _ (proj2_sig (pick s'))).
+    exact/leq_predn/leq_predn/size_poly.
+  have sq: (2 < size q)%N by rewrite -2!ltn_predRL (leq_trans _ iq).
+  have q0 z : z \in val s' -> (lead_coef q).@[tnth (ngraph z)] != 0.
+    move=> zs; rewrite lead_coefE -coef_map.
+    rewrite -(qsize z zs) -lead_coefE lead_coef_eq0 -size_poly_eq0 qsize//.
+    by rewrite -leqn0 leqNgt (leq_trans _ sq).
+  rewrite !deriv_map !subresultant_map_poly/=; first last.
+  - rewrite lead_coef_deriv// mevalMn mulrn_eq0 -leqn0 leqNgt ltn_predRL.
+    by rewrite (leq_trans (leqnSn _) sq)/= q0.
+  - exact/q0.
+  - rewrite lead_coef_deriv// mevalMn mulrn_eq0 -leqn0 leqNgt ltn_predRL.
+    by rewrite (leq_trans (leqnSn _) sq)/= q0.
+  - exact/q0.
+  case: (ltnP 1 (msize (subresultant i q q^`()))) => [q1|]; last first.
+    by move=>/msize1_polyC ->; rewrite !mevalC.
+  suff qP: (subresultant i q q^`()) \in elimp P.
+    by move: (S'p [` qP] s' x _ xs ys) => /=.
+  rewrite inE/= inE; apply/andP; split=> //.
+  rewrite 2!inE -orbA; apply/orP; left.
+  have qP: q \in elimp_subdef1 P.
+    apply/bigfcupP; exists p; first by rewrite mem_index_enum.
+    exact/truncations_witness.
+  apply/bigfcupP; exists [` qP]; first by rewrite mem_index_enum/=.
+  by apply/imfsetP => /=; exists (Ordinal iq).
+have S'constR (s' : S') (p : P) :
+    {in val s', forall x, size (rootsR (evalpmp x (muni (val p)))) = size (rootsR (evalpmp (proj1_sig (pick s')) (muni (val p))))}.
+  move=> x xs; move: (proj2_sig (pick s')); set x' := proj1_sig (pick s') => x's.
+  have [p0|x'0] := eqVneq (evalpmp x' (muni (val p))) 0.
+    rewrite p0; suff ->: evalpmp x (muni (val p)) = 0 by [].
     by apply/eqP; rewrite -size_poly_eq0 (S'size s')// size_poly_eq0; apply/eqP.
-  have x0: (evalpmp x p) != 0.
+  have x0: (evalpmp x (muni (val p))) != 0.
     by rewrite -size_poly_eq0 (S'size s')// size_poly_eq0.
   apply/eqP; rewrite -eqz_nat -!cindexR_derivp; apply/eqP.
   rewrite -!pmv_subresultant; first last.
   - exact/lt_size_deriv.
   - exact/lt_size_deriv.
-  rewrite !size_deriv !(S'size s' x xs).
-  apply PMV.eq_pmv; rewrite all2E !size_cat !size_map eqxx/=.
+  rewrite !polyorder.size_deriv !(S'size s' p x xs).
+  apply/PMV.eq_pmv; rewrite all2E !size_cat !size_map eqxx/=.
   rewrite zip_cat ?size_map// !zip_map all_cat !all_map !all_rev.
   apply/andP; split; apply/allP => i; rewrite mem_iota => /=.
-    move=> _; case: (i.+1 == _); last by rewrite !mulr0n.
-    rewrite !mulr1n !lead_coefE (S'size s' _ xs) coefE [X in _ == _ X]coefE.
-    rewrite prednK ?size_poly_gt0// size_poly.
-    have [->|p0] := eqVneq (p`_(size (evalpmp x' p)).-1) 0.
-      by rewrite !meval0.
-    have [/eqP|pconst] := eqVneq (mdeg (mlead (p`_(size (evalpmp x' p)).-1))) 0.
-      rewrite -eqSS mlead_deg//= => /msize_poly1P [c] _ ->.
-      by rewrite !mevalC.
-    suff pelim: p`_(size (evalpmp x' p)).-1 \in elimp.
-      by apply/eqP/(S'p [` pelim] s') => //; apply/valP.
-    apply/imfsetP; exists p`_(size (evalpmp x' p)).-1 => //.
-    apply/andP; split; last by [].
-    apply/bigfcupP.
-    exists [` truncations_witness (leqnn (size (evalpmp x' p)))].
-      by rewrite mem_index_enum.
-    rewrite in_fset1U /= lead_coefE coef_truncate; apply/orP; left.
-    rewrite [size (truncate _ _)]size_poly_eq (minn_idPl (size_poly _ _))//.
-    by rewrite prednK ?size_poly_gt0// leqnn mulr1n.
-  rewrite add0n => ilt.
-  admit.
+    move=> _; apply/eqP; rewrite -mulr_natr -[in RHS]mulr_natr.
+    rewrite !sgzM (S'size s' p)//; congr (_ * _).
+    rewrite !lead_coefE (S'size s' p x' x's) -(S'size s' p x xs).
+    exact/(nth_const s').
+  rewrite add0n => /leq_predn; rewrite succnK => ilt; apply/eqP.
+  exact/(res'_const s').
+pose P' (s : S') := [fset muni (val p) | p : P & evalpmp (val (pick s)) (muni (val p)) != 0].
+have size_gcd_const (s' : S') : {in P' s',
+  forall p : {poly {mpoly R[n]}},
+  {in \val s' &,
+    forall x y : 'rV_n,
+    size (gcdp (evalpmp x p) (evalpmp x p)^`()) =
+    size (gcdp (evalpmp y p) (evalpmp y p)^`())}}.
+  move=> q /imfsetP[/=] p _ -> {q} x y xs ys.
+  have [px0|px0] := eqVneq (evalpmp x (muni (val p)))^`() 0.
+    rewrite px0; move/eqP: px0.
+    rewrite -size_poly_eq0 (size_deriv _ R0) (S'size s' p x xs) -(S'size s' p y ys) -(size_deriv _ R0) size_poly_eq0 => /eqP ->.
+    by rewrite !gcdp0 (S'size s' p x xs) (S'size s' p y ys).
+  move: (px0); rewrite -size_poly_eq0 (size_deriv _ R0) (S'size s' p x xs) -(S'size s' p y ys) -(size_deriv _ R0) size_poly_eq0 => py0.
+  rewrite -[LHS]prednK; last first.
+    rewrite ltnNge leqn0 size_poly_eq0 gcdp_eq0; apply/andP => -[_ p0].
+    by rewrite p0 in px0.
+  rewrite -[RHS]prednK; last first.
+    rewrite ltnNge leqn0 size_poly_eq0 gcdp_eq0; apply/andP => -[_ p0].
+    by rewrite p0 in py0.
+  apply/esym/eqP; rewrite eqSS.
+  move: (eqxx (size (gcdp (evalpmp x (muni (val p))) (evalpmp x (muni (val p)))^`())).-1).
+  rewrite gcdp_subresultant; first last.
+  - apply/leq_predn/leq_gcdpr/negP => p0.
+    by rewrite p0 in px0.
+  - apply/leq_predn/leq_gcdpl/eqP => p0.
+    by rewrite p0 deriv0 eqxx in px0.
+  - by [].
+  - by apply/eqP => p0; rewrite p0 deriv0 eqxx in px0. 
+  rewrite gcdp_subresultant; first last.
+  - rewrite (size_deriv _ R0) (S'size s' p y ys) -(S'size s' p x xs) -[X in (_ <= X.-1)%N](size_deriv _ R0).
+    apply/leq_predn/leq_gcdpr/negP => p0.
+    by rewrite p0 in px0.
+  - rewrite (S'size s' p y ys) -(S'size s' p x xs).
+    apply/leq_predn/leq_gcdpl/eqP => p0.
+    by rewrite p0 deriv0 eqxx in px0.
+  - by rewrite -size_poly_eq0 (size_deriv _ R0) (S'size s' p y ys) -(S'size s' p x xs) -(size_deriv _ R0) size_poly_eq0.
+  - rewrite -size_poly_eq0 (S'size s' p y ys) -(S'size s' p x xs) size_poly_eq0.
+    by apply/eqP => p0; rewrite p0 deriv0 eqxx in px0. 
+  move=> /andP[] /forallP si sl; apply/andP; split.
+    apply/forallP => /= i.
+    rewrite -sgz_eq0 (res'_const s' p y x ys xs).
+      by rewrite sgz_eq0; apply/si.
+    rewrite -[_ i]succnK; apply/leq_predn/(leq_trans (ltn_ord i))/leq_predn.
+    rewrite -(S'size s' p x xs); apply/leq_gcdpl/eqP => px0'.
+    by rewrite px0' deriv0 eqxx in px0.
+  rewrite -sgz_eq0 (res'_const s' p y x ys xs) ?sgz_eq0//.
+  apply/leq_predn; rewrite -(S'size s' p x xs) -(size_deriv _ R0).
+  exact/leq_gcdpr.
+have S'con (s' : S') : SAconnected (val s').
+  admit. (* s' connected *)
+have size_gcdpq_const (s' : S') : {in P' s' &,
+  forall p q : {poly {mpoly R[n]}},
+  {in \val s' &,
+    forall x y : 'rV_n,
+    size (gcdp (evalpmp x p) (evalpmp x q)) =
+    size (gcdp (evalpmp y p) (evalpmp y q))}}.
+  move=> q r /imfsetP[/=] p _ -> {q} /imfsetP[/=] q _ -> {r} x y xs ys.
+  have [p0|/negP p0] := eqVneq (evalpmp x (muni (val p))) 0.
+    rewrite {1}p0; move/eqP: p0.
+    rewrite -size_poly_eq0 (S'size s' p x xs) -(S'size s' p y ys) size_poly_eq0 => /eqP {1}->.
+    by rewrite !gcd0p (S'size s' q x xs) (S'size s' q y ys).
+  have [q0|/negP q0] := eqVneq (evalpmp x (muni (val q))) 0.
+    rewrite [X in gcdp _ X]q0; move/eqP: q0.
+    rewrite -size_poly_eq0 (S'size s' q x xs) -(S'size s' q y ys) size_poly_eq0 => /eqP {}q0.
+    rewrite [X in _ = (size (gcdp _ X))]q0.
+    by rewrite !gcdp0 (S'size s' p x xs) (S'size s' p y ys).
+  rewrite -[LHS]prednK; last first.
+    by rewrite ltnNge leqn0 size_poly_eq0 gcdp_eq0; apply/andP => -[_].
+  rewrite -[RHS]prednK; last first.
+    rewrite ltnNge leqn0 size_poly_eq0 gcdp_eq0; apply/andP => -[_].
+    by rewrite -size_poly_eq0 (S'size s' q y ys) -(S'size s' q x xs) size_poly_eq0.
+  apply/esym/eqP; rewrite eqSS.
+  move: (eqxx (size (gcdp (evalpmp x (muni (val p))) (evalpmp x (muni (val q))))).-1).
+  rewrite gcdp_subresultant; first last.
+  - exact/leq_predn/leq_gcdpr/negP.
+  - exact/leq_predn/leq_gcdpl/negP/p0.
+  - exact/negP.
+  - exact/negP/p0.
+rewrite gcdp_subresultant; first last.
+  - rewrite (S'size s' q y ys) -(S'size s' q x xs).
+    by apply/leq_predn/leq_gcdpr/negP.
+  - rewrite (S'size s' p y ys) -(S'size s' p x xs).
+    exact/leq_predn/leq_gcdpl/negP/p0.
+  - by rewrite -size_poly_eq0 (S'size s' q y ys) -(S'size s' q x xs) size_poly_eq0; apply/negP.
+  - by rewrite -size_poly_eq0 (S'size s' p y ys) -(S'size s' p x xs) size_poly_eq0; apply/negP/p0.
+  congr (_ && _).
+    apply/eq_forallb => /= i.
+    rewrite -sgz_eq0 -[RHS]sgz_eq0 (res_const s' p q x y xs ys)//.
+      rewrite -[_ i]succnK -(S'size s' p x xs).
+      exact/leq_predn/(leq_trans (ltn_ord i))/(leq_trans (leq_pred _))/leq_gcdpl/negP/p0.
+    rewrite -[_ i]succnK -(S'size s' q x xs).
+    exact/leq_predn/(leq_trans (ltn_ord i))/(leq_trans (leq_pred _))/leq_gcdpr/negP.
+  rewrite -sgz_eq0 -[in RHS]sgz_eq0 (res_const s' p q x y xs ys)//.
+    by apply/leq_predn; rewrite -(S'size s' p x xs); apply/leq_gcdpl/negP/p0.
+  by apply/leq_predn; rewrite -(S'size s' q x xs); apply/leq_gcdpr/negP.
+have S'const (s' : S') :
+     {in \val s',
+       forall x : 'rV_n,
+       size (rootsR (evalpmp x (\prod_(p : P' s') (val p)))) =
+       size (rootsR (evalpmp (sval (pick s')) (\prod_(p : P' s') (val p))))}.
+  case: (@evalpmp_prod_const _ (P' s') (val s')).
+  - exact/S'con.
+  - move=> q /imfsetP[/=] p _ -> {q} x y xs ys.
+    by rewrite !(S'size s').
+  - exact/size_gcd_const.
+  - exact/size_gcdpq_const.
+  - move=> _ rc x xs; exact/(rc x _ xs (proj2_sig (pick s'))).
+have size_gcdpm_const (s' : S') :
+     {in \val s',
+       forall x : 'rV_n,
+       size (gcdp (evalpmp x (\prod_(p : P' s') \val p)) (evalpmp x (\prod_(p : P' s') \val p))^`()) =
+       size (gcdp (evalpmp (val (pick s')) (\prod_(p : P' s') \val p)) (evalpmp (val (pick s')) (\prod_(p : P' s') \val p))^`())}.
+  case: (@evalpmp_prod_const _ (P' s') (val s')).
+  - exact/S'con.
+  - move=> q /imfsetP[/=] p _ -> {q} x y xs ys.
+    by rewrite !(S'size s').
+  - exact/size_gcd_const.
+  - exact/size_gcdpq_const.
+  - move=> cc _ x xs; exact/(cc x _ xs (proj2_sig (pick s'))).
 pose S := [fset SAset_cast n.+1 s' | s' in \big[fsetU/fset0]_(s' : S') partition_of_graphs_above (val s') (proj1_sig (roots2_on (S'const s')))].
 have {}Scast : [fset SAset_cast n s | s in S] = S'.
   rewrite /S 2!imfset_bigfcup.
@@ -1863,7 +1810,6 @@ have {}Scast : [fset SAset_cast n s | s in S] = S'.
   exists [` xS]; first by rewrite mem_index_enum.
   apply/imfsetP => /=.
   case: (roots2_on (S'const [` xS])) => /= r [] rsort _.
-  
   exists (SAset_cast n.+1 ((nth (SAset0 R _) (partition_of_graphs r) 0) :&: (x :*: SAsetT R 1))).
     apply/imfsetP; exists ((nth (SAset0 R _) (partition_of_graphs r) 0) :&: (x :*: SAsetT R 1)) => //=.
     apply/imfsetP => /=; exists (nth (SAset0 R _) (partition_of_graphs r) 0) => //.
@@ -1888,7 +1834,23 @@ split.
   move rE: (roots2_on (S'const s)) => rR.
   case: rR rE => /= r [] rsort rroot rE.
   exists (size r), (in_tuple r); split.
-    admit. (* continuity *)
+    move=> i.
+    apply(@subspace_eq_continuous _ _ 'M[R]_(1, 1) (fun x => \row__ (rootsR (evalpmp x (\prod_(p : P' s) val p)))`_i)); last first.
+      apply/mx_continuous => j k.
+      apply(@subspace_eq_continuous _ _ R (fun x => (rootsR (evalpmp x (\prod_(p : P' s) val p)))`_i)).
+        by move=> x; rewrite inE/= => xs; rewrite mxE.
+      apply/(rootsR_continuous (proj2_sig (pick s))); first last.
+      - exact/S'const.
+      - move=> x xs; exact/(size_gcdpm_const s).
+      move=> x xs; rewrite ![evalpmp _ _]rmorph_prod/= !size_prod/=.
+      + congr (_.+1 - _)%N; apply/eq_bigr; case=> /= q /imfsetP[/=] p _ -> _.
+        exact/S'size.
+      + by case=> /= q /imfsetP[/=] p p0 -> _.
+      + case=> /= q /imfsetP[/=] p p0 -> _.
+        by rewrite -size_poly_eq0 (S'size s p x xs) size_poly_eq0.
+    move=> x; rewrite inE/= => xs.
+    apply/eqP; rewrite rowPE forall_ord1 mxE (tnth_nth 0)/=.
+    by rewrite -(rroot x xs) (nth_map 0).
   split=> //.
   apply/fsetP => /= x; rewrite 2!inE/=.
   apply/andP/imfsetP.
@@ -1901,9 +1863,18 @@ split.
   apply/imfsetP; exists y => //=.
   apply/bigfcupP; exists s; first by rewrite mem_index_enum.
   by rewrite rE.
-move=> q; case=> /= s /imfsetP [/=] t /bigfcupP [] {}s _ + ->.
-case: (roots2_on (S'const s)) => /= [] r [] rsort rroot.
-Search partition_of_graphs_above.
+move=> p; case=> /= s /imfsetP [/=] t /bigfcupP [] {}s _ + ->.
+case: (roots2_on (S'const s)) => /= [] r [] rsort rroot tpart.
+have [p0|p0] := eqVneq (evalpmp (\val (pick s)) (muni (\val p))) 0.
+  move=> x y xt yt.
+have t0 x : x \in (SAset_cast n.+1 t) -> (val p).@[tnth (ngraph x)] = 0 ->
+    forall y, y \in (SAset_cast n.+1 t) -> (val p).@[tnth (ngraph y)] = 0.
+  move=> xt px0.
+  have: (\row_i x ord0 (lift ord_max i) \in rootsR (evalpmp x (\prod_(p : P' s) val p))).
+  Search tuple_of _.-1.
+
+pose proots : {SAset R^n.+1} := [set| nquantify n.+1 
+    subst_formula 
     
       
 
