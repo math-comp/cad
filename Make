@@ -1,6 +1,7 @@
 extra_ssr.v
 subresultant.v
 auxresults.v
+formula.v
 semialgebraic.v
 
 -R "." SemiAlgebraic
