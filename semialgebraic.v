@@ -31,10 +31,10 @@ From HB Require Import structures.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice path fintype div.
 From mathcomp Require Import tuple finfun generic_quotient bigop finset perm.
-From mathcomp Require Import ssralg poly polydiv ssrnum mxpoly binomial interval finalg complex.
+From mathcomp Require Import ssralg ssrint poly polydiv ssrnum mxpoly binomial interval finalg complex.
 From mathcomp Require Import zmodp mxpoly mpoly mxtens qe_rcf ordered_qelim realalg.
 From mathcomp Require Import matrix finmap order finset classical_sets topology.
-From mathcomp Require Import polyrcf.
+From mathcomp Require Import normedtype polyrcf polyorder.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -3777,6 +3777,110 @@ case: i => l u; rewrite in_itv; congr andb.
 by case: l => //=; case.
 Qed.
 
+(* N.B. `multiplicity` should be generalized to `ringType`. *)
+Lemma multiplicity_map (aR : fieldType) (rR : idomainType)
+    (f : {rmorphism aR -> rR}) (p : {poly aR}) (x : aR) :
+  \mu_(f x) (map_poly f p) = \mu_x p.
+Proof.
+have [->|p0] := eqVneq p 0; first by rewrite map_poly0 !mu0.
+rewrite {2}/multiplicity.
+case: (multiplicity_XsubC p x) => /= n [] q /implyP/(_ p0) qx pE.
+rewrite (negPf p0) pE rmorphM/= mu_mul; last first.
+  by rewrite -rmorphM/= -pE map_poly_eq0.
+rewrite rmorphXn/= rmorphB/= map_polyX map_polyC mu_exp mu_XsubC eqxx mul1n.
+rewrite muNroot//; move: qx; apply/contraNN; rewrite rootE.
+by rewrite horner_map fmorph_eq0.
+Qed.
+
+Lemma sgz_prod (R : realDomainType) (I : Type) (r : seq I) (P : pred I) (F : I -> R) :
+  sgz (\prod_(x <- r | P x) F x) = \prod_(x <- r | P x) sgz (F x).
+Proof.
+elim: r => [|x r IHr]; first by rewrite !big_nil sgz1.
+rewrite !big_cons; case: (P x) => //.
+by rewrite sgzM IHr.
+Qed.
+
+Lemma sgz_horner (F : rcfType) (p : {poly F}) (x : F) :
+  sgz p.[x] =
+    sgz (lead_coef p) * (x \notin rootsR p) *
+      (-1) ^+ \sum_(y <- rootsR p | x < y) (\mu_y p)%R.
+Proof.
+have [->|p0] := eqVneq p 0; first by rewrite horner0 lead_coef0 !sgz0 mul0r.
+move: (dec_roots_closedP (map_poly (real_complex _) p)).
+move=> /(congr1 (fun p => p.[x%:C%C])).
+rewrite -lead_coefE lead_coef_map/= hornerZ horner_prod horner_map/=.
+rewrite (bigID (fun x => complex.Im x == 0))/=.
+rewrite -big_filter; move rE: (seq.filter _ _) => r.
+have {}rE: perm_eq r [seq x%:C%C | x <- rootsR p].
+  apply/uniq_perm.
+  - by rewrite -rE; apply/filter_uniq/uniq_dec_roots.
+  - by rewrite map_inj_uniq ?uniq_roots//; apply/complexI.
+  move=> y.
+  rewrite -rE mem_filter mem_dec_roots/= map_poly_eq0 p0/=.
+  apply/idP/mapP; last first.
+    move=> [] z; rewrite in_rootsR rootE => /andP[] _ pz0 ->.
+    by rewrite eqxx rootE horner_map/= (inj_eq (@complexI _)).
+  move=> /andP[] /eqP y0.
+  rewrite [y]complexE y0 mulr0 addr0 rootE horner_map/=.
+  rewrite (inj_eq (@complexI _)) => py0.
+  by exists (complex.Re y) => //; rewrite in_rootsR p0.
+rewrite (perm_big _ rE)/= big_map. 
+under eq_bigr => y _.
+  rewrite -(map_polyX (real_complex F)) -map_polyC -rmorphB -rmorphXn.
+  rewrite horner_map multiplicity_map !hornerE.
+  over.
+rewrite -rmorph_prod.
+rewrite [\prod_(_ <- dec_roots _ | _) _](bigID (fun x => 0 < complex.Im x))/=.
+have im_conj: forall (z : F[i]), complex.Im z^* = - complex.Im z by case.
+have pE: map_poly Num.conj_op (map_poly (real_complex F) p) = (map_poly (real_complex F) p).
+  by rewrite -map_poly_comp; apply/eq_map_poly => z/=; rewrite oppr0.
+rewrite -[\prod_(_ <- _ | _ && ~~ _) _]big_filter.
+have iE: perm_eq [seq i <- dec_roots (map_poly (real_complex F) p) | complex.Im i != 0 & ~~ (0 < complex.Im i)] [seq x^* | x <- [seq i <- dec_roots (map_poly (real_complex F) p) | complex.Im i != 0 & (0 < complex.Im i)]].
+  apply/uniq_perm.
+  - exact/filter_uniq/uniq_dec_roots.
+  - rewrite map_inj_uniq; last exact/(inv_inj conjCK).
+    exact/filter_uniq/uniq_dec_roots.
+  move=> y.
+  rewrite -{2}[y]conjCK mem_map; last exact/(inv_inj conjCK).
+  rewrite !mem_filter/= im_conj oppr_eq0 oppr_gt0 -leNgt.
+  case/boolP: (_ == _) => [//|] /negPf yi0 /=.
+  rewrite le_eqVlt yi0/= !mem_dec_roots.
+  by rewrite -(fmorph_root Num.conj_op) pE.
+rewrite (perm_big _ iE) big_map big_filter/= -big_split/=.
+under [\prod_(_ <- _ | _ && _) _]eq_bigr => y _.
+  rewrite -hornerM -{2}pE multiplicity_map -exprMn horner_exp !hornerE.
+  rewrite -{2}conjc_real -rmorphB/= -normCK -exprM -(RRe_real (normr_real _)).
+  rewrite -rmorphXn/=.
+  over.
+rewrite -rmorph_prod/= -!rmorphM/= => /complexI ->; rewrite !sgzM.
+rewrite mulrA -[RHS]mulrA -[RHS]mulr1; congr (_ * _ * _); last first.
+  apply/gtr0_sgz/prodr_gt0 => y /andP[] y0 _.
+  apply/exprn_gt0; rewrite -ltcR (@normr_gt0 _ F[i]) subr_eq0.
+  apply/eqP => /(congr1 (@complex.Im _))/=.
+  by move: y0 => /[swap] <-; rewrite eqxx.
+case /boolP: (x \in rootsR p) => xr /=.
+  apply/eqP; rewrite mul0r sgz_eq0 prodf_seq_eq0.
+  apply/hasP; exists x => //=.
+  rewrite subrr expr0n mu_eq0//.
+  by move: xr; rewrite in_rootsR => /andP[_] ->.
+rewrite mul1r sgz_prod.
+under eq_bigr do rewrite sgzX.
+rewrite (bigID (fun y => x < y))/=.
+under eq_bigr => y xy.
+  have ->: sgz (x - y) = -1 by apply/ltr0_sgz; rewrite subr_lt0.
+  over.
+rewrite prodrXr -[RHS]mulr1; congr (_ * _). 
+rewrite big_mkcond big_seq -big_mkcondl/=.
+under eq_bigr => y /andP[] yx yr.
+  have ->: sgz (x - y) = 1.
+    move: yx; rewrite -leNgt le_eqVlt => /orP[/eqP|] yx.
+      by move/negP: xr; rewrite -yx.
+    by apply/gtr0_sgz; rewrite subr_gt0.
+  rewrite expr1n.
+  over.
+by rewrite big_const_seq iter_mulr_1 expr1n.
+Qed.
+
 Lemma SAset_nf_1Uitv (F : rcfType) (s : {SAset F^1}) :
   {r | s = \big[@SAsetU F 1/SAset0 F 1]_(i <- r) SAset_itv i}.
 Proof.
@@ -3808,6 +3912,34 @@ have has_nfI (T : Type) (r : seq T) f :
   apply/eqP/SAsetP => x.
   by rewrite inSAsetT inSAset_itv in_itv.
 case: (SAset_nf s) => + -> => nf.
+have mnm0 (m : 'X_{1.. 1}): [multinom [tuple m (widen_ord (leqnSn 0) i)  | i < 0]] == 0%MM.
+  by apply/(@eqP (_.-tuple _))/eq_from_tnth; case.
+have coeffp1 (p : {mpoly F[1]}) (m : 'X_{1.. 1}) :
+    p@_m = (map_poly (mcoeff 0) (muni p))`_(m ord0).
+  rewrite coef_map/= muniE coef_sum.
+  under eq_bigr => n _.
+    rewrite coefZ coefXn mulr_natr mulrb.
+    have ->: (m ord0 == n ord_max) = (n == m).
+      rewrite [RHS]eq_sym; case: m => m/=; case: n => n/=.
+      apply/eqP/eqP => [mn|->]; last first.
+        by congr (_ _); apply/val_inj.
+      suff ->: m = n by [].
+      apply/eq_from_tnth; case; case=> [|//] lt01.
+      have {1}->: (Ordinal lt01) = ord0 by apply/val_inj.
+      by rewrite [LHS]mn; congr tnth; apply/val_inj.
+    over.
+  rewrite -big_mkcond/= big_pred1_seq ?msupp_uniq//.
+  case/boolP: (m \in _) => mp; first by rewrite mcoeffZ mcoeffX/= mnm0 mulr1.
+  by apply/eqP; rewrite mcoeff0 mcoeff_eq0.
+have mevalp1 (p : {mpoly F[1]}) (x : 'I_1 -> F) :
+    p.@[x] = (map_poly (mcoeff 0) (muni p)).[x ord0].
+  rewrite -[x 0](mpolyCK 0) horner_map/= muniE horner_sum.
+  rewrite raddf_sum {1}(mpolyE p) raddf_sum/=.
+  apply/eq_bigr => m _.
+  rewrite mevalZ mevalX big_ord_recl big_ord0 mulr1.
+  rewrite hornerZ hornerXn -rmorphXn/= [in RHS]mulrC mcoeffCM.
+  rewrite mcoeffZ mcoeffX mnm0 mulr1 mulrC.
+  by congr (_ ^+ (m _) * _); apply/val_inj.
 apply/has_nfU => -[/=] p r; apply/has_nfI2.
   have [->|p0] := eqVneq p 0.
     exists [:: `]-oo, +oo[].
@@ -3824,38 +3956,84 @@ apply/has_nfU => -[/=] p r; apply/has_nfI2.
       by apply/idP/eqP => [/le_anti //| ->]; rewrite lexx.
     over.
   rewrite has_pred1 in_rootsR.
-  have -> /=: map_poly (mcoeff 0) (muni p) != 0.
-    move: p0; apply/contraNN => /eqP/polyP p0.
-    apply/eqP/mpolyP => m; rewrite mcoeff0; apply/eqP.
-    move: (p0 (m ord0)); rewrite coef_map/= coef0 muniE coef_sum.
-    under eq_bigr => n _.
-      rewrite coefZ coefXn mulr_natr mulrb.
-      have ->: (m ord0 == n ord_max) = (n == m).
-        rewrite [RHS]eq_sym; case: m => m/=; case: n => n/=.
-        apply/eqP/eqP => [mn|->]; last first.
-          by congr (_ _); apply/val_inj.
-        suff ->: m = n by [].
-        apply/eq_from_tnth; case; case=> [|//] lt01.
-        have {1}->: (Ordinal lt01) = ord0 by apply/val_inj.
-        by rewrite [LHS]mn; congr tnth; apply/val_inj.
-      over.
-    rewrite -big_mkcond/= big_pred1_seq ?msupp_uniq//.
-    case/boolP: (m \in _) => mp; last by rewrite mcoeff_eq0 mp.
-    rewrite mcoeffZ mcoeffX/=.
-    have ->: [multinom [tuple m (widen_ord (leqnSn 0) i)  | i < 0]] == 0%MM.
-      by apply/(@eqP (_.-tuple _))/eq_from_tnth; case.
-    by rewrite mulr1 => /eqP.
-  rewrite rootE -[x 0 0](mpolyCK 0) horner_map/= muniE horner_sum.
-  rewrite raddf_sum {1}(mpolyE p) raddf_sum/=; congr (_ == 0).
-  apply/eq_bigr => m _.
-  rewrite mevalZ mevalX big_ord_recl big_ord0 mulr1.
-  rewrite hornerZ hornerXn -rmorphXn/= [in RHS]mulrC mcoeffCM.
-  rewrite mcoeffZ mcoeffX.
-  have ->: [multinom [tuple m (widen_ord (leqnSn 0) i)  | i < 0]] == 0%MM.
-    by apply/(@eqP (_.-tuple _))/eq_from_tnth; case.
-  by rewrite mulr1 mulrC; congr (_ ^+ (m _) * _); apply/val_inj.
+  suff -> /=: map_poly (mcoeff 0) (muni p) != 0.
+    by rewrite rootE mevalp1.
+  move: p0; apply/contraNN => /eqP/polyP p0.
+  by apply/eqP/mpolyP => m; rewrite mcoeff0 coeffp1 p0 coef0.
 apply/has_nfI => {nf r}p.
+pose q := map_poly (mcoeff 0) (muni p).
+move rE: (rootsR q) => r.
+case: r rE => [|x r] rE.
+  case/boolP: (0 < lead_coef q) => [|/negP] p0.
+    exists [:: `]-oo, +oo[]; rewrite big_seq1.
+    apply/eqP/SAsetP => x.
+    rewrite inSApreimset inSAset_pos SAmpolyE mxE inSAset_itv in_itv/=.
+    by rewrite -sgz_gt0 mevalp1 sgz_horner rE/= big_nil expr0 !mulr1 sgz_gt0.
+  exists [::]; rewrite big_nil.
+  apply/eqP; rewrite -subset0; apply/SAset_subP => x.
+  rewrite inSApreimset inSAset_pos SAmpolyE mxE inSAset0.
+  by rewrite -sgz_gt0 mevalp1 sgz_horner rE/= big_nil expr0 !mulr1 sgz_gt0.
+move id_natE: (@id nat) => id_nat.
+exists (
+(if (lead_coef q < 0) (+) odd (size q) then
+    cons `]-oo, x[ else id)
+    ((if 0 < lead_coef q then
+      cons `]last x r, +oo[ else id)
+      [seq `](x :: r)`_i, r`_i[ | i <- iota 0 (id_nat (size r).+1) & sgz q.[((x :: r)`_i + r`_i) / 2] == 1])).
+apply/eqP/SAsetP => y.
+rewrite inSApreimset inSAset_pos SAmpolyE mxE inSAset_bigcup.
+move: rE; have [->|q0 rE] := eqVneq q 0.
+  by rewrite rootsR0.
+rewrite mevalp1 -/q -sgz_gt0 sgz_horner in_rootsR q0/=.
+have /(pairwiseP 0) xr_sort: pairwise <%O (x :: r).
+  by rewrite -lt_sorted_pairwise -rE; exact/sorted_roots.
+case /boolP: (root q (y 0 0)) => qy0 /=.
+  rewrite mulr0 mul0r ltxx; apply/esym/negP => /hasP[/=] I IE yI.
+  have: y 0 0 \in x :: r by rewrite -rE in_rootsR q0.
+  move=> /(nthP 0)[/=] i ir yE.
+  move: yI; have [->|Ix] := eqVneq I `]-oo, x[.
+    rewrite inSAset_itv in_itv/= -yE.
+    case: (posnP i) => [->|i0]; first by rewrite ltxx.
+    rewrite ltNge ltW//.
+    move: xr_sort => /(_ 0 i)/=.
+    by rewrite inE ltn0Sn inE ir; apply.
+  move: IE; rewrite if_arg 2!fun_if in_cons (negPf Ix)/= if_same.
+  have [-> _|Ir] := eqVneq I `]last x r, +oo[.
+    rewrite inSAset_itv in_itv/= andbT (last_nth 0) -yE.
+    move: ir; rewrite ltnS leq_eqVlt => /orP[/eqP ->|ir].
+      by rewrite ltxx.
+    rewrite ltNge ltW//.
+    move: xr_sort => /(_ i (size r))/=.
+    by rewrite inE ltnS ltnW// inE leqnn ir; apply.
+  rewrite if_arg 2!fun_if in_cons (negPf Ir)/= if_same.
+  move=> /mapP[/=] n; rewrite mem_filter mem_iota -id_natE/=.
+  move=> /andP[_] nr ->.
+  rewrite inSAset_itv in_itv/= -yE => /andP[] nlt ilt.
+  case: (ltnP i n) => [iltn|].
+    move: xr_sort => /(_ i n).
+    rewrite inE ir inE nr iltn => /(_ isT isT isT).
+    by rewrite ltNge ltW.
+  rewrite leq_eqVlt => /orP[/eqP nE|].
+    by rewrite nE ltxx in nlt.
+  rewrite leq_eqVlt => /orP[/eqP nE|ni].
+    by rewrite -nE ltxx in ilt.
+  move: xr_sort => /(_ n.+1 i).
+  rewrite inE (ltn_trans ni ir) inE ir ni => /(_ isT isT isT).
+  by rewrite ltNge ltW.
+rewrite mulr1.
 
+
+
+    rewrite 
+
+
+
+ig_mkcond big_seq -big_mkcondl/=.
+under eq_bigl => z.
+  rewrite in_rootsR.
+
+case/boolP: (y 0 0 < x) => yx.
+  Search has.
   
   
 
