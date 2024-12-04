@@ -696,7 +696,6 @@ Lemma evalpmp_prod_const n (P : {fset {poly {mpoly R[n]}}}) (s : {SAset R^n}) :
     size (rootsR (evalpmp x (\prod_(p : P) (val p))))
     = size (rootsR (evalpmp y (\prod_(p : P) (val p))))}.
 Proof.
-admit. Admitted. (*
 move=> Scon psize proots pqsize.
 apply/all_and2 => x; apply/all_and2 => y; apply/all_and2 => xs; apply/all_and2.
 case: n P s Scon psize proots pqsize x y xs
@@ -1299,7 +1298,7 @@ rewrite hxyE.
 have ->: liftxR (hyx u) = gyx (liftyR u).
   by apply/val_inj; rewrite liftxRE hyxE.
 by rewrite gyxK liftyRE.
-Qed.*)
+Qed.
 
 Definition elimp_subdef1 n (P : {fset {mpoly R[n.+1]}}) :=
   \big[fsetU/fset0]_(p : P) truncations (muni (val p)).
