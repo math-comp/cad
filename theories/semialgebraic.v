@@ -29,7 +29,8 @@ Require Import ZArith Init.
 
 From HB Require Import structures.
 Require Import mathcomp.ssreflect.ssreflect.
-From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice path.
+From mathcomp Require Import ssrfun ssrbool eqtype ssrnat seq choice.
+From mathcomp.ssreflect Require Import path.
 From mathcomp Require Import fintype div tuple finfun generic_quotient bigop.
 From mathcomp Require Import finset perm ssralg ssrint poly polydiv ssrnum.
 From mathcomp Require Import mxpoly binomial interval finalg complex zmodp.

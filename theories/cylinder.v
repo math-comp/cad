@@ -1,6 +1,7 @@
 From mathcomp Require Import freeg ssreflect ssrfun ssrbool eqtype choice seq.
 From mathcomp Require Import ssrnat prime binomial bigop tuple order fintype.
-From mathcomp Require Import finfun path ssralg ssrnum ssrint poly matrix.
+From mathcomp Require Import finfun ssralg ssrnum ssrint poly matrix.
+From mathcomp.ssreflect Require Import path.
 From mathcomp Require Import finmap mpoly complex interval.
 From mathcomp Require Import polydiv polyrcf polyorder qe_rcf qe_rcf_th.
 

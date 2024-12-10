@@ -1,0 +1,112 @@
+fullname: Cylindical Algbebraic Decomposition
+shortname: cad
+organization: math-comp
+opam_name: coq-mathcomp-cad
+community: false
+action: true
+coqdoc: false
+
+synopsis: >-
+  Formal Proof of Cylindrical Algebraic Decomposition
+description: |-
+  This library contains a formal proof of Collins' Cylindical
+  Aglebraic Decomposition, using the Mathematical Components Library.
+
+publications:
+- pub_url: https://hal.inria.fr/hal-01643919
+  pub_title: "A Constructive Formalisation of Semi-algebraic Sets and Functions"
+  pub_doi: 10.1145/3167099
+
+authors:
+- name: Cyril Cohen
+  initial: true
+- name: Boris Djalal
+  initial: initial
+- name: Quentin Vermande
+  initial: initial
+
+opam-file-maintainer: Cyril Cohen <cyril.cohen@inria.fr>
+
+opam-file-version: dev
+
+license:
+  fullname: GNU Lesser General Public License v3.0
+  identifier: LGPL-3.0-or-later
+  file: LICENSE
+
+supported_coq_versions:
+  text: Coq 8.18 or later
+  opam: '{>= "8.18"}'
+
+tested_coq_opam_versions:
+- version: '2.2.0-coq-8.18'
+  repo: 'mathcomp/mathcomp'
+- version: '2.2.0-coq-8.19'
+  repo: 'mathcomp/mathcomp'
+- version: '2.2.0-coq-8.20'
+  repo: 'mathcomp/mathcomp'
+
+dependencies:
+- opam:
+    name: coq-hierarchy-builder
+  description: |-
+    [Hierarchy Builder >= 1.4.0 ](https://github.com/math-comp/hierarchy-builder)
+- opam:
+    name: coq-mathcomp-ssreflect
+    version: '{= "2.2.0" }'
+  description: |-
+    [MathComp ssreflect 2.2](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-algebra
+  description: |-
+    [MathComp algebra](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-fingroup
+  description: |-
+    [MathComp fingroup](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-solvable
+  description: |-
+    [MathComp solvable](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-field
+  description: |-
+    [MathComp field](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-bigenough
+    version: '{>= "1.0.1"}'
+  description: |-
+    [MathComp bigenough 1.0.1 or later](https://github.com/math-comp/bigenough)
+- opam:
+    name: coq-mathcomp-finmap
+    version: '{>= "1.0.1"}'
+  description: |-
+    [MathComp bigenough 1.0.1 or later](https://github.com/math-comp/bigenough)
+- opam:
+    name: coq-mathcomp-multinomials
+    version: '{>= "2.2.0"}'
+  description: |-
+    [MathComp multinomials 2.2.0 or later](https://github.com/math-comp/multninomials)
+- opam:
+    name: coq-mathcomp-real-closed
+    version: '{>= "2.0.1"}'
+  description: |-
+    [MathComp real-closed 2.0.1 or later](https://github.com/math-comp/real-closed)
+- opam:
+    name: coq-mathcomp-classical
+    version: '{>= "1.1.0"}'
+  description: |-
+    [MathComp classical 1.1.0 or later](https://github.com/math-comp/analysis)
+- opam:
+    name: coq-mathcomp-analysis
+    version: '{>= "1.1.0"}'
+  description: |-
+    [MathComp analysis 1.1.0 or later](https://github.com/math-comp/analysis)
+
+
+namespace: SemiAlgebraic
+
+keywords:
+- name: CAD
+
+documentation: |-

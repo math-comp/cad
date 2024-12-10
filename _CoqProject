@@ -1,12 +1,12 @@
-extra_ssr.v
-subresultant.v
-auxresults.v
-formula.v
-continuity_roots.v
-semialgebraic.v
-topology.v
-cylinder.v
+theories/extra_ssr.v
+theories/subresultant.v
+theories/auxresults.v
+theories/formula.v
+theories/continuity_roots.v
+theories/semialgebraic.v
+theories/topology.v
+theories/cylinder.v
 
--R "." SemiAlgebraic
+-R theories SemiAlgebraic
 
 

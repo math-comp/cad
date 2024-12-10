@@ -1,7 +1,8 @@
 (* (c) Copyright Microsoft Corporation and Inria. All rights reserved. *)
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq choice.
-From mathcomp Require Import order fintype generic_quotient path ssrint.
+From mathcomp Require Import order fintype generic_quotient ssrint.
+From mathcomp.ssreflect Require Import path.
 From mathcomp Require Import div tuple bigop ssralg ssrnum matrix poly polydiv.
 From mathcomp Require Import interval finmap mpoly polyorder polyrcf normedtype.
 From mathcomp Require Import complex classical_sets topology qe_rcf_th.
