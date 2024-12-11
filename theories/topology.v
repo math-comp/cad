@@ -1,5 +1,8 @@
-From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice seq ssrnat bigop fintype finfun order ssralg ssrnum poly polydiv complex polyorder.
-From mathcomp Require Import matrix topology normedtype classical_sets interval.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice seq.
+From mathcomp.ssreflect Require Import path.
+From mathcomp Require Import ssrnat bigop fintype finfun order ssralg ssrnum.
+From mathcomp Require Import poly polydiv complex polyorder matrix topology.
+From mathcomp Require Import  normedtype classical_sets interval.
 Require Import auxresults semialgebraic.
 
 Set Implicit Arguments.
@@ -494,7 +497,8 @@ case: m => [|m].
   suff ->: y = x by rewrite inE.
   by apply/rowP; case.
 case: n => [|n].
-  apply/(eq_continuous (f:=fun=> 0)); last exact/cst_continuous.
+  suff /eq_continuous : (fun=> 0) =1 SAselect R 0 m.+1 s.
+    by apply; exact/cst_continuous.
   move=> x; rewrite SAselectE; apply/rowP => i.
   by rewrite !mxE nth_default// size_ngraph.
 apply/continuousP => /= a; rewrite -open_subspace_setT => /open_subspace_ballP/= aopen.
