@@ -32,16 +32,15 @@ Section CylindricalDecomposition.
 Variables (R : rcfType).
 
 Fixpoint isCylindricalDecomposition n (S : {fset {SAset R^n}}) :=
-  SAset_partition S
-  /\ match n with | 0 => Logic.True | n.+1 =>
-    let S' := [fset SAset_cast n s | s in S] in
-    isCylindricalDecomposition S'
-    /\ forall (s' : S'),
-    exists m, exists xi : m.-tuple {SAfun R^n -> R^1},
-      (forall i, {within [set` val s'], continuous (tnth xi i)})
-      /\ sorted (@SAfun_lt _ _) xi
-      /\ [fset s in S | SAset_cast n s == val s']
-         = [fset SAset_cast _ x | x in partition_of_graphs_above (val s') xi]
+  SAset_partition S /\
+  match n with | 0 => Logic.True | k.+1 =>
+  let S' := [fset SAset_cast k s | s in S] in
+  isCylindricalDecomposition S' /\
+  forall (s' : S'), exists m (xi : m.-tuple {SAfun R^k -> R^1}),
+    (forall i, {within [set` val s'], continuous (tnth xi i)}) /\
+    sorted (@SAfun_lt _ _) xi /\
+    [fset s in S | SAset_cast k s == val s']
+      = [fset SAset_cast _ x | x in partition_of_graphs_above (val s') xi]
   end.
 
 Local Notation isCD := isCylindricalDecomposition.
@@ -64,7 +63,7 @@ Qed.
 Definition poly_invariant n (p : {mpoly R[n]}) (s : {SAset R^n}) :=
   {in s &,
     forall x y,
-      (sgz (meval (tnth (ngraph x)) p) = sgz (meval (tnth (ngraph y)) p))%R}.
+      sgz p.@[tnth (ngraph x)] = sgz p.@[tnth (ngraph y)]}.
 
 Definition poly_adapted n p (S : {fset {SAset R^n}}) :=
   forall s : S, poly_invariant p (val s).
@@ -2424,3 +2423,30 @@ by rewrite subr_gt0.
 Qed.
   
 End CylindricalDecomposition.
+
+Definition sat_mpoly_system (R : rcfType) (n : nat) (P : {fset {mpoly R[n]}}) :=
+  [exists s : sample_cylindrical_decomposition P,
+    [forall p : P, 0 < (val p).@[val s ord0]]].
+
+Lemma sat_mpoly_systemP (R : rcfType) (n : nat) (P : {fset {mpoly R[n]}}) :
+  reflect (exists x : n.-tuple R, forall p : P, 0 < (val p).@[tnth x])
+    (sat_mpoly_system P).
+Proof.
+apply/(iffP existsP) => -[] x.
+  move=> /forallP xP.
+  exists (mktuple (val x ord0)) => p.
+  move: xP => /(_ p); congr (0 < _).
+  by apply: meval_eq => i; rewrite tnth_mktuple.
+move=> xP.
+have [S] := (sample_cylindrical_decompositionP P).
+move=> [] /S'part /andP[] _ /eqP ST.
+have: ((\row_i tnth x i) \in SAsetT R n) by rewrite inSAsetT.
+rewrite -{}ST; rewrite inSAset_bigcup => /hasP[]/= s _ xs [] SP /(_ s)[] y ys.
+exists y; apply/forallP => p.
+move: SP => /(_ p s _ _ xs ys) xyp.
+have /meval_eq -> : fsval y ord0 =1 tnth (ngraph (fsval y)).
+  by move=> i; rewrite (@tnth_nth _ _ 0) nth_ngraph.
+rewrite -sgz_gt0 -{}xyp sgz_gt0.
+move: xP => /(_ p); congr (0 < _).
+by apply: meval_eq => i; rewrite [RHS](@tnth_nth _ _ 0) nth_ngraph mxE.
+Qed.
